@@ -221,13 +221,22 @@ namespace SimpleDroneGCS.Controls
                 StartPoint = new Point(0.5, 0),    // Горизонт (светлый)
                 EndPoint = new Point(0.5, 1)       // Низ градиента (тёмный)
             };
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(140, 100, 60), 0.0));   // Светло-коричневый у горизонта
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(115, 82, 48), 0.15));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(92, 66, 38), 0.3));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(70, 50, 28), 0.5));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(50, 36, 20), 0.7));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(35, 25, 14), 0.85));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(22, 17, 10), 1.0));    // Тёмно-коричневый
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(252, 238, 190), 0.0));  // Почти свет
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(250, 235, 185), 0.08));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(247, 232, 180), 0.16));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(244, 228, 175), 0.24));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(240, 223, 170), 0.32));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(235, 218, 165), 0.40));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(230, 212, 160), 0.48));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(224, 205, 155), 0.56));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(218, 198, 150), 0.64));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(212, 192, 145), 0.72));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(206, 186, 140), 0.80));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(200, 180, 135), 0.88));
+            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(195, 175, 130), 1.0));  // Очень мягкий низ
+
+
+
 
             var groundGradientRect = new Rectangle
             {
