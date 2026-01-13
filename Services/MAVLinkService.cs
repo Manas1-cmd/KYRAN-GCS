@@ -8,7 +8,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
+using static GMap.NET.Entity.OpenStreetMapRouteEntity;
 using static MAVLink;
+using System.Net;
+using System.Net.Sockets;
 
 namespace SimpleDroneGCS.Services
 {
@@ -19,6 +22,13 @@ namespace SimpleDroneGCS.Services
     public class MAVLinkService
     {
         private SerialPort _serialPort;
+        // === UDP ПОЛЯ ===
+        private System.Net.Sockets.UdpClient _udpClient;
+        private System.Net.IPEndPoint _remoteEndPoint;
+        private bool _isUdpMode;
+        private CancellationTokenSource _udpCts;
+        private bool _udpWaitingForFirstPacket; // Флаг ожидания первого пакета
+        // ===========================
         private CancellationTokenSource _cts;
         private MavlinkParse _parser;
         private byte _packetSequence = 0;
@@ -47,6 +57,12 @@ namespace SimpleDroneGCS.Services
         public Telemetry CurrentTelemetry { get; private set; }
         public DroneStatus DroneStatus { get; private set; }
 
+        // HOME позиция от дрона
+        public double? HomeLat { get; private set; }
+        public double? HomeLon { get; private set; }
+        public double? HomeAlt { get; private set; }
+        public bool HasHomePosition => HomeLat.HasValue && HomeLon.HasValue;
+
         // События
         public event EventHandler<Telemetry> TelemetryUpdated;
         public event EventHandler<string> ConnectionStatusChanged;
@@ -74,6 +90,173 @@ namespace SimpleDroneGCS.Services
             DroneStatus = new DroneStatus();
             _parser = new MavlinkParse();
         }
+
+        #region UDP CONNECTION
+
+        /// <summary>
+        /// UDP подключение (режим сервер - слушаем порт)
+        /// </summary>
+        public bool ConnectUDP(string localIp, int localPort)
+        {
+            try
+            {
+                Disconnect();
+
+                var localEndPoint = new IPEndPoint(IPAddress.Parse(localIp), localPort);
+                _udpClient = new UdpClient(localEndPoint);
+                _isUdpMode = true;
+                _udpWaitingForFirstPacket = true; // Ждём первый пакет
+                IsConnected = true;
+                _connectionStartTime = DateTime.Now;
+                DroneStatus.IsConnected = true;
+                DroneStatus.ConnectionPort = $"UDP:{localIp}:{localPort}";
+
+                _udpCts = new CancellationTokenSource();
+                Task.Run(() => ReadLoopUDP(_udpCts.Token));
+
+                StartHeartbeatTimer();
+                StartTelemetryRequestTimer();
+
+                // Таймаут проверки - если за 10 сек нет ответа
+                StartConnectionTimeoutCheck();
+
+                ConnectionStatusChanged?.Invoke(this, "UDP: Ожидание дрона...");
+                ConnectionStatusChanged_Bool?.Invoke(this, true);
+
+                Debug.WriteLine($"[UDP] ✅ Server mode: listening on {localIp}:{localPort}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UDP] ❌ Error: {ex.Message}");
+                ErrorOccurred?.Invoke(this, $"UDP ошибка: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// UDP подключение с указанием целевого хоста (режим клиента)
+        /// </summary>
+        public bool ConnectUDP(string localIp, int localPort, string hostIp, int hostPort)
+        {
+            try
+            {
+                Disconnect();
+
+                var localEndPoint = new IPEndPoint(IPAddress.Parse(localIp), localPort);
+                _udpClient = new UdpClient(localEndPoint);
+                _remoteEndPoint = new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
+                _isUdpMode = true;
+                _udpWaitingForFirstPacket = false; // Уже знаем куда слать
+                IsConnected = true;
+                _connectionStartTime = DateTime.Now;
+                DroneStatus.IsConnected = true;
+                DroneStatus.ConnectionPort = $"UDP:{hostIp}:{hostPort}";
+
+                _udpCts = new CancellationTokenSource();
+                Task.Run(() => ReadLoopUDP(_udpCts.Token));
+
+                StartHeartbeatTimer();
+                StartTelemetryRequestTimer();
+
+                // Таймаут проверки
+                StartConnectionTimeoutCheck();
+
+                ConnectionStatusChanged?.Invoke(this, "Подключено (UDP)");
+                ConnectionStatusChanged_Bool?.Invoke(this, true);
+
+                Debug.WriteLine($"[UDP] ✅ Client mode: {hostIp}:{hostPort}, local: {localIp}:{localPort}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UDP] ❌ Error: {ex.Message}");
+                ErrorOccurred?.Invoke(this, $"UDP ошибка: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Таймаут проверки подключения
+        /// </summary>
+        private void StartConnectionTimeoutCheck()
+        {
+            Task.Delay(10000).ContinueWith(_ =>
+            {
+                if (IsConnected && DroneStatus.LastHeartbeat == DateTime.MinValue)
+                {
+                    System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        Debug.WriteLine("[UDP] ⚠️ Нет ответа от дрона за 10 секунд");
+                        ErrorOccurred?.Invoke(this, "Нет ответа от дрона. Проверьте IP/порт.");
+                    });
+                }
+            });
+        }
+
+        /// <summary>
+        /// Цикл чтения UDP
+        /// </summary>
+        private async Task ReadLoopUDP(CancellationToken ct)
+        {
+            Debug.WriteLine("[UDP] ReadLoop started");
+
+            while (!ct.IsCancellationRequested && _udpClient != null)
+            {
+                try
+                {
+                    var result = await _udpClient.ReceiveAsync(ct);
+
+                    // Запоминаем откуда пришёл пакет (для ответов)
+                    _remoteEndPoint = result.RemoteEndPoint;
+
+                    // Первый пакет получен - обновляем статус
+                    if (_udpWaitingForFirstPacket)
+                    {
+                        _udpWaitingForFirstPacket = false;
+                        Debug.WriteLine($"[UDP] ✅ Получен первый пакет от {result.RemoteEndPoint}");
+                        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                        {
+                            ConnectionStatusChanged?.Invoke(this, "Подключено (UDP)");
+                        });
+                    }
+
+                    TotalBytesReceived += result.Buffer.Length;
+
+                    // Парсим через MemoryStream (как в Serial)
+                    using (var ms = new System.IO.MemoryStream(result.Buffer))
+                    {
+                        while (ms.Position < ms.Length)
+                        {
+                            try
+                            {
+                                var msg = _parser.ReadPacket(ms);
+                                if (msg != null)
+                                {
+                                    TotalPacketsReceived++;
+                                    DroneStatus.PacketsReceived++;
+                                    ProcessMessage(msg);
+                                }
+                            }
+                            catch (System.IO.EndOfStreamException)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { break; }
+                catch (ObjectDisposedException) { break; }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[UDP] Read error: {ex.Message}");
+                }
+            }
+
+            Debug.WriteLine("[UDP] ReadLoop stopped");
+        }
+
+        #endregion
 
         #region CONNECTION
 
@@ -163,25 +346,27 @@ namespace SimpleDroneGCS.Services
         public void Disconnect()
         {
             IsConnected = false;
-            _connectionStartTime = DateTime.MinValue; // СБРАСЫВАЕМ СЕКУНДОМЕР
+            _isUdpMode = false;
+            _udpWaitingForFirstPacket = false;
+            _connectionStartTime = DateTime.MinValue;
             DroneStatus.IsConnected = false;
             DroneStatus.LastHeartbeat = DateTime.MinValue;
 
             _heartbeatTimer?.Stop();
             _telemetryRequestTimer?.Stop();
             _cts?.Cancel();
+            _udpCts?.Cancel();
 
-            try
-            {
-                _serialPort?.Close();
-                _serialPort?.Dispose();
-            }
-            catch { }
+            try { _serialPort?.Close(); _serialPort?.Dispose(); _serialPort = null; } catch { }
+            try { _udpClient?.Close(); _udpClient?.Dispose(); _udpClient = null; } catch { }
+
+            // Сбрасываем remote endpoint
+            _remoteEndPoint = null;
 
             ConnectionStatusChanged?.Invoke(this, "Отключено");
             ConnectionStatusChanged_Bool?.Invoke(this, false);
 
-            System.Diagnostics.Debug.WriteLine("[MAVLink] Отключено");
+            Debug.WriteLine("[MAVLink] Отключено");
         }
 
 
@@ -248,13 +433,25 @@ namespace SimpleDroneGCS.Services
 
         private void SendHeartbeat()
         {
-            if (!IsConnected || _serialPort == null || !_serialPort.IsOpen)
+            if (!IsConnected)
                 return;
+
+            // Для Serial проверяем порт
+            if (!_isUdpMode && (_serialPort == null || !_serialPort.IsOpen))
+                return;
+
+            // Для UDP в серверном режиме ждём первый пакет от дрона
+            if (_isUdpMode && _remoteEndPoint == null)
+            {
+                // Тихо ждём - не спамим в лог каждую секунду
+                return;
+            }
+
             try
             {
                 var heartbeat = new MAVLink.mavlink_heartbeat_t
                 {
-                    type = _vehicleMavType,  // ← ВОТ ЗДЕСЬ ЗАМЕНЯЕМ
+                    type = _vehicleMavType,
                     autopilot = (byte)MAVLink.MAV_AUTOPILOT.INVALID,
                     base_mode = 0,
                     custom_mode = 0,
@@ -434,6 +631,16 @@ namespace SimpleDroneGCS.Services
 
         #endregion
 
+        private void ProcessHomePosition(MAVLink.MAVLinkMessage msg)
+        {
+            var home = (MAVLink.mavlink_home_position_t)msg.data;
+            HomeLat = home.latitude / 1e7;
+            HomeLon = home.longitude / 1e7;
+            HomeAlt = home.altitude / 1000.0; // MSL в метрах
+
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] HOME: {HomeLat:F6}, {HomeLon:F6}, Alt: {HomeAlt:F1}m");
+        }
+
         #region MESSAGE PROCESSING
 
         private void ProcessMessage(MAVLink.MAVLinkMessage msg)
@@ -494,6 +701,14 @@ namespace SimpleDroneGCS.Services
 
                     case MAVLink.MAVLINK_MSG_ID.BATTERY_STATUS:
                         ProcessBatteryStatus(msg);
+                        break;
+
+                    case MAVLink.MAVLINK_MSG_ID.HOME_POSITION:
+                        ProcessHomePosition(msg);
+                        break;
+
+                    case MAVLink.MAVLINK_MSG_ID.SERVO_OUTPUT_RAW:
+                        ProcessServoOutput(msg);
                         break;
                 }
 
@@ -629,6 +844,26 @@ namespace SimpleDroneGCS.Services
             }
         }
 
+        private void ProcessServoOutput(MAVLink.MAVLinkMessage msg)
+        {
+            var servo = (MAVLink.mavlink_servo_output_raw_t)msg.data;
+
+            // QuadPlane: моторы VTOL обычно на servo5-8, pusher на servo3
+            // PWM 1000-2000 → 0-100%
+            CurrentTelemetry.Motor1Percent = PwmToPercent(servo.servo5_raw);
+            CurrentTelemetry.Motor2Percent = PwmToPercent(servo.servo6_raw);
+            CurrentTelemetry.Motor3Percent = PwmToPercent(servo.servo7_raw);
+            CurrentTelemetry.Motor4Percent = PwmToPercent(servo.servo8_raw);
+            CurrentTelemetry.PusherPercent = PwmToPercent(servo.servo3_raw);
+        }
+
+        private int PwmToPercent(ushort pwm)
+        {
+            if (pwm <= 1000) return 0;
+            if (pwm >= 2000) return 100;
+            return (pwm - 1000) / 10;
+        }
+
         private void ProcessRcChannels(MAVLink.MAVLinkMessage msg)
         {
             // RC channels - можно добавить если нужно
@@ -744,7 +979,10 @@ namespace SimpleDroneGCS.Services
         /// <summary>
         /// Вооружить/Разоружить дрон
         /// </summary>
-        public void SetArm(bool arm)
+        /// <summary>
+        /// Вооружить/Разоружить дрон
+        /// </summary>
+        public void SetArm(bool arm, bool force = false)
         {
             if (!IsConnected)
             {
@@ -758,8 +996,8 @@ namespace SimpleDroneGCS.Services
                 target_component = (byte)DroneStatus.ComponentId,
                 command = (ushort)MAVLink.MAV_CMD.COMPONENT_ARM_DISARM,
                 confirmation = 0,
-                param1 = arm ? 1 : 0, // 1 = ARM, 0 = DISARM
-                param2 = 0, // force (0 = normal, 21196 = force)
+                param1 = arm ? 1 : 0,
+                param2 = force ? 21196 : 0,  // 21196 = force
                 param3 = 0,
                 param4 = 0,
                 param5 = 0,
@@ -769,7 +1007,7 @@ namespace SimpleDroneGCS.Services
 
             SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
 
-            System.Diagnostics.Debug.WriteLine($"[MAVLink] Команда {(arm ? "ARM" : "DISARM")} отправлена");
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] {(arm ? "ARM" : "DISARM")}{(force ? " (FORCE)" : "")} отправлено");
         }
 
         /// <summary>
@@ -958,63 +1196,63 @@ namespace SimpleDroneGCS.Services
         }
 
         /// <summary>
-        /// Смена режима полета
+        /// Смена режима полета (ИСПРАВЛЕНО для UDP)
         /// </summary>
         public void SetFlightMode(string modeName)
         {
-            if (!IsConnected || _serialPort == null) return;
+            if (!IsConnected) return;
 
             // Получаем текущий тип дрона
             var vehicleType = VehicleManager.Instance.CurrentVehicleType;
 
             // Маппинг для COPTER
             var copterModeMap = new Dictionary<string, uint>
-    {
-        { "STABILIZE", 0 },
-        { "ACRO", 1 },
-        { "ALT_HOLD", 2 },
-        { "AUTO", 3 },
-        { "GUIDED", 4 },
-        { "LOITER", 5 },
-        { "RTL", 6 },
-        { "CIRCLE", 7 },
-        { "LAND", 9 },
-        { "DRIFT", 11 },
-        { "SPORT", 13 },
-        { "FLIP", 14 },
-        { "AUTOTUNE", 15 },
-        { "POSHOLD", 16 },
-        { "BRAKE", 17 },
-        { "THROW", 18 },
-        { "GUIDED_NOGPS", 20 },
-        { "SMART_RTL", 21 }
-    };
+            {
+                { "STABILIZE", 0 },
+                { "ACRO", 1 },
+                { "ALT_HOLD", 2 },
+                { "AUTO", 3 },
+                { "GUIDED", 4 },
+                { "LOITER", 5 },
+                { "RTL", 6 },
+                { "CIRCLE", 7 },
+                { "LAND", 9 },
+                { "DRIFT", 11 },
+                { "SPORT", 13 },
+                { "FLIP", 14 },
+                { "AUTOTUNE", 15 },
+                { "POSHOLD", 16 },
+                { "BRAKE", 17 },
+                { "THROW", 18 },
+                { "GUIDED_NOGPS", 20 },
+                { "SMART_RTL", 21 }
+            };
 
             // Маппинг для PLANE/QUADPLANE
             var planeModeMap = new Dictionary<string, uint>
-    {
-        { "MANUAL", 0 },
-        { "CIRCLE", 1 },
-        { "STABILIZE", 2 },
-        { "TRAINING", 3 },
-        { "ACRO", 4 },
-        { "FBWA", 5 },
-        { "FBWB", 6 },
-        { "CRUISE", 7 },
-        { "AUTOTUNE", 8 },
-        { "AUTO", 10 },
-        { "RTL", 11 },        // ⚠️ PLANE RTL = 11
-        { "LOITER", 12 },
-        { "GUIDED", 15 },
-        { "QSTABILIZE", 17 }, // VTOL режимы
-        { "QHOVER", 18 },
-        { "QLOITER", 19 },
-        { "QLAND", 20 },
-        { "QRTL", 21 },
-        { "QACRO", 23 },
-        { "TAKEOFF", 13 },
-        { "THERMAL", 25 }
-    };
+            {
+                { "MANUAL", 0 },
+                { "CIRCLE", 1 },
+                { "STABILIZE", 2 },
+                { "TRAINING", 3 },
+                { "ACRO", 4 },
+                { "FBWA", 5 },
+                { "FBWB", 6 },
+                { "CRUISE", 7 },
+                { "AUTOTUNE", 8 },
+                { "AUTO", 10 },
+                { "RTL", 11 },        // ⚠️ PLANE RTL = 11
+                { "LOITER", 12 },
+                { "GUIDED", 15 },
+                { "QSTABILIZE", 17 }, // VTOL режимы
+                { "QHOVER", 18 },
+                { "QLOITER", 19 },
+                { "QLAND", 20 },
+                { "QRTL", 21 },
+                { "QACRO", 23 },
+                { "TAKEOFF", 13 },
+                { "THERMAL", 25 }
+            };
 
             // Выбираем правильную карту
             var modeMap = (vehicleType == VehicleType.Copter) ? copterModeMap : planeModeMap;
@@ -1027,33 +1265,10 @@ namespace SimpleDroneGCS.Services
 
             uint customMode = modeMap[modeName];
 
-            try
-            {
-                var packet = new MAVLink.mavlink_set_mode_t
-                {
-                    target_system = (byte)DroneStatus.SystemId,
-                    base_mode = (byte)MAVLink.MAV_MODE_FLAG.CUSTOM_MODE_ENABLED,
-                    custom_mode = customMode
-                };
+            // Используем универсальный SetMode (работает и для Serial и для UDP)
+            SetMode(customMode);
 
-                byte[] buffer = _parser.GenerateMAVLinkPacket20(
-                    MAVLink.MAVLINK_MSG_ID.SET_MODE,
-                    packet,
-                    false,
-                    GCS_SYSTEM_ID,
-                    GCS_COMPONENT_ID,
-                    _packetSequence++
-                );
-
-                _serialPort.Write(buffer, 0, buffer.Length);
-                TotalPacketsSent++;
-
-                System.Diagnostics.Debug.WriteLine($"[MAVLink] {vehicleType} режим {modeName} (custom_mode={customMode}) отправлен");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MAVLink] Ошибка смены режима: {ex.Message}");
-            }
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] {vehicleType} режим {modeName} (custom_mode={customMode}) отправлен");
         }
 
         /// <summary>
@@ -1128,6 +1343,37 @@ namespace SimpleDroneGCS.Services
         {
             ReturnToLaunch();
         }
+        /// <summary>
+        /// Установка HOME позиции
+        /// </summary>
+        /// <param name="useCurrentLocation">true = текущая позиция дрона, false = указанные координаты</param>
+        public void SendSetHome(bool useCurrentLocation, double lat = 0, double lon = 0, double alt = 0)
+        {
+            if (!IsConnected)
+            {
+                ErrorOccurred?.Invoke(this, "Дрон не подключен");
+                return;
+            }
+
+            var cmd = new MAVLink.mavlink_command_long_t
+            {
+                target_system = (byte)DroneStatus.SystemId,
+                target_component = (byte)DroneStatus.ComponentId,
+                command = (ushort)MAVLink.MAV_CMD.DO_SET_HOME,
+                confirmation = 0,
+                param1 = useCurrentLocation ? 1 : 0, // 1 = текущая позиция, 0 = указанные координаты
+                param2 = 0,
+                param3 = 0,
+                param4 = 0,
+                param5 = useCurrentLocation ? 0 : (float)lat,
+                param6 = useCurrentLocation ? 0 : (float)lon,
+                param7 = useCurrentLocation ? 0 : (float)alt
+            };
+
+            SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
+
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] SET_HOME отправлен: useCurrentLocation={useCurrentLocation}");
+        }
         #endregion
 
         #region COMMANDS - MISSION
@@ -1196,44 +1442,43 @@ namespace SimpleDroneGCS.Services
                 ClearMission();
                 await Task.Delay(500);
 
-                // 2. Отправляем количество точек
-                int count = waypoints.Count + 1; // +1 для HOME точки
+                // 2. Отправляем количество точек (+1 для HOME)
+                int count = waypoints.Count + 1;
 
                 var missionCount = new MAVLink.mavlink_mission_count_t
                 {
                     target_system = (byte)DroneStatus.SystemId,
                     target_component = (byte)DroneStatus.ComponentId,
                     count = (ushort)count,
-                    mission_type = 0 // 0 = Mission items
+                    mission_type = 0
                 };
 
                 SendMessage(missionCount, MAVLink.MAVLINK_MSG_ID.MISSION_COUNT);
-                System.Diagnostics.Debug.WriteLine($"📊 Отправлено MISSION_COUNT: {count} точек");
+                System.Diagnostics.Debug.WriteLine($"📊 MISSION_COUNT: {count} (HOME + {waypoints.Count} команд)");
 
                 await Task.Delay(500);
 
-                // 3. Отправляем HOME точку (индекс 0)
+                // 3. seq=0: HOME точка (берём координаты первой точки)
                 var home = CreateHomeWaypoint(waypoints[0]);
                 SendMissionItem(home);
-                System.Diagnostics.Debug.WriteLine("🏠 HOME точка отправлена");
-
+                System.Diagnostics.Debug.WriteLine("🏠 HOME (seq=0)");
                 await Task.Delay(200);
 
-                // 4. Отправляем все waypoints
+                // 4. seq=1+: все команды из миссии
                 for (int i = 0; i < waypoints.Count; i++)
                 {
                     var missionItem = ConvertToMissionItem(waypoints[i], i + 1);
                     SendMissionItem(missionItem);
-                    System.Diagnostics.Debug.WriteLine($"✈️ WP{i + 1} отправлен: {waypoints[i].CommandType}");
+                    System.Diagnostics.Debug.WriteLine($"📍 seq={i + 1}: {waypoints[i].CommandType}");
                     await Task.Delay(200);
                 }
 
-                System.Diagnostics.Debug.WriteLine("✅ Миссия успешно загружена");
+                System.Diagnostics.Debug.WriteLine("✅ Миссия загружена");
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Ошибка загрузки миссии: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}");
                 ErrorOccurred?.Invoke(this, $"Ошибка загрузки миссии: {ex.Message}");
                 return false;
             }
@@ -1322,13 +1567,35 @@ namespace SimpleDroneGCS.Services
         /// <summary>
         /// Запуск миссии (AUTO режим)
         /// </summary>
+        /// <summary>
+        /// Запуск миссии (AUTO режим)
+        /// </summary>
         public void StartMission()
         {
             if (!IsConnected) return;
 
-            SetMode(3); // AUTO mode
+            // 1. Устанавливаем AUTO режим
+            SetMode(3); // AUTO mode для Copter
 
-            System.Diagnostics.Debug.WriteLine("[MAVLink] Миссия запущена");
+            // 2. Отправляем команду старта миссии
+            var cmd = new MAVLink.mavlink_command_long_t
+            {
+                target_system = (byte)DroneStatus.SystemId,
+                target_component = (byte)DroneStatus.ComponentId,
+                command = (ushort)MAVLink.MAV_CMD.MISSION_START,
+                confirmation = 0,
+                param1 = 0, // first item (0 = начало)
+                param2 = 0, // last item (0 = до конца)
+                param3 = 0,
+                param4 = 0,
+                param5 = 0,
+                param6 = 0,
+                param7 = 0
+            };
+
+            SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
+
+            System.Diagnostics.Debug.WriteLine("[MAVLink] Миссия запущена (AUTO + MISSION_START)");
         }
 
         /// <summary>
@@ -1391,26 +1658,31 @@ namespace SimpleDroneGCS.Services
         #region SEND MESSAGE
 
         /// <summary>
-        /// Отправка сообщения MAVLink
+        /// Отправка сообщения MAVLink (универсальный метод для Serial и UDP)
         /// </summary>
         private void SendMessage(object message, MAVLink.MAVLINK_MSG_ID messageId)
         {
-            if (_serialPort == null || !_serialPort.IsOpen)
-                return;
-
             try
             {
-                // Используем MAVLink библиотеку для генерации пакета
                 byte[] packet = _parser.GenerateMAVLinkPacket20(
-                    messageId,
-                    message,
-                    false, // не подписывать
-                    GCS_SYSTEM_ID,
-                    GCS_COMPONENT_ID,
-                    _packetSequence++
-                );
+                    messageId, message, false,
+                    GCS_SYSTEM_ID, GCS_COMPONENT_ID, _packetSequence++);
 
-                if (packet != null && packet.Length > 0)
+                if (packet == null || packet.Length == 0) return;
+
+                // UDP режим
+                if (_isUdpMode && _udpClient != null)
+                {
+                    if (_remoteEndPoint != null)
+                    {
+                        _udpClient.Send(packet, packet.Length, _remoteEndPoint);
+                        TotalPacketsSent++;
+                        DroneStatus.PacketsSent++;
+                    }
+                    // Если _remoteEndPoint == null, просто пропускаем (ждём первый пакет от дрона)
+                }
+                // Serial режим
+                else if (_serialPort != null && _serialPort.IsOpen)
                 {
                     _serialPort.Write(packet, 0, packet.Length);
                     TotalPacketsSent++;
@@ -1419,8 +1691,7 @@ namespace SimpleDroneGCS.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[MAVLink] Send error: {ex.Message}");
-                ErrorOccurred?.Invoke(this, $"Ошибка отправки: {ex.Message}");
+                Debug.WriteLine($"[MAVLink] Send error: {ex.Message}");
             }
         }
 

@@ -150,7 +150,6 @@ namespace SimpleDroneGCS.Controls
 
         private void InitializeIndicator()
         {
-            // Главный Canvas
             _canvas = new Canvas
             {
                 Width = Width,
@@ -162,195 +161,104 @@ namespace SimpleDroneGCS.Controls
             RenderOptions.SetBitmapScalingMode(_canvas, BitmapScalingMode.LowQuality);
             RenderOptions.SetEdgeMode(_canvas, EdgeMode.Aliased);
 
-            // Прямоугольный клиппинг
-            var clipGeometry = new RectangleGeometry
+            _canvas.Clip = new RectangleGeometry
             {
                 Rect = new Rect(0, 0, Width, Height),
                 RadiusX = 8,
                 RadiusY = 8
             };
-            _canvas.Clip = clipGeometry;
 
-            // === СЛОЙ 1: ФОН (программный Canvas с небом/землёй, двигается + вращается) ===
-            var backgroundCanvas = new Canvas
+            // === ФОН 2000x2000 (гарантированно покрывает pitch ±90° + roll ±180°) ===
+            var bg = new Canvas { Width = 2000, Height = 2000 };
+
+            // НЕБО тёмное (верх)
+            bg.Children.Add(new Rectangle
             {
-                Width = 1000,
-                Height = 1000
-            };
+                Width = 2000,
+                Height = 650,
+                Fill = new SolidColorBrush(Color.FromRgb(12, 45, 85))
+            });
 
-            // === НЕБО: градиент только в 125px у горизонта, остальное - тёмный фон ===
-            // Тёмный фон вверху (375px)
-            var skyDark = new Rectangle
+            // НЕБО градиент
+            var skyGrad = new LinearGradientBrush { StartPoint = new Point(0.5, 0), EndPoint = new Point(0.5, 1) };
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(12, 45, 85), 0.0));
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(40, 95, 145), 0.3));
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(78, 145, 200), 0.6));
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(125, 190, 235), 1.0));
+            var skyRect = new Rectangle { Width = 2000, Height = 350, Fill = skyGrad };
+            Canvas.SetTop(skyRect, 650);
+            bg.Children.Add(skyRect);
+
+            // ЗЕМЛЯ градиент
+            var gndGrad = new LinearGradientBrush { StartPoint = new Point(0.5, 0), EndPoint = new Point(0.5, 1) };
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(252, 238, 190), 0.0));
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(220, 200, 150), 0.3));
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(180, 160, 120), 0.6));
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(22, 17, 10), 1.0));
+            var gndRect = new Rectangle { Width = 2000, Height = 350, Fill = gndGrad };
+            Canvas.SetTop(gndRect, 1000);
+            bg.Children.Add(gndRect);
+
+            // ЗЕМЛЯ тёмная (низ)
+            var gndDark = new Rectangle
             {
-                Width = 1000,
-                Height = 375,
-                Fill = new SolidColorBrush(Color.FromRgb(12, 45, 85))  // Самый тёмный синий
+                Width = 2000,
+                Height = 650,
+                Fill = new SolidColorBrush(Color.FromRgb(22, 17, 10))
             };
-            Canvas.SetLeft(skyDark, 0);
-            Canvas.SetTop(skyDark, 0);
-            backgroundCanvas.Children.Add(skyDark);
+            Canvas.SetTop(gndDark, 1350);
+            bg.Children.Add(gndDark);
 
-            // Градиент неба (125px у горизонта) - от тёмного к светлому
-            var skyGradient = new LinearGradientBrush
-            {
-                StartPoint = new Point(0.5, 0),    // Верх градиента (тёмный)
-                EndPoint = new Point(0.5, 1)       // Горизонт (светлый)
-            };
-            skyGradient.GradientStops.Add(new GradientStop(Color.FromRgb(12, 45, 85), 0.0));       // Тёмно-синий
-            skyGradient.GradientStops.Add(new GradientStop(Color.FromRgb(25, 70, 115), 0.15));
-            skyGradient.GradientStops.Add(new GradientStop(Color.FromRgb(40, 95, 145), 0.3));
-            skyGradient.GradientStops.Add(new GradientStop(Color.FromRgb(58, 120, 175), 0.5));
-            skyGradient.GradientStops.Add(new GradientStop(Color.FromRgb(78, 145, 200), 0.7));
-            skyGradient.GradientStops.Add(new GradientStop(Color.FromRgb(100, 170, 220), 0.85));
-            skyGradient.GradientStops.Add(new GradientStop(Color.FromRgb(125, 190, 235), 1.0));    // Светло-голубой у горизонта
-
-            var skyGradientRect = new Rectangle
-            {
-                Width = 1000,
-                Height = 125,
-                Fill = skyGradient
-            };
-            Canvas.SetLeft(skyGradientRect, 0);
-            Canvas.SetTop(skyGradientRect, 375);  // После тёмного фона
-            backgroundCanvas.Children.Add(skyGradientRect);
-
-            // === ЗЕМЛЯ: градиент только в 125px у горизонта, остальное - тёмный фон ===
-            // Градиент земли (125px у горизонта) - от светлого к тёмному
-            var groundGradient = new LinearGradientBrush
-            {
-                StartPoint = new Point(0.5, 0),    // Горизонт (светлый)
-                EndPoint = new Point(0.5, 1)       // Низ градиента (тёмный)
-            };
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(252, 238, 190), 0.0));  // Почти свет
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(250, 235, 185), 0.08));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(247, 232, 180), 0.16));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(244, 228, 175), 0.24));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(240, 223, 170), 0.32));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(235, 218, 165), 0.40));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(230, 212, 160), 0.48));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(224, 205, 155), 0.56));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(218, 198, 150), 0.64));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(212, 192, 145), 0.72));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(206, 186, 140), 0.80));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(200, 180, 135), 0.88));
-            groundGradient.GradientStops.Add(new GradientStop(Color.FromRgb(195, 175, 130), 1.0));  // Очень мягкий низ
-
-
-
-
-            var groundGradientRect = new Rectangle
-            {
-                Width = 1000,
-                Height = 125,
-                Fill = groundGradient
-            };
-            Canvas.SetLeft(groundGradientRect, 0);
-            Canvas.SetTop(groundGradientRect, 500);  // Сразу после горизонта
-            backgroundCanvas.Children.Add(groundGradientRect);
-
-            // Тёмный фон внизу (375px)
-            var groundDark = new Rectangle
-            {
-                Width = 1000,
-                Height = 375,
-                Fill = new SolidColorBrush(Color.FromRgb(22, 17, 10))  // Самый тёмный коричневый
-            };
-            Canvas.SetLeft(groundDark, 0);
-            Canvas.SetTop(groundDark, 625);  // После градиента
-            backgroundCanvas.Children.Add(groundDark);
-
-            // === ЛИНИЯ ГОРИЗОНТА с лёгким свечением ===
-            var horizonGlow = new Rectangle
-            {
-                Width = 1000,
-                Height = 8,
-                Fill = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0.5, 0),
-                    EndPoint = new Point(0.5, 1),
-                    GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.0),
-                        new GradientStop(Color.FromArgb(60, 255, 255, 255), 0.5),
-                        new GradientStop(Color.FromArgb(0, 255, 255, 255), 1.0)
-                    }
-                }
-            };
-            Canvas.SetLeft(horizonGlow, 0);
-            Canvas.SetTop(horizonGlow, 496);
-            backgroundCanvas.Children.Add(horizonGlow);
-
-            // Основная линия горизонта
-            var horizonLine = new Line
+            // Линия горизонта
+            bg.Children.Add(new Line
             {
                 X1 = 0,
-                Y1 = 500,
-                X2 = 1000,
-                Y2 = 500,
+                Y1 = 1000,
+                X2 = 2000,
+                Y2 = 1000,
                 Stroke = Brushes.White,
                 StrokeThickness = 2,
                 Opacity = 0.9
-            };
-            backgroundCanvas.Children.Add(horizonLine);
+            });
 
-            // Трансформации для фона (вращение вокруг центра 500,500)
-            _backgroundRollTransform = new RotateTransform(0, 500, 500);
+            // Трансформации (центр 1000,1000)
             _backgroundPitchTransform = new TranslateTransform(0, 0);
+            _backgroundRollTransform = new RotateTransform(0, 1000, 1000);
             _backgroundTransformGroup = new TransformGroup();
             _backgroundTransformGroup.Children.Add(_backgroundPitchTransform);
             _backgroundTransformGroup.Children.Add(_backgroundRollTransform);
-            backgroundCanvas.RenderTransform = _backgroundTransformGroup;
+            bg.RenderTransform = _backgroundTransformGroup;
 
-            // Центрируем фон: (450 - 1000) / 2 = -275, (250 - 1000) / 2 = -375
-            Canvas.SetLeft(backgroundCanvas, -275);
-            Canvas.SetTop(backgroundCanvas, -375);
-            _canvas.Children.Add(backgroundCanvas);
+            Canvas.SetLeft(bg, -775);  // (450-2000)/2
+            Canvas.SetTop(bg, -875);   // (250-2000)/2
+            _canvas.Children.Add(bg);
 
-            // === СЛОЙ 2: PITCH LADDER (программный, двигается + вращается) ===
-            _pitchLadder = new Canvas
-            {
-                Width = Width * 2,      // 900x500
-                Height = Height * 2
-            };
-
+            // === PITCH LADDER ===
+            _pitchLadder = new Canvas { Width = Width * 2, Height = Height * 2 };
             RenderOptions.SetBitmapScalingMode(_pitchLadder, BitmapScalingMode.LowQuality);
-            RenderOptions.SetCachingHint(_pitchLadder, CachingHint.Cache);
+            UpdatePitchLadder(0);
 
-            // КЛИППИНГ для pitch ladder - ограничиваем видимую область
-            
-
-
-            UpdatePitchLadder(0); // Инициализация с pitch = 0
-
-            // Центр вращения pitch ladder = его центр (450, 250)
-            _pitchLadderRollTransform = new RotateTransform(0, Width, Height);
             _pitchLadderPitchTransform = new TranslateTransform(0, 0);
-            var pitchLadderTransformGroup = new TransformGroup();
-            pitchLadderTransformGroup.Children.Add(_pitchLadderPitchTransform);
-            pitchLadderTransformGroup.Children.Add(_pitchLadderRollTransform);
-            _pitchLadder.RenderTransform = pitchLadderTransformGroup;
+            _pitchLadderRollTransform = new RotateTransform(0, Width, Height);
+            var plTransform = new TransformGroup();
+            plTransform.Children.Add(_pitchLadderPitchTransform);
+            plTransform.Children.Add(_pitchLadderRollTransform);
+            _pitchLadder.RenderTransform = plTransform;
 
-            // Позиция pitch ladder
-            Canvas.SetLeft(_pitchLadder, -Width / 2);   // -225
-            Canvas.SetTop(_pitchLadder, -Height / 2);   // -125
+            Canvas.SetLeft(_pitchLadder, -Width / 2);
+            Canvas.SetTop(_pitchLadder, -Height / 2);
             _canvas.Children.Add(_pitchLadder);
 
-            // === СЛОЙ 3: ROLL INDICATOR (attitude_roll.png = ЦЕНТРАЛЬНЫЙ МАРКЕР) ===
-            // СТАТИЧНЫЙ! НЕ вращается, НЕ двигается - представляет крылья самолета
+            // === ROLL INDICATOR (статичный) ===
             _rollIndicatorImage = LoadImageLayer("Assets/attitude_roll.png");
             if (_rollIndicatorImage != null)
             {
-                // Масштабируем: 450x158
                 _rollIndicatorImage.Width = 450;
                 _rollIndicatorImage.Height = 158;
                 _rollIndicatorImage.Stretch = Stretch.Fill;
-
                 RenderOptions.SetBitmapScalingMode(_rollIndicatorImage, BitmapScalingMode.HighQuality);
-
-                // СТАТИЧНЫЙ - НЕ применяем трансформации!
-
                 Canvas.SetLeft(_rollIndicatorImage, 0);
-                Canvas.SetTop(_rollIndicatorImage, (Height - 158) / 2); // = 46
+                Canvas.SetTop(_rollIndicatorImage, (Height - 158) / 2);
                 _canvas.Children.Add(_rollIndicatorImage);
             }
 

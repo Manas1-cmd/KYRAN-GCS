@@ -67,4 +67,9 @@
     </Page>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="bin\Debug\net8.0-windows\win-x64\Elevation\N43E076.hgt" />
+    <None Include="bin\Debug\net8.0-windows\win-x64\Elevation\N43E077.hgt" />
+  </ItemGroup>
+
 </Project>

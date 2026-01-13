@@ -1,11 +1,14 @@
 using GMap.NET;
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsPresentation;
+using SimpleDroneGCS.Models;
 using SimpleDroneGCS.Services;
+using SimpleDroneGCS.UI.Dialogs;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -17,23 +20,72 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 
 
+
 namespace SimpleDroneGCS.Views
 {
     public partial class FlightPlanView : UserControl
     {
+
+        private Window OwnerWindow => Window.GetWindow(this) ?? Application.Current?.MainWindow;
+        private VehicleType _currentVehicleType = VehicleType.Copter;
+
         private ObservableCollection<WaypointItem> _waypoints;
         private GMapMarker _currentDragMarker;
         private double _waypointRadius = 30; // метры
         private MAVLinkService _mavlinkService;
         private GMapMarker _droneMarker = null;
         private WaypointItem _homePosition = null; // HOME позиция
+        private bool _isInitialized = false; // Защита от повторной инициализации
+        private Dictionary<VehicleType, List<WaypointItem>> _missionsByType = new(); // Кэш миссий при переключении типа (RAM)
+        private Dictionary<VehicleType, WaypointItem> _homeByType = new();
         private DispatcherTimer _droneUpdateTimer; // ДОБАВЬ
+        private bool _isSettingHomeMode = false; // режим установки HOME
+        private double _takeoffAltitude = 10;  // высота взлёта по умолчанию
+        private double _rtlAltitude = 15;      // высота RTL по умолчанию
+        private bool _wasArmed = false; // для отслеживания армирования
+        private SrtmElevationProvider _elevationProvider = new(); // Провайдер высот SRTM
 
         public FlightPlanView(MAVLinkService mavlinkService = null)
         {
             InitializeComponent();
+            var testElev = new SrtmElevationProvider();
+            var result = testElev.GetElevation(43.238, 76.945);
+            System.Diagnostics.Debug.WriteLine($"[SRTM TEST] Результат: {result?.ToString() ?? "NULL"}");
             _mavlinkService = mavlinkService;
 
+            try
+            {
+                var vm = VehicleManager.Instance;
+                _currentVehicleType = vm.CurrentVehicleType;
+                vm.VehicleTypeChanged += (_, profile) =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        // Если тип реально изменился и карта инициализирована
+                        if (_currentVehicleType != profile.Type && _isInitialized)
+                        {
+                            // 1. Сохраняем миссию текущего типа
+                            SaveCurrentMissionForType();
+
+                            // 2. Меняем тип
+                            _currentVehicleType = profile.Type;
+
+                            // 3. Загружаем миссию нового типа
+                            LoadMissionForType(_currentVehicleType);
+                        }
+                        else
+                        {
+                            _currentVehicleType = profile.Type;
+                        }
+
+                        UpdateVehicleTypeDisplay();
+                    });
+                };
+            }
+            catch
+            {
+                _currentVehicleType = VehicleType.Copter;
+            }
 
             if (_mavlinkService != null)
             {
@@ -54,29 +106,58 @@ namespace SimpleDroneGCS.Views
                 UpdateWaypointsList();
             };
 
-            
+
 
             // ... остальной код без изменений
 
             // Инициализация карты ПОСЛЕ полной загрузки UI через Dispatcher
             this.Loaded += (s, e) =>
             {
+                // Инициализируем только ОДИН раз
+                if (_isInitialized) return;
+                _isInitialized = true;
+
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     try
                     {
                         InitializePlanMap();
+                        UpdateVehicleTypeDisplay();
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Ошибка отложенной инициализации карты планирования: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Ошибка инициализации: {ex.Message}");
                     }
-                }), System.Windows.Threading.DispatcherPriority.Background);
+                }), DispatcherPriority.Background);
+            };
+
+            this.Unloaded += (s, e) =>
+            {
+                try
+                {
+                    if (_droneUpdateTimer != null)
+                    {
+                        _droneUpdateTimer.Stop();
+                        _droneUpdateTimer.Tick -= UpdateDronePosition;
+                        _droneUpdateTimer = null;
+                    }
+                }
+                catch { }
+            };
+
+            this.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Escape && _isSettingHomeMode)
+                {
+                    _isSettingHomeMode = false;
+                    PlanMap.Cursor = Cursors.Arrow;
+                }
             };
         }
 
 
-        
+
+
 
         /// <summary>
         /// Инициализация карты планирования
@@ -87,142 +168,104 @@ namespace SimpleDroneGCS.Views
             {
                 System.Diagnostics.Debug.WriteLine("Начало инициализации карты планирования...");
 
-                // КРИТИЧНО: Настройка GMaps.Instance ПЕРЕД всем остальным
-                try
-                {
-                    GMap.NET.GMaps.Instance.Mode = GMap.NET.AccessMode.ServerAndCache;
-                    System.Diagnostics.Debug.WriteLine("Plan GMaps.Instance.Mode установлен");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Plan Mode ошибка: {ex.Message}");
-                }
+                // === НАСТРОЙКА КЭША ===
+                string cacheFolder = System.IO.Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory, "MapCache");
+
+                if (!System.IO.Directory.Exists(cacheFolder))
+                    System.IO.Directory.CreateDirectory(cacheFolder);
+
+                // === АВТООПРЕДЕЛЕНИЕ ОНЛАЙН/ОФЛАЙН ===
+                bool hasInternet = CheckInternetConnection();
+
+                GMap.NET.GMaps.Instance.Mode = hasInternet
+                    ? GMap.NET.AccessMode.ServerAndCache
+                    : GMap.NET.AccessMode.CacheOnly;
+
+                System.Diagnostics.Debug.WriteLine($"Режим карты: {(hasInternet ? "ОНЛАЙН" : "ОФЛАЙН")}, кэш: {cacheFolder}");
 
                 // SSL fix
-                try
-                {
-                    System.Net.ServicePointManager.ServerCertificateValidationCallback =
-                        (snd, certificate, chain, sslPolicyErrors) => true;
-                    System.Diagnostics.Debug.WriteLine("Plan SSL fix применён");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Plan SSL fix ошибка: {ex.Message}");
-                }
+                System.Net.ServicePointManager.ServerCertificateValidationCallback =
+                    (snd, certificate, chain, sslPolicyErrors) => true;
 
-                // Проверяем что PlanMap не null
                 if (PlanMap == null)
                 {
                     System.Diagnostics.Debug.WriteLine("ОШИБКА: PlanMap is null!");
                     return;
                 }
 
-                System.Diagnostics.Debug.WriteLine("PlanMap существует, устанавливаем провайдер...");
+                // === КЭШИРОВАНИЕ ===
+                PlanMap.CacheLocation = cacheFolder;
 
-                // Пробуем разные провайдеры
-                bool mapLoaded = false;
+                // Провайдер
+                PlanMap.MapProvider = GMapProviders.GoogleSatelliteMap;
 
-                // 1. ✅ Google Satellite (по умолчанию)
-                if (!mapLoaded)
-                {
-                    try
-                    {
-                        PlanMap.MapProvider = GMapProviders.GoogleSatelliteMap;
-                        mapLoaded = true;
-                        System.Diagnostics.Debug.WriteLine("✅ План карта: Google Satellite загружена");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Plan Google Satellite ошибка: {ex.Message}");
-                    }
-                }
+                // Настройки
+                PlanMap.Position = new PointLatLng(43.238949, 76.889709);
+                PlanMap.Zoom = 17;
+                PlanMap.MinZoom = 2;
+                PlanMap.MaxZoom = 20;
+                PlanMap.MouseWheelZoomEnabled = true;
+                PlanMap.MouseWheelZoomType = MouseWheelZoomType.MousePositionAndCenter;
+                PlanMap.CanDragMap = true;
+                PlanMap.DragButton = MouseButton.Left;
+                PlanMap.ShowCenter = false;
+                PlanMap.ShowTileGridLines = false;
+                PlanMap.Markers.Clear();
 
-                // 2. OpenStreetMap
-                if (!mapLoaded)
-                {
-                    try
-                    {
-                        PlanMap.MapProvider = GMapProviders.OpenStreetMap;
-                        mapLoaded = true;
-                        System.Diagnostics.Debug.WriteLine("✅ План карта: OpenStreetMap загружена");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Plan OpenStreetMap ошибка: {ex.Message}");
-                    }
-                }
+                // События
+                PlanMap.MouseMove += PlanMap_MouseMove;
 
-                // 3. BingMap
-                if (!mapLoaded)
-                {
-                    try
-                    {
-                        PlanMap.MapProvider = GMapProviders.BingMap;
-                        mapLoaded = true;
-                        System.Diagnostics.Debug.WriteLine("✅ План карта: BingMap загружена");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Plan BingMap ошибка: {ex.Message}");
-                    }
-                }
-
-                // 4. EmptyProvider
-                if (!mapLoaded)
-                {
-                    try
-                    {
-                        PlanMap.MapProvider = GMapProviders.EmptyProvider;
-                        System.Diagnostics.Debug.WriteLine("⚠️ План карта: EmptyProvider (оффлайн)");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Plan EmptyProvider ошибка: {ex.Message}");
-                        return;
-                    }
-                }
-
-                // Настройки карты
-                try
-                {
-                    // В InitializePlanMap найди эти строки и измени:
-                    PlanMap.Position = new PointLatLng(43.238949, 76.889709); // Алматы
-                    PlanMap.Zoom = 17; // БЫЛО 15 → СТАЛО 17 (ближе)
-                    PlanMap.MinZoom = 2;
-                    PlanMap.MaxZoom = 20;
-                    PlanMap.MouseWheelZoomEnabled = true;
-                    PlanMap.MouseWheelZoomType = MouseWheelZoomType.MousePositionAndCenter;
-                    PlanMap.CanDragMap = true;
-                    PlanMap.DragButton = MouseButton.Left;
-                    PlanMap.ShowCenter = false;
-                    PlanMap.ShowTileGridLines = false;
-                    PlanMap.Markers.Clear();
-
-                    System.Diagnostics.Debug.WriteLine($"✅ План карта полностью инициализирована: {PlanMap.MapProvider}");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Plan настройки ошибка: {ex.Message}");
-                }
+                System.Diagnostics.Debug.WriteLine("Карта планирования инициализирована");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ КРИТИЧЕСКАЯ ошибка инициализации карты планирования: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"StackTrace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"Ошибка инициализации карты: {ex.Message}");
+            }
+        }
 
-                // НЕ показываем MessageBox если это NullReferenceException из GMap
-                if (!(ex is NullReferenceException))
+        private bool CheckInternetConnection()
+        {
+            // Способ 1: HTTP
+            try
+            {
+                using (var client = new System.Net.WebClient())
+                using (client.OpenRead("http://www.google.com"))
+                    return true;
+            }
+            catch { }
+
+            // Способ 2: Ping
+            try
+            {
+                using (var ping = new System.Net.NetworkInformation.Ping())
                 {
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        MessageBox.Show(
-                            $"Карта планирования не загрузилась, но приложение работает.\n\nОшибка: {ex.Message}",
-                            "Предупреждение",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
-                    }));
+                    var result = ping.Send("8.8.8.8", 1000);
+                    if (result.Status == System.Net.NetworkInformation.IPStatus.Success)
+                        return true;
                 }
             }
+            catch { }
+
+            // Способ 3: DNS
+            try
+            {
+                var host = System.Net.Dns.GetHostEntry("www.google.com");
+                return host.AddressList.Length > 0;
+            }
+            catch { }
+
+            return false;
+        }
+
+
+
+        private void DownloadMapButton_Click(object sender, RoutedEventArgs e)
+        {
+            var currentPos = PlanMap?.Position;
+            var dialog = new MapDownloaderDialog(currentPos);
+            dialog.Owner = OwnerWindow;
+            dialog.ShowDialog();
         }
 
         /// <summary>
@@ -272,8 +315,50 @@ namespace SimpleDroneGCS.Views
         /// <summary>
         /// Двойной клик по карте - добавить waypoint
         /// </summary>
+        /// 
+        /// <summary>
+        /// Установить HOME в указанной позиции (для планирования)
+        /// </summary>
+        private void SetHomeAtPosition(double lat, double lon)
+        {
+            // Удаляем старый HOME
+            if (_homePosition?.Marker != null)
+                PlanMap.Markers.Remove(_homePosition.Marker);
+
+            // Создаём новый HOME
+            _homePosition = new WaypointItem
+            {
+                Number = 0,
+                Latitude = lat,
+                Longitude = lon,
+                Altitude = 0,
+                CommandType = "HOME",
+                Radius = 20
+            };
+
+            AddHomeMarkerToMap(_homePosition);
+            UpdateRoute();
+
+            MissionStore.SetHome((int)_currentVehicleType, _homePosition);
+
+            System.Diagnostics.Debug.WriteLine($"[HOME] Установлен вручную: {lat:F6}, {lon:F6}");
+        }
         private void PlanMap_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            if (_isSettingHomeMode)
+            {
+                var point = e.GetPosition(PlanMap);
+                var latLng = PlanMap.FromLocalToLatLng((int)point.X, (int)point.Y);
+
+                SetHomeAtPosition(latLng.Lat, latLng.Lng);
+
+                // Выключаем режим
+                _isSettingHomeMode = false;
+                PlanMap.Cursor = Cursors.Arrow;
+
+                e.Handled = true;
+                return;
+            }
             if (e.ChangedButton == MouseButton.Left)
             {
                 // Получаем позицию клика на карте
@@ -528,7 +613,7 @@ namespace SimpleDroneGCS.Views
                     Radius = 20
                 };
                 AddHomeMarkerToMap(_homePosition);
-                System.Diagnostics.Debug.WriteLine($"🏠 AUTO-HOME создан: {telemetry.Latitude:F6}, {telemetry.Longitude:F6}");
+                System.Diagnostics.Debug.WriteLine($"HOME AUTO-HOME создан: {telemetry.Latitude:F6}, {telemetry.Longitude:F6}");
             }
 
             // 1. ПУНКТИРНЫЕ ЛИНИИ ОТ HOME
@@ -582,6 +667,70 @@ namespace SimpleDroneGCS.Views
             System.Diagnostics.Debug.WriteLine($"UpdateRoute() - Точек: {_waypoints.Count}, HOME: {_homePosition != null}");
         }
 
+        /// <summary>
+        /// Обновить маршрут БЕЗ автосоздания HOME
+        /// </summary>
+        private void UpdateRouteOnly()
+        {
+            // Удаляем старые маршруты
+            var oldRoutes = PlanMap.Markers.OfType<GMapRoute>().ToList();
+            foreach (var r in oldRoutes)
+            {
+                PlanMap.Markers.Remove(r);
+            }
+
+            // НЕ создаём HOME автоматически!
+
+            // 1. Пунктирные линии от HOME
+            if (_homePosition != null && _waypoints.Count > 0)
+            {
+                var homePoint = new PointLatLng(_homePosition.Latitude, _homePosition.Longitude);
+
+                // От HOME к первой точке
+                var firstPoint = new PointLatLng(_waypoints[0].Latitude, _waypoints[0].Longitude);
+                var homeToFirstRoute = new GMapRoute(new List<PointLatLng> { homePoint, firstPoint });
+                homeToFirstRoute.Shape = new Path
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                    StrokeThickness = 2,
+                    StrokeDashArray = new DoubleCollection { 5, 3 },
+                    Opacity = 0.8
+                };
+                homeToFirstRoute.ZIndex = 40;
+                PlanMap.Markers.Add(homeToFirstRoute);
+
+                // От последней точки к HOME
+                var lastPoint = new PointLatLng(_waypoints[_waypoints.Count - 1].Latitude,
+                                               _waypoints[_waypoints.Count - 1].Longitude);
+                var lastToHomeRoute = new GMapRoute(new List<PointLatLng> { lastPoint, homePoint });
+                lastToHomeRoute.Shape = new Path
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                    StrokeThickness = 2,
+                    StrokeDashArray = new DoubleCollection { 5, 3 },
+                    Opacity = 0.8
+                };
+                lastToHomeRoute.ZIndex = 40;
+                PlanMap.Markers.Add(lastToHomeRoute);
+            }
+
+            // 2. Основной маршрут
+            if (_waypoints.Count >= 2)
+            {
+                var routePoints = _waypoints.Select(w => new PointLatLng(w.Latitude, w.Longitude)).ToList();
+                var route = new GMapRoute(routePoints);
+                route.Shape = new Path
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                    StrokeThickness = 3,
+                    Opacity = 0.8
+                };
+                route.ZIndex = 50;
+                PlanMap.Markers.Add(route);
+            }
+        }
+
+
 
         private void RadiusSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
@@ -607,14 +756,37 @@ namespace SimpleDroneGCS.Views
         {
             WaypointsCountText.Text = $"Точек: {_waypoints.Count}";
 
-            // Расчёт общей дистанции (простая формула Haversine)
             double totalDistance = 0;
+
+            // 1. HOME → первая точка
+            if (_homePosition != null && _waypoints.Count > 0)
+            {
+                totalDistance += CalculateDistanceLatLng(
+                    _homePosition.Latitude, _homePosition.Longitude,
+                    _waypoints[0].Latitude, _waypoints[0].Longitude);
+            }
+
+            // 2. Между всеми точками (WP1→WP2→WP3...)
             for (int i = 0; i < _waypoints.Count - 1; i++)
             {
                 totalDistance += CalculateDistance(_waypoints[i], _waypoints[i + 1]);
             }
 
-            DistanceText.Text = $"Общая дистанция: {totalDistance:F0} м";
+            // 3. Последняя точка → HOME (RTL)
+            if (_homePosition != null && _waypoints.Count > 0)
+            {
+                var lastWp = _waypoints[_waypoints.Count - 1];
+                totalDistance += CalculateDistanceLatLng(
+                    lastWp.Latitude, lastWp.Longitude,
+                    _homePosition.Latitude, _homePosition.Longitude);
+            }
+
+            // Обновляем UI
+            string distText = FormatDistance(totalDistance);
+            //DistanceText.Text = $"Общая дистанция: {distText}";
+
+            if (TotalDistanceOverlay != null)
+                TotalDistanceOverlay.Text = $"Маршрут: {distText}";
         }
 
         /// <summary>
@@ -686,18 +858,15 @@ namespace SimpleDroneGCS.Views
                     Style = (Style)Application.Current.FindResource("CustomComboBoxStyle")
                 };
 
-                // РАСШИРЕННЫЙ СПИСОК MAV_CMD команд
+                // Список команд БЕЗ TAKEOFF, RTL, SET_HOME (они фиксированы)
                 var commands = new[]
                 {
-                    new { Content = "Путевая точка", Tag = "WAYPOINT" },       // MAV_CMD_NAV_WAYPOINT (16)
-                    new { Content = "Кружение", Tag = "LOITER_UNLIM" },        // MAV_CMD_NAV_LOITER_UNLIM (17)
-                    new { Content = "Кружение (время)", Tag = "LOITER_TIME" }, // MAV_CMD_NAV_LOITER_TIME (19)
-                    new { Content = "Возврат домой", Tag = "RETURN_TO_LAUNCH" }, // MAV_CMD_NAV_RETURN_TO_LAUNCH (20)
-                    new { Content = "Посадка", Tag = "LAND" },                 // MAV_CMD_NAV_LAND (21)
-                    new { Content = "Взлёт", Tag = "TAKEOFF" },                // MAV_CMD_NAV_TAKEOFF (22)
-                    new { Content = "Задержка", Tag = "DELAY" },               // MAV_CMD_NAV_DELAY (93)
-                    new { Content = "Смена скорости", Tag = "CHANGE_SPEED" },  // MAV_CMD_DO_CHANGE_SPEED (178)
-                    new { Content = "Установить HOME", Tag = "SET_HOME" },     // MAV_CMD_DO_SET_HOME (179)
+                    new { Content = "Путевая точка", Tag = "WAYPOINT" },       // 16
+                    new { Content = "Кружение", Tag = "LOITER_UNLIM" },        // 17
+                    new { Content = "Кружение (время)", Tag = "LOITER_TIME" }, // 19
+                    new { Content = "Посадка", Tag = "LAND" },                 // 21
+                    new { Content = "Задержка", Tag = "DELAY" },               // 93
+                    new { Content = "Смена скорости", Tag = "CHANGE_SPEED" },  // 178
                 };
 
                 foreach (var cmd in commands)
@@ -1055,8 +1224,12 @@ namespace SimpleDroneGCS.Views
         {
             if (_mavlinkService == null || _mavlinkService.CurrentTelemetry.Latitude == 0)
             {
-                MessageBox.Show("Дрон не подключен или нет GPS сигнала!", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning(
+                    "Дрон не подключен или отсутствует GPS сигнал.",
+                    owner: OwnerWindow,
+                    subtitle: "Невозможно установить HOME",
+                    hint: "Подключитесь к дрону и дождитесь корректного GPS FIX."
+                );
                 return;
             }
 
@@ -1082,7 +1255,9 @@ namespace SimpleDroneGCS.Views
             AddHomeMarkerToMap(_homePosition);
             UpdateRoute(); // Обновляем линии
 
-            System.Diagnostics.Debug.WriteLine($"✅ HOME установлена: {telemetry.Latitude:F6}, {telemetry.Longitude:F6}");
+            MissionStore.SetHome((int)_currentVehicleType, _homePosition);
+
+            System.Diagnostics.Debug.WriteLine($" HOME установлена: {telemetry.Latitude:F6}, {telemetry.Longitude:F6}");
         }
 
         /// <summary>
@@ -1110,7 +1285,16 @@ namespace SimpleDroneGCS.Views
         /// </summary>
         private void SetHomeButton_Click(object sender, RoutedEventArgs e)
         {
-            AddHomePosition();
+            // Включаем режим установки HOME
+            _isSettingHomeMode = true;
+            PlanMap.Cursor = Cursors.Cross;
+
+            // Подсказка пользователю
+            AppMessageBox.ShowInfo(
+                "Кликните на карте для установки HOME.",
+                owner: OwnerWindow,
+                subtitle: "Установка HOME"
+            );
         }
 
 
@@ -1121,21 +1305,22 @@ namespace SimpleDroneGCS.Views
         {
             var grid = new Grid { Width = 40, Height = 40 };
 
-            // Красный круг для HOME
             var homeCircle = new Ellipse
             {
                 Width = 40,
                 Height = 40,
-                Fill = new SolidColorBrush(Color.FromArgb(180, 239, 68, 68)), // Красный
+                Fill = new SolidColorBrush(Color.FromArgb(180, 239, 68, 68)),
                 Stroke = Brushes.White,
                 StrokeThickness = 3
             };
 
-            // Иконка дома
-            var homeIcon = new TextBlock
+            var homeIcon = new Image
             {
-                Text = "🏠",
-                FontSize = 22,
+                Source = new System.Windows.Media.Imaging.BitmapImage(
+                    new Uri("pack://application:,,,/Images/home_icon.png")),
+                Width = 18,
+                Height = 18,
+                Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1292,12 +1477,12 @@ namespace SimpleDroneGCS.Views
         /// <summary>
         /// Перерисовка всех меток (например при изменении зума или радиуса)
         /// </summary>
-        
+
         private void RefreshMarkers()
         {
             if (_waypoints == null || _waypoints.Count == 0 || PlanMap == null) return;
 
-            System.Diagnostics.Debug.WriteLine($"🔄 RefreshMarkers: обновляем {_waypoints.Count} меток, текущий zoom={PlanMap.Zoom:F1}");
+            System.Diagnostics.Debug.WriteLine($" RefreshMarkers: обновляем {_waypoints.Count} меток, текущий zoom={PlanMap.Zoom:F1}");
 
             foreach (var wp in _waypoints)
             {
@@ -1306,7 +1491,7 @@ namespace SimpleDroneGCS.Views
                 {
                     double radiusInPixels = MetersToPixels(wp.Radius, wp.Latitude, PlanMap.Zoom);
 
-                    System.Diagnostics.Debug.WriteLine($"  🔍 WP{wp.Number}: Radius={wp.Radius:F0}м → radiusInPixels = {radiusInPixels:F2}px (zoom={PlanMap.Zoom:F1})");
+                    System.Diagnostics.Debug.WriteLine($"   WP{wp.Number}: Radius={wp.Radius:F0}м → radiusInPixels = {radiusInPixels:F2}px (zoom={PlanMap.Zoom:F1})");
 
                     // РЕАЛИЗМ: Только ограничиваем максимум, НЕ увеличиваем минимум!
                     // Пусть маленькие круги остаются маленькими - это реально!
@@ -1317,7 +1502,7 @@ namespace SimpleDroneGCS.Views
 
                     double diameter = radiusInPixels * 2;
 
-                    System.Diagnostics.Debug.WriteLine($"  ✨ WP{wp.Number}: radiusInPixels ПОСЛЕ clamp = {radiusInPixels:F0}px (диаметр: {diameter:F0}px)");
+                    System.Diagnostics.Debug.WriteLine($"   WP{wp.Number}: radiusInPixels ПОСЛЕ clamp = {radiusInPixels:F0}px (диаметр: {diameter:F0}px)");
 
                     // КРИТИЧНО: Меняем размеры НАПРЯМУЮ у существующих элементов!
                     wp.ShapeGrid.Width = diameter;
@@ -1339,7 +1524,7 @@ namespace SimpleDroneGCS.Views
                 else
                 {
                     // Если ссылок нет - пересоздаем маркер (для старых меток)
-                    System.Diagnostics.Debug.WriteLine($"  ⚠️ WP{wp.Number}: нет сохраненных ссылок, пересоздаем");
+                    System.Diagnostics.Debug.WriteLine($"   WP{wp.Number}: нет сохраненных ссылок, пересоздаем");
 
                     if (wp.Marker != null)
                     {
@@ -1370,7 +1555,7 @@ namespace SimpleDroneGCS.Views
             // Принудительное обновление карты
             PlanMap.InvalidateVisual();
 
-            System.Diagnostics.Debug.WriteLine($"✅ RefreshMarkers: завершено\n");
+            System.Diagnostics.Debug.WriteLine($" RefreshMarkers: завершено\n");
         }
 
         /// <summary>
@@ -1378,45 +1563,54 @@ namespace SimpleDroneGCS.Views
         /// </summary>
         private void AddWaypointButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Добавить маршрутную точку - в разработке\n\nИспользуйте двойной клик на карте", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo(
+                "Функция добавления точки кнопкой пока в разработке.\n\nИспользуйте двойной клик по карте для добавления точки.",
+                owner: OwnerWindow,
+                subtitle: "В разработке"
+            );
         }
 
         private void ExecuteButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Выполнить миссию - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
         }
 
         private void LoiterButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Кружить - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Отменить - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
         }
 
         //private void RthButton_Click(object sender, RoutedEventArgs e)
         //{
-           // MessageBox.Show("Возврат на базу - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
-       // }
+        // TODO: Возврат на базу (в разработке)
+        // }
 
         private void ToggleButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Вкл/Выкл - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
         }
 
         private void UploadButton_Click(object sender, RoutedEventArgs e)
         {
             if (_waypoints == null || _waypoints.Count == 0)
             {
-                MessageBox.Show("Нет точек для сохранения", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning(
+                    "Нет точек для сохранения.",
+                    owner: OwnerWindow,
+                    subtitle: "Пустая миссия",
+                    hint: "Добавьте точки двойным кликом по карте."
+                );
                 return;
             }
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"💾 Начало сохранения миссии: {_waypoints.Count} точек");
+                System.Diagnostics.Debug.WriteLine($" Начало сохранения миссии: {_waypoints.Count} точек");
 
                 // КРИТИЧНО: ВСЕГДА сохраняем в файл (для резервной копии и отладки)
                 SaveMissionToFile("mission_planned.txt");
@@ -1424,48 +1618,79 @@ namespace SimpleDroneGCS.Views
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 string fullPath = System.IO.Path.Combine(desktopPath, "mission_planned.txt");
 
-                System.Diagnostics.Debug.WriteLine($"✅ Файл сохранён: {fullPath}");
+                System.Diagnostics.Debug.WriteLine($" Файл сохранён: {fullPath}");
 
                 // Если MAVLink доступен - сохраняем ДОПОЛНИТЕЛЬНО в сервис
                 if (_mavlinkService != null)
                 {
-                    _mavlinkService.SavePlannedMission(_waypoints.ToList());
-                    System.Diagnostics.Debug.WriteLine($"✅ Миссия сохранена в MAVLink");
+                    _mavlinkService.SavePlannedMission(GetFullMission());
+                    System.Diagnostics.Debug.WriteLine($" Миссия сохранена в MAVLink");
 
-                    MessageBox.Show(
-                        $"✅ Миссия сохранена: {_waypoints.Count} точек\n\n" +
-                        $"📄 Файл: {fullPath}\n" +
-                        $"💾 MAVLink: Готово к отправке\n\n" +
-                        "Для отправки в дрон:\n" +
-                        "1. Перейдите на страницу 'Полётные данные'\n" +
-                        "2. Подключитесь к дрону\n" +
-                        "3. Нажмите 'Активировать миссию'",
-                        "Миссия сохранена",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    // Создаём полную миссию с HOME
+                    var fullMission = new List<WaypointItem>();
+
+                    // Добавляем HOME первой точкой
+                    if (_homePosition != null)
+                    {
+                        fullMission.Add(new WaypointItem
+                        {
+                            Number = 0,
+                            Latitude = _homePosition.Latitude,
+                            Longitude = _homePosition.Longitude,
+                            Altitude = _homePosition.Altitude,
+                            CommandType = "HOME",
+                            Radius = _homePosition.Radius
+                        });
+                    }
+
+                    // Добавляем все waypoints
+                    fullMission.AddRange(_waypoints.Select(wp => new WaypointItem
+                    {
+                        Number = wp.Number,
+                        Latitude = wp.Latitude,
+                        Longitude = wp.Longitude,
+                        Altitude = wp.Altitude,
+                        CommandType = wp.CommandType,
+                        Delay = wp.Delay,
+                        Radius = wp.Radius
+                    }));
+
+                    MissionStore.Set((int)_currentVehicleType, fullMission);
+
+
+
+                    AppMessageBox.ShowSuccess(
+                        $"Миссия сохранена: {_waypoints.Count} точек.",
+                        owner: OwnerWindow,
+                        subtitle: "Миссия сохранена"
+                    );
                 }
                 else
                 {
-                    MessageBox.Show(
-                        $"✅ Миссия сохранена: {_waypoints.Count} точек\n\n" +
-                        $"📄 Файл: {fullPath}\n\n" +
-                        "Для отправки в дрон подключите MAVLink.",
-                        "Миссия сохранена",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    // ДОБАВЬ ЭТУ СТРОКУ:
+                    MissionStore.Set((int)_currentVehicleType, _waypoints.ToList());
+
+                    AppMessageBox.ShowSuccess(
+                        $"Миссия сохранена: {_waypoints.Count} точек.",
+                        owner: OwnerWindow,
+                        subtitle: "Миссия сохранена"
+                    );
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}\n{ex.StackTrace}");
+                AppMessageBox.ShowError(
+                    $"Ошибка сохранения: {ex.Message}",
+                    owner: OwnerWindow,
+                    subtitle: "Ошибка записи миссии",
+                    hint: "Проверьте доступ к папке и права на запись."
+                );
+                System.Diagnostics.Debug.WriteLine($" Ошибка: {ex.Message}\n{ex.StackTrace}");
             }
-            // ✅ Сохраняем миссию как активную для отображения на FlightDataView
+            //  Сохраняем миссию как активную для отображения на FlightDataView
             if (_mavlinkService != null)
             {
-                _mavlinkService.SetActiveMission(_waypoints.ToList());
-                System.Diagnostics.Debug.WriteLine("📤 Миссия передана для мониторинга на FlightDataView");
+                System.Diagnostics.Debug.WriteLine(" Миссия передана для мониторинга на FlightDataView");
             }
         }
 
@@ -1473,22 +1698,27 @@ namespace SimpleDroneGCS.Views
 
         private void DownloadButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Download из дрона - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Сохранить в файл - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
         }
 
         private void LoadButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Загрузить из файла - в разработке", "TODO", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
         }
 
         private void ClearButton_Click(object sender, RoutedEventArgs e)
         {
-            if (MessageBox.Show("Удалить все точки?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            if (AppMessageBox.ShowConfirm(
+                "Удалить все точки маршрута?",
+                owner: OwnerWindow,
+                subtitle: "Подтверждение очистки",
+                hint: "Действие необратимо."
+            ))
             {
                 PlanMap.Markers.Clear();
                 _waypoints.Clear();
@@ -1505,7 +1735,7 @@ namespace SimpleDroneGCS.Views
             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             string fullPath = System.IO.Path.Combine(desktopPath, filename);
 
-            System.Diagnostics.Debug.WriteLine($"📁 Сохранение миссии в: {fullPath}");
+            System.Diagnostics.Debug.WriteLine($" Сохранение миссии в: {fullPath}");
 
             var lines = new List<string>();
 
@@ -1536,7 +1766,7 @@ namespace SimpleDroneGCS.Views
             // КРИТИЧНО: Записываем с перезаписью
             System.IO.File.WriteAllLines(fullPath, lines);
 
-            System.Diagnostics.Debug.WriteLine($"✅ Миссия сохранена в {fullPath}");
+            System.Diagnostics.Debug.WriteLine($" Миссия сохранена в {fullPath}");
             System.Diagnostics.Debug.WriteLine($"   Всего строк: {lines.Count}");
         }
 
@@ -1559,7 +1789,7 @@ namespace SimpleDroneGCS.Views
                 case "CHANGE_SPEED": result = 178; break;
                 case "SET_HOME": result = 179; break;
                 default:
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Неизвестный тип команды: '{commandType}', использую WAYPOINT");
+                    System.Diagnostics.Debug.WriteLine($" Неизвестный тип команды: '{commandType}', использую WAYPOINT");
                     result = 16;
                     break;
             }
@@ -1589,7 +1819,7 @@ namespace SimpleDroneGCS.Views
                     ZoomSlider.Value = newZoom;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"🔍 Plan Map Zoom: {newZoom}");
+                System.Diagnostics.Debug.WriteLine($" Plan Map Zoom: {newZoom}");
             }
 
             e.Handled = true; // Останавливаем распространение события
@@ -1606,20 +1836,18 @@ namespace SimpleDroneGCS.Views
                 Height = 500
             };
 
-            // ОЧЕНЬ ДЛИННАЯ линия направления (heading)
             var headingLine = new Line
             {
                 X1 = 250,
                 Y1 = 250,
                 X2 = 250,
                 Y2 = 0,
-                Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)), // Красная
+                Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
                 StrokeThickness = 4,
                 StrokeEndLineCap = PenLineCap.Triangle,
                 Name = "HeadingLine"
             };
 
-            // ИКОНКА ДРОНА
             var droneIcon = new Image
             {
                 Source = new System.Windows.Media.Imaging.BitmapImage(
@@ -1633,13 +1861,17 @@ namespace SimpleDroneGCS.Views
 
             droneIcon.ImageFailed += (s, e) =>
             {
-                var fallback = new TextBlock
+                var fallback = new Ellipse
                 {
-                    Text = "🚁",
-                    FontSize = 36,
+                    Width = 18,
+                    Height = 18,
+                    Fill = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
+
                 grid.Children.Remove(droneIcon);
                 grid.Children.Add(fallback);
             };
@@ -1668,51 +1900,567 @@ namespace SimpleDroneGCS.Views
 
             var telemetry = _mavlinkService.CurrentTelemetry;
 
+            // === АВТОМАТИЧЕСКАЯ УСТАНОВКА HOME ПРИ АРМИРОВАНИИ ===
+            if (telemetry.Armed && !_wasArmed)
+            {
+                // Дрон только что заармился
+                if (telemetry.Latitude != 0 && telemetry.Longitude != 0 && telemetry.GpsFixType >= 2)
+                {
+                    SetHomeFromDronePosition(telemetry.Latitude, telemetry.Longitude);
+                }
+                _wasArmed = true;
+            }
+            else if (!telemetry.Armed)
+            {
+                _wasArmed = false;
+            }
+
+            // === ОБНОВЛЕНИЕ ПОЗИЦИИ ДРОНА НА КАРТЕ ===
             if (telemetry.Latitude != 0 && telemetry.Longitude != 0)
             {
                 var dronePosition = new PointLatLng(telemetry.Latitude, telemetry.Longitude);
 
-                // Создаем маркер дрона если его еще нет
                 if (_droneMarker == null)
                 {
                     _droneMarker = CreateDroneMarker(dronePosition);
                     PlanMap.Markers.Add(_droneMarker);
-                    System.Diagnostics.Debug.WriteLine("🚁 Дрон добавлен на карту планирования");
 
-                    // ПРИМЕНЯЕМ НАЧАЛЬНОЕ НАПРАВЛЕНИЕ
                     if (_droneMarker.Tag is Grid grid)
-                    {
                         grid.RenderTransform = new RotateTransform(telemetry.Heading, 250, 250);
-                    }
                 }
                 else
                 {
-                    // Обновляем позицию существующего маркера
                     _droneMarker.Position = dronePosition;
 
-                    // ОБНОВЛЯЕМ НАПРАВЛЕНИЕ (heading)
                     if (_droneMarker.Tag is Grid grid)
-                    {
                         grid.RenderTransform = new RotateTransform(telemetry.Heading, 250, 250);
-                    }
                 }
             }
             else if (_droneMarker != null && !_mavlinkService.IsConnected)
             {
-                // Убираем маркер при отключении
                 PlanMap.Markers.Remove(_droneMarker);
                 _droneMarker = null;
-                System.Diagnostics.Debug.WriteLine("🚁 Дрон удалён с карты планирования");
             }
         }
 
+        /// <summary>
+        /// Установка HOME из позиции дрона при армировании
+        /// </summary>
+        private void SetHomeFromDronePosition(double lat, double lon)
+        {
+            // Удаляем старый HOME маркер
+            if (_homePosition?.Marker != null)
+                PlanMap.Markers.Remove(_homePosition.Marker);
+
+            // Создаём новый HOME
+            _homePosition = new WaypointItem
+            {
+                Number = 0,
+                Latitude = lat,
+                Longitude = lon,
+                Altitude = 0,
+                CommandType = "HOME",
+                Radius = 20
+            };
+
+            AddHomeMarkerToMap(_homePosition);
+
+            // Отправляем SET_HOME в дрон
+            _mavlinkService?.SendSetHome(useCurrentLocation: true);
+
+            UpdateRoute();
+
+            // === ДОБАВЬ ЭТУ СТРОКУ ===
+            MissionStore.SetHome((int)_currentVehicleType, _homePosition);
+
+            System.Diagnostics.Debug.WriteLine($"[HOME] Автоматически установлен при армировании: {lat:F6}, {lon:F6}");
+        }
+
+
+        /// <summary>
+        /// Собрать полную миссию: TAKEOFF + waypoints + RTL
+        /// </summary>
+        public List<WaypointItem> GetFullMission()
+        {
+            var mission = new List<WaypointItem>();
+
+            // 1. TAKEOFF
+            if (_homePosition != null)
+            {
+                mission.Add(new WaypointItem
+                {
+                    Number = 0,
+                    Latitude = _homePosition.Latitude,
+                    Longitude = _homePosition.Longitude,
+                    Altitude = _takeoffAltitude,
+                    CommandType = "TAKEOFF"
+                });
+            }
+
+            // 2. Все waypoints
+            foreach (var wp in _waypoints)
+            {
+                mission.Add(new WaypointItem
+                {
+                    Number = mission.Count,
+                    Latitude = wp.Latitude,
+                    Longitude = wp.Longitude,
+                    Altitude = wp.Altitude,
+                    CommandType = wp.CommandType,
+                    Delay = wp.Delay,
+                    Radius = wp.Radius
+                });
+            }
+
+            // 3. RTL
+            mission.Add(new WaypointItem
+            {
+                Number = mission.Count,
+                Latitude = 0, // RTL не требует координат
+                Longitude = 0,
+                Altitude = _rtlAltitude,
+                CommandType = "RETURN_TO_LAUNCH"
+            });
+
+            return mission;
+        }
+
+
+        #region MISSION CACHE BY TYPE
+
+        /// <summary>
+        /// Сохранить текущую миссию для текущего типа (в RAM)
+        /// </summary>
+        private void SaveCurrentMissionForType()
+        {
+            // Сохраняем waypoints
+            if (_waypoints.Count > 0)
+            {
+                _missionsByType[_currentVehicleType] = _waypoints.Select(wp => new WaypointItem
+                {
+                    Number = wp.Number,
+                    Latitude = wp.Latitude,
+                    Longitude = wp.Longitude,
+                    Altitude = wp.Altitude,
+                    CommandType = wp.CommandType,
+                    Delay = wp.Delay,
+                    Radius = wp.Radius
+                }).ToList();
+            }
+            else
+            {
+                _missionsByType.Remove(_currentVehicleType);
+            }
+
+            // Сохраняем HOME
+            if (_homePosition != null)
+            {
+                _homeByType[_currentVehicleType] = new WaypointItem
+                {
+                    Number = 0,
+                    Latitude = _homePosition.Latitude,
+                    Longitude = _homePosition.Longitude,
+                    Altitude = _homePosition.Altitude,
+                    CommandType = "HOME",
+                    Radius = _homePosition.Radius
+                };
+            }
+            else
+            {
+                _homeByType.Remove(_currentVehicleType);
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[Mission] Сохранено: {_currentVehicleType} = {_waypoints.Count} точек");
+        }
+
+        /// <summary>
+        /// Загрузить миссию для указанного типа (из RAM на карту)
+        /// </summary>
+        /// <summary>
+/// Загрузить миссию для указанного типа (из RAM на карту)
+/// </summary>
+private void LoadMissionForType(VehicleType type)
+{
+    System.Diagnostics.Debug.WriteLine($"[LoadMission] Загрузка миссии для {type}...");
+
+    // 1. Удаляем ВСЕ маркеры waypoints с карты
+    foreach (var wp in _waypoints)
+    {
+        if (wp.Marker != null)
+        {
+            PlanMap.Markers.Remove(wp.Marker);
+            wp.Marker = null;
+        }
+    }
+
+    // 2. Удаляем HOME маркер
+    if (_homePosition?.Marker != null)
+    {
+        PlanMap.Markers.Remove(_homePosition.Marker);
+        _homePosition.Marker = null;
+    }
+
+    // 3. Удаляем ВСЕ маршруты (линии)
+    var oldRoutes = PlanMap.Markers.OfType<GMapRoute>().ToList();
+    foreach (var r in oldRoutes)
+    {
+        PlanMap.Markers.Remove(r);
+    }
+
+    // 4. Очищаем коллекции БЕЗ триггера CollectionChanged
+    var tempCollection = _waypoints;
+    _waypoints = new ObservableCollection<WaypointItem>();
+    tempCollection.Clear();
+    
+    // Восстанавливаем подписку
+    _waypoints.CollectionChanged += (s, e) =>
+    {
+        UpdateStatistics();
+        UpdateWaypointsList();
+    };
+
+    _homePosition = null;
+
+    System.Diagnostics.Debug.WriteLine($"[LoadMission] Карта очищена. Загружаем тип {type}...");
+
+    // 5. Загружаем HOME для нового типа
+    if (_homeByType.TryGetValue(type, out var savedHome) && savedHome != null)
+    {
+        _homePosition = new WaypointItem
+        {
+            Number = 0,
+            Latitude = savedHome.Latitude,
+            Longitude = savedHome.Longitude,
+            Altitude = savedHome.Altitude,
+            CommandType = "HOME",
+            Radius = savedHome.Radius
+        };
+        AddHomeMarkerToMap(_homePosition);
+        System.Diagnostics.Debug.WriteLine($"[LoadMission] HOME загружен: {savedHome.Latitude:F6}, {savedHome.Longitude:F6}");
+    }
+
+    // 6. Загружаем waypoints для нового типа
+    if (_missionsByType.TryGetValue(type, out var savedWaypoints) && savedWaypoints != null)
+    {
+        foreach (var wp in savedWaypoints)
+        {
+            var newWp = new WaypointItem
+            {
+                Number = _waypoints.Count + 1,
+                Latitude = wp.Latitude,
+                Longitude = wp.Longitude,
+                Altitude = wp.Altitude,
+                CommandType = wp.CommandType,
+                Delay = wp.Delay,
+                Radius = wp.Radius > 0 ? wp.Radius : _waypointRadius
+            };
+            _waypoints.Add(newWp);
+            AddMarkerToMap(newWp);
+        }
+        System.Diagnostics.Debug.WriteLine($"[LoadMission] Загружено {savedWaypoints.Count} точек");
+    }
+    else
+    {
+        System.Diagnostics.Debug.WriteLine($"[LoadMission] Нет сохранённой миссии для {type}");
     }
 
 
+    // 7. Обновляем UI (без авто-создания HOME!)
+    UpdateRouteOnly();  // ← Новый метод!
+    UpdateStatistics();
+    UpdateWaypointsList();
 
-    /// <summary>
-    /// Класс для waypoint
-    /// </summary>
+    System.Diagnostics.Debug.WriteLine($"[LoadMission] Завершено: {_waypoints.Count} точек, HOME: {_homePosition != null}");
+}
+
+        #endregion
+
+
+
+        #region VEHICLE TYPE SELECTOR
+
+        private void VehicleTypeSelector_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                var menu = BuildVehicleTypeMenu();
+                menu.PlacementTarget = VehicleTypeSelector;
+                menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+                menu.IsOpen = true;
+                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                AppMessageBox.ShowError(
+                    $"Не удалось открыть выбор типа аппарата: {ex.Message}",
+                    owner: OwnerWindow,
+                    subtitle: "Ошибка",
+                    hint: "Повторите попытку. Если ошибка повторяется — проверьте логи."
+                );
+            }
+        }
+
+        private ContextMenu BuildVehicleTypeMenu()
+        {
+            var menu = new ContextMenu
+            {
+                Background = (SolidColorBrush)new BrushConverter().ConvertFromString("#0D1733"),
+                BorderBrush = (SolidColorBrush)new BrushConverter().ConvertFromString("#2A4361"),
+                BorderThickness = new Thickness(2),
+                Padding = new Thickness(6),
+                HasDropShadow = true
+            };
+
+            // Единый стиль пунктов меню
+            var itemStyle = new Style(typeof(MenuItem));
+            itemStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, Brushes.White));
+            itemStyle.Setters.Add(new Setter(MenuItem.BackgroundProperty, Brushes.Transparent));
+            itemStyle.Setters.Add(new Setter(MenuItem.PaddingProperty, new Thickness(10, 8, 10, 8)));
+            itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, Cursors.Hand));
+            itemStyle.Setters.Add(new Setter(MenuItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+
+            var hoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(MenuItem.BackgroundProperty,
+                (SolidColorBrush)new BrushConverter().ConvertFromString("#1A2433")));
+            itemStyle.Triggers.Add(hoverTrigger);
+
+            menu.Resources[typeof(MenuItem)] = itemStyle;
+
+            var copter = new MenuItem
+            {
+                Header = BuildVehicleMenuHeader("/Images/drone_icon.png", "Мультикоптер", "MC"),
+                Tag = VehicleType.Copter
+            };
+            copter.Click += VehicleTypeMenuItem_Click;
+
+            var vtol = new MenuItem
+            {
+                Header = BuildVehicleMenuHeader("/Images/pl.png", "СВВП", "VTOL"),
+                Tag = VehicleType.QuadPlane
+            };
+            vtol.Click += VehicleTypeMenuItem_Click;
+
+            menu.Items.Add(copter);
+            menu.Items.Add(vtol);
+
+            return menu;
+        }
+
+        private static UIElement BuildVehicleMenuHeader(string iconPath, string title, string shortCode)
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var icon = new Image
+            {
+                Source = new System.Windows.Media.Imaging.BitmapImage(new Uri($"pack://application:,,,{iconPath}")),
+                Width = 18,
+                Height = 18,
+                Stretch = Stretch.Uniform,
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(icon, 0);
+
+            var text = new TextBlock
+            {
+                Text = title,
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(text, 1);
+
+            var badge = new Border
+            {
+                Background = (SolidColorBrush)new BrushConverter().ConvertFromString("#122244"),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(6, 2, 6, 2),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var badgeText = new TextBlock
+            {
+                Text = shortCode,
+                Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#98F019"),
+                FontWeight = FontWeights.Bold,
+                FontSize = 11
+            };
+            badge.Child = badgeText;
+            Grid.SetColumn(badge, 2);
+
+            grid.Children.Add(icon);
+            grid.Children.Add(text);
+            grid.Children.Add(badge);
+
+            return grid;
+        }
+
+        private void VehicleTypeMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem mi || mi.Tag is not VehicleType newType)
+                return;
+
+            if (newType == _currentVehicleType)
+                return;
+
+            bool ok = AppMessageBox.ShowConfirm(
+                "Переключить тип аппарата?",
+                owner: OwnerWindow,
+                subtitle: "Смена типа аппарата"
+            );
+
+            if (!ok) return;
+
+            try
+            {
+                // 1. Сохраняем текущую миссию
+                SaveCurrentMissionForType();
+
+                // 2. Меняем тип
+                VehicleManager.Instance.SetVehicleType(newType);
+                _currentVehicleType = newType;
+
+                if (_mavlinkService != null)
+                {
+                    var mavType = (byte)VehicleManager.Instance.CurrentProfile.MavType;
+                    _mavlinkService.SetVehicleType(mavType);
+                }
+
+                // 3. Загружаем миссию нового типа
+                LoadMissionForType(newType);
+
+                // 4. Обновляем UI
+                UpdateVehicleTypeDisplay();
+            }
+            catch (Exception ex)
+            {
+                AppMessageBox.ShowError(
+                    $"Ошибка: {ex.Message}",
+                    owner: OwnerWindow,
+                    subtitle: "Ошибка переключения"
+                );
+            }
+        }
+
+        private void UpdateVehicleTypeDisplay()
+        {
+            try
+            {
+                var profile = VehicleManager.Instance.CurrentProfile;
+                _currentVehicleType = profile.Type;
+
+                if (VehicleTypeShortText != null)
+                    VehicleTypeShortText.Text = profile.Type == VehicleType.Copter ? "MC" : "VTOL";
+
+                if (VehicleTypeFullText != null)
+                    VehicleTypeFullText.Text = profile.Type == VehicleType.Copter ? "Мультикоптер" : "СВВП";
+            }
+            catch
+            {
+                if (VehicleTypeShortText != null) VehicleTypeShortText.Text = "MC";
+                if (VehicleTypeFullText != null) VehicleTypeFullText.Text = "Мультикоптер";
+            }
+        }
+
+        #endregion
+
+        private void DownloadSRTM_Click(object sender, RoutedEventArgs e)
+        {
+            // Берём текущую позицию карты
+            var center = PlanMap.Position;
+
+            var dialog = new UI.Dialogs.SRTMDownloadDialog(center.Lat, center.Lng);
+            dialog.Owner = Window.GetWindow(this);
+            dialog.ShowDialog();
+        }
+
+        #region CURSOR DISTANCE
+
+        private void PlanMap_MouseMove(object sender, MouseEventArgs e)
+        {
+            var point = e.GetPosition(PlanMap);
+            var cursorLatLng = PlanMap.FromLocalToLatLng((int)point.X, (int)point.Y);
+
+           
+
+            // === ОТЛАДКА ===
+            System.Diagnostics.Debug.WriteLine($"[MouseMove] Lat={cursorLatLng.Lat:F4}, Lng={cursorLatLng.Lng:F4}");
+
+            // === КООРДИНАТЫ КУРСОРА ===
+            if (CursorLatText != null)
+                CursorLatText.Text = cursorLatLng.Lat.ToString("F6");
+
+            if (CursorLngText != null)
+                CursorLngText.Text = cursorLatLng.Lng.ToString("F6");
+
+            // === КООРДИНАТЫ И ВЫСОТА ===
+            if (CursorLatText != null)
+                CursorLatText.Text = cursorLatLng.Lat.ToString("F6");
+
+            if (CursorLngText != null)
+                CursorLngText.Text = cursorLatLng.Lng.ToString("F6");
+
+            // Высота из SRTM
+            if (CursorAltText != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SRTM] Запрос высоты...");
+                double? elevation = _elevationProvider.GetElevation(cursorLatLng.Lat, cursorLatLng.Lng);
+                System.Diagnostics.Debug.WriteLine($"[SRTM] Результат: {elevation?.ToString() ?? "NULL"}");
+                CursorAltText.Text = elevation.HasValue ? $"{elevation.Value:F0} м" : "— м";
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[SRTM] CursorAltText is NULL!");
+            }
+
+            // === ДИСТАНЦИЯ ОТ ПОСЛЕДНЕЙ ТОЧКИ ===
+            if (_waypoints.Count > 0 && CursorDistanceFromLast != null)
+            {
+                var lastWp = _waypoints[_waypoints.Count - 1];
+                double dist = CalculateDistanceLatLng(lastWp.Latitude, lastWp.Longitude,
+                                                       cursorLatLng.Lat, cursorLatLng.Lng);
+                CursorDistanceFromLast.Text = $"От WP{lastWp.Number}: {FormatDistance(dist)}";
+            }
+            else if (CursorDistanceFromLast != null)
+            {
+                CursorDistanceFromLast.Text = "От WP: —";
+            }
+
+            // === ДИСТАНЦИЯ ОТ HOME ===
+            if (_homePosition != null && CursorDistanceFromHome != null)
+            {
+                double dist = CalculateDistanceLatLng(_homePosition.Latitude, _homePosition.Longitude,
+                                                       cursorLatLng.Lat, cursorLatLng.Lng);
+                CursorDistanceFromHome.Text = $"От HOME: {FormatDistance(dist)}";
+            }
+            else if (CursorDistanceFromHome != null)
+            {
+                CursorDistanceFromHome.Text = "От HOME: —";
+            }
+        }
+
+        private double CalculateDistanceLatLng(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371000; // радиус Земли в метрах
+            double dLat = (lat2 - lat1) * Math.PI / 180;
+            double dLon = (lon2 - lon1) * Math.PI / 180;
+            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                       Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                       Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        private string FormatDistance(double meters)
+        {
+            return $"{meters:F0} м";
+        }
+    }
+
+       #endregion 
+
+
     public class WaypointItem : INotifyPropertyChanged
     {
         private int _number;
@@ -1777,7 +2525,7 @@ namespace SimpleDroneGCS.Views
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        
+
     }
 
 

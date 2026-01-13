@@ -1,10 +1,12 @@
-﻿using SimpleDroneGCS.Services;
+﻿using SimpleDroneGCS.Controls;
+using SimpleDroneGCS.Services;
+using SimpleDroneGCS.UI.Dialogs;
 using SimpleDroneGCS.Views;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
 using System.Linq;
-using System.Management; // Нужно добавить Reference на System.Management
+using System.Management;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,6 +24,9 @@ namespace SimpleDroneGCS
         private bool _isConnected = false;
         private Button _activeNavButton = null;
 
+        // Кэш страниц - создаются один раз
+        private FlightDataView _flightDataView;
+        private FlightPlanView _flightPlanView;
 
         public MAVLinkService MAVLink { get; private set; }
 
@@ -30,7 +35,7 @@ namespace SimpleDroneGCS
             System.Diagnostics.Debug.WriteLine("[MainWindow] Constructor called");
             InitializeComponent();
             System.Diagnostics.Debug.WriteLine("[MainWindow] InitializeComponent completed");
-            InitializeComponent();
+
             InitializeMAVLink();
             InitializeComPorts();
             SetupComPortAutoRefresh();
@@ -60,6 +65,9 @@ namespace SimpleDroneGCS
 
         #region COM PORT
 
+        private Dictionary<string, string> _comPortDescriptions = new Dictionary<string, string>();
+        private DateTime _lastWmiScan = DateTime.MinValue;
+
         private void InitializeComPorts()
         {
             RefreshComPortsList(false);
@@ -67,20 +75,16 @@ namespace SimpleDroneGCS
 
         private void RefreshComPortsList(bool autoSelect)
         {
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
             try
             {
                 var ports = SerialPort.GetPortNames().OrderBy(p => p).ToArray();
-                string currentSelection = _selectedComPort; // Сохраняем текущий выбор
+                string currentSelection = _selectedComPort;
 
-                // Сохраняем текущий выбранный элемент
                 var selectedItem = ComPortComboBox.SelectedItem as ComboBoxItem;
                 string previousSelection = selectedItem?.Content?.ToString();
 
                 ComPortComboBox.Items.Clear();
 
-                // Добавляем placeholder
                 var placeholderItem = new ComboBoxItem
                 {
                     Content = "COM Порт",
@@ -88,7 +92,13 @@ namespace SimpleDroneGCS
                 };
                 ComPortComboBox.Items.Add(placeholderItem);
 
-                // Добавляем реальные порты С ПОЛНЫМИ НАЗВАНИЯМИ
+                var udpItem = new ComboBoxItem
+                {
+                    Content = "📡 UDP (14550)",
+                    Tag = "UDP"
+                };
+                ComPortComboBox.Items.Add(udpItem);
+
                 ComboBoxItem itemToSelect = null;
                 foreach (var port in ports)
                 {
@@ -96,40 +106,32 @@ namespace SimpleDroneGCS
 
                     var item = new ComboBoxItem
                     {
-                        Content = fullDescription,  // Полное имя: "USB Serial Port (COM3)"
-                        Tag = port                  // Короткое имя для подключения: "COM3"
+                        Content = fullDescription,
+                        Tag = port
                     };
                     ComPortComboBox.Items.Add(item);
 
-                    // Запоминаем элемент для восстановления выбора
                     if (port == previousSelection || port == currentSelection)
                     {
                         itemToSelect = item;
                     }
                 }
 
-                // УМНОЕ ВОССТАНОВЛЕНИЕ ВЫБОРА
-                if (itemToSelect != null && ports.Contains(itemToSelect.Content.ToString()))
+                if (itemToSelect != null && ports.Contains(itemToSelect.Tag?.ToString()))
                 {
-                    // Порт всё ещё доступен - восстанавливаем выбор
                     ComPortComboBox.SelectedItem = itemToSelect;
-                    System.Diagnostics.Debug.WriteLine($"✅ COM порт восстановлен: {itemToSelect.Content}");
                 }
                 else if (ports.Length > 0 && autoSelect)
                 {
-                    // Автовыбор первого порта (только если запрошено)
-                    ComPortComboBox.SelectedIndex = 1; // Пропускаем placeholder
+                    ComPortComboBox.SelectedIndex = 1;
                 }
                 else if (!ports.Contains(previousSelection) && previousSelection != "COM Порт")
                 {
-                    // Порт отключился - сбрасываем на placeholder
                     ComPortComboBox.SelectedIndex = 0;
                     _selectedComPort = null;
-                    System.Diagnostics.Debug.WriteLine($"⚠️ COM порт {previousSelection} отключён");
                 }
                 else
                 {
-                    // Выбираем placeholder
                     ComPortComboBox.SelectedIndex = 0;
                 }
             }
@@ -139,47 +141,29 @@ namespace SimpleDroneGCS
             }
         }
 
-
-        // Добавь в начало класса MainWindow:
-        private Dictionary<string, string> _comPortDescriptions = new Dictionary<string, string>();
-        private DateTime _lastWmiScan = DateTime.MinValue;
-
-        /// <summary>
-        /// Получение полного описания COM порта с кэшированием
-        /// </summary>
-        /// <summary>
-        /// Получение полного описания COM порта с кэшированием
-        /// </summary>
         private string GetComPortDescription(string portName)
         {
-            // Обновляем кэш только раз в 10 секунд
             if ((DateTime.Now - _lastWmiScan).TotalSeconds > 10 || _comPortDescriptions.Count == 0)
             {
                 RefreshComPortDescriptions();
             }
 
-            // Возвращаем из кэша (или просто "COM3" если WMI ещё не обновился)
             return _comPortDescriptions.ContainsKey(portName)
                 ? _comPortDescriptions[portName]
                 : portName;
         }
 
-        /// <summary>
-        /// Обновление кэша описаний портов (асинхронно в фоне)
-        /// </summary>
         private void RefreshComPortDescriptions()
         {
             _lastWmiScan = DateTime.Now;
             _comPortDescriptions.Clear();
 
-            // Сначала добавляем ВСЕ порты с простыми именами
             var allPorts = SerialPort.GetPortNames();
             foreach (var port in allPorts)
             {
-                _comPortDescriptions[port] = port; // По умолчанию просто "COM3"
+                _comPortDescriptions[port] = port;
             }
 
-            // Потом в фоне дополняем красивыми именами из WMI
             Task.Run(() =>
             {
                 try
@@ -192,27 +176,22 @@ namespace SimpleDroneGCS
                             string caption = obj["Caption"]?.ToString();
                             if (caption != null && caption.Contains("COM"))
                             {
-                                // Извлекаем номер порта из строки типа "USB Serial (COM3)"
                                 var match = System.Text.RegularExpressions.Regex.Match(caption, @"COM\d+");
                                 if (match.Success)
                                 {
-                                    string portName = match.Value; // Получаем "COM3"
+                                    string portName = match.Value;
 
                                     Dispatcher.Invoke(() =>
                                     {
-                                        // Обновляем ТОЛЬКО если порт существует
                                         if (_comPortDescriptions.ContainsKey(portName))
                                         {
                                             _comPortDescriptions[portName] = caption;
-                                            System.Diagnostics.Debug.WriteLine($"  ✅ {portName} → {caption}");
                                         }
                                     });
                                 }
                             }
                         }
                     }
-
-                    System.Diagnostics.Debug.WriteLine($"✅ WMI сканирование завершено");
                 }
                 catch (Exception ex)
                 {
@@ -221,21 +200,19 @@ namespace SimpleDroneGCS
             });
         }
 
-
         private void ComPortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ComPortComboBox.SelectedItem is ComboBoxItem item)
             {
-                string portName = item.Content.ToString();
+                string portTag = item.Tag?.ToString();
 
-                // Игнорируем placeholder
-                if (portName == "COM Порт" || item.Tag?.ToString() == "placeholder")
+                if (string.IsNullOrEmpty(portTag) || portTag == "placeholder")
                 {
                     _selectedComPort = null;
                     return;
                 }
 
-                _selectedComPort = portName;
+                _selectedComPort = portTag;
                 System.Diagnostics.Debug.WriteLine($"📍 COM порт выбран: {_selectedComPort}");
             }
         }
@@ -249,14 +226,10 @@ namespace SimpleDroneGCS
         {
             _comPortRefreshTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(5) // Каждые 5 секунд
+                Interval = TimeSpan.FromSeconds(5)
             };
             _comPortRefreshTimer.Tick += (s, e) =>
             {
-                // Обновляем ТОЛЬКО если:
-                // 1. Dropdown ЗАКРЫТ
-                // 2. НЕ подключены
-                // 3. НЕ выбран конкретный порт
                 if (!ComPortComboBox.IsDropDownOpen &&
                     !_isConnected &&
                     (string.IsNullOrEmpty(_selectedComPort) || _selectedComPort == "COM Порт"))
@@ -296,32 +269,44 @@ namespace SimpleDroneGCS
         {
             if (ComPortComboBox.SelectedItem is ComboBoxItem item)
             {
-                // Берём КОРОТКОЕ имя из Tag (COM3), а не полное из Content
-                string portTag = item.Tag?.ToString();
+                string tag = item.Tag?.ToString();
 
-                if (string.IsNullOrEmpty(portTag) || portTag == "placeholder")
+                if (string.IsNullOrEmpty(tag) || tag == "placeholder")
                 {
-                    MessageBox.Show("Выберите реальный COM порт из списка", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    AppMessageBox.ShowWarning("Выберите тип подключения", owner: this);
                     return;
                 }
 
-                _selectedComPort = portTag; // Сохраняем короткое имя
-
                 try
                 {
-                    MAVLink.Connect(_selectedComPort, _selectedBaudRate);
+                    if (tag == "UDP")
+                    {
+                        var dialog = new UdpConnectionDialog();
+                        dialog.Owner = this;
+                        dialog.ShowDialog();
+
+                        if (dialog.IsConfirmed)
+                        {
+                            if (!string.IsNullOrEmpty(dialog.HostIp) && dialog.HostPort.HasValue)
+                            {
+                                MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort, dialog.HostIp, dialog.HostPort.Value);
+                            }
+                            else
+                            {
+                                MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _selectedComPort = tag;
+                        MAVLink.Connect(_selectedComPort, _selectedBaudRate);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка подключения: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    AppMessageBox.ShowError($"Ошибка: {ex.Message}", owner: this);
                 }
-            }
-            else
-            {
-                MessageBox.Show("Выберите COM порт из списка", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -334,22 +319,16 @@ namespace SimpleDroneGCS
         {
             if (_isConnected)
             {
-                // Красная кнопка при подключении
                 ConnectButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-
                 ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(152, 240, 25));
                 ConnectionStatusText.Text = "Подключено";
-
                 _comPortRefreshTimer?.Stop();
             }
             else
             {
-                // Зелёная кнопка при отключении
                 ConnectButton.Background = new SolidColorBrush(Color.FromRgb(42, 67, 97));
-
                 ConnectionIndicator.Fill = Brushes.Red;
                 ConnectionStatusText.Text = "Не подключено";
-
                 _comPortRefreshTimer?.Start();
             }
         }
@@ -377,20 +356,23 @@ namespace SimpleDroneGCS
                 switch (button.Tag?.ToString())
                 {
                     case "FlightData":
-                        // Передаем MAVLink сервис в View
-                        var flightDataView = new FlightDataView(MAVLink);
-                        MainFrame.Navigate(flightDataView);
+                        _flightDataView ??= new FlightDataView(MAVLink);
+                        MainFrame.Navigate(_flightDataView);
                         break;
+
                     case "FlightPlan":
-                        // НОВОЕ: Тоже передаем MAVLink!
-                        var flightPlanView = new FlightPlanView(MAVLink);
-                        MainFrame.Navigate(flightPlanView);
+                        _flightPlanView ??= new FlightPlanView(MAVLink);
+                        MainFrame.Navigate(_flightPlanView);
                         break;
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка навигации: {ex.Message}");
+                AppMessageBox.ShowError(
+                    $"Ошибка навигации: {ex.Message}",
+                    owner: this,
+                    subtitle: "Ошибка"
+                );
             }
         }
 
@@ -398,54 +380,103 @@ namespace SimpleDroneGCS
 
         #region КОМАНДЫ
 
-        private void TakeoffButton_Click(object sender, RoutedEventArgs e)
+        private DispatcherTimer _spinnerTimer;
+
+        private async void CameraButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_isConnected)
+            string viewLinkPath = Properties.Settings.Default.ViewLinkPath;
+
+            // Если путь не задан или файл не существует — спрашиваем
+            if (string.IsNullOrEmpty(viewLinkPath) || !System.IO.File.Exists(viewLinkPath))
             {
-                MessageBox.Show("Дрон не подключен", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Укажите путь к ViewLink.exe",
+                    Filter = "ViewLink|ViewLink.exe|Исполняемые файлы|*.exe",
+                    FileName = "ViewLink.exe"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    viewLinkPath = dialog.FileName;
+                    Properties.Settings.Default.ViewLinkPath = viewLinkPath;
+                    Properties.Settings.Default.Save();
+                }
+                else
+                {
+                    return; // Отменил выбор
+                }
             }
 
-            if (MAVLink.CurrentTelemetry.Armed)
+            try
             {
-                MessageBox.Show("Дрон уже активирован!", "Информация",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
+                ShowLoading("Запуск ViewLink...");
 
-            // ВЫБОР: обычный ARM или принудительный
-            var result = MessageBox.Show(
-                "🔴 АКТИВИРОВАТЬ моторы?\n\n" +
-                "⚠️ Есть ошибка конфигурации: 'Check frame class and type'\n\n" +
-                "Нажмите:\n" +
-                "• YES - Принудительный ARM (игнорирует проверки)\n" +
-                "• NO - Обычный ARM (может отклониться)\n" +
-                "• CANCEL - Отмена",
-                "ARM - Выбор режима",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Warning);
+                await Task.Run(() =>
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = viewLinkPath,
+                        UseShellExecute = true
+                    });
+                });
 
-            if (result == MessageBoxResult.Yes)
-            {
-                // ПРИНУДИТЕЛЬНЫЙ ARM
-                MAVLink.ForceArm();
-                System.Diagnostics.Debug.WriteLine("🔴 FORCE ARM команда отправлена");
+                await Task.Delay(1500);
+                HideLoading();
             }
-            else if (result == MessageBoxResult.No)
+            catch (Exception ex)
             {
-                // ОБЫЧНЫЙ ARM
-                MAVLink.SetArm(true);
-                System.Diagnostics.Debug.WriteLine("🔴 ARM команда отправлена");
+                HideLoading();
+
+                // Сбрасываем путь если не удалось запустить
+                Properties.Settings.Default.ViewLinkPath = "";
+                Properties.Settings.Default.Save();
+
+                AppMessageBox.ShowError(
+                    $"Не удалось запустить ViewLink: {ex.Message}",
+                    owner: this,
+                    subtitle: "Ошибка запуска"
+                );
             }
+        }
+
+        private void ShowLoading(string text = "Загрузка...")
+        {
+            LoadingText.Text = text;
+            LoadingOverlay.Visibility = Visibility.Visible;
+
+            // Запускаем анимацию вращения
+            _spinnerTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(20)
+            };
+            _spinnerTimer.Tick += (s, e) =>
+            {
+                SpinnerRotate.Angle = (SpinnerRotate.Angle + 10) % 360;
+            };
+            _spinnerTimer.Start();
+        }
+
+        private void HideLoading()
+        {
+            _spinnerTimer?.Stop();
+            _spinnerTimer = null;
+            LoadingOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void LandButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_isConnected) return;
+            if (!_isConnected)
+            {
+                AppMessageBox.ShowWarning(
+                    "Дрон не подключен",
+                    owner: this,
+                    subtitle: "Ошибка"
+                );
+                return;
+            }
 
-            if (MessageBox.Show("АВАРИЙНАЯ ПОСАДКА?", "ВНИМАНИЕ",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            if (AppMessageBox.ShowConfirm("АВАРИЙНАЯ ПОСАДКА?", owner: this, subtitle: "ВНИМАНИЕ"))
             {
                 MAVLink.SendLand();
             }
@@ -453,16 +484,25 @@ namespace SimpleDroneGCS
 
         private void RthButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_isConnected) return;
+            if (!_isConnected)
+            {
+                AppMessageBox.ShowWarning(
+                    "Дрон не подключен",
+                    owner: this,
+                    subtitle: "Ошибка"
+                );
+                return;
+            }
 
-            if (MessageBox.Show("Возврат домой?", "Подтверждение",
-                MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            if (AppMessageBox.ShowConfirm("Возврат домой?", owner: this, subtitle: "Подтверждение"))
             {
                 MAVLink.SendRTL();
             }
         }
 
         #endregion
+
+        #region ОКНО
 
         protected override void OnClosed(EventArgs e)
         {
@@ -471,9 +511,6 @@ namespace SimpleDroneGCS
             base.OnClosed(e);
         }
 
-        /// <summary>
-        /// Перетаскивание окна за заголовок
-        /// </summary>
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -486,39 +523,23 @@ namespace SimpleDroneGCS
             }
         }
 
-        /// <summary>
-        /// Минимизация окна
-        /// </summary>
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
             this.WindowState = WindowState.Minimized;
         }
 
-        /// <summary>
-        /// Максимизация/восстановление окна
-        /// </summary>
         private void MaximizeButton_Click(object sender, RoutedEventArgs e)
         {
-            if (this.WindowState == WindowState.Maximized)
-            {
-                this.WindowState = WindowState.Normal;
-            }
-            else
-            {
-                this.WindowState = WindowState.Maximized;
-            }
+            this.WindowState = this.WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
         }
 
-        /// <summary>
-        /// Закрытие окна
-        /// </summary>
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
         }
 
-        
-
+        #endregion
     }
-
 }

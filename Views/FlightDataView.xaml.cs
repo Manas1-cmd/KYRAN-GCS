@@ -3,6 +3,7 @@ using GMap.NET.MapProviders;
 using GMap.NET.WindowsPresentation;
 using SimpleDroneGCS.Models;
 using SimpleDroneGCS.Services;
+using SimpleDroneGCS.UI.Dialogs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,10 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using System.Windows.Shapes; // ДОБАВЬ ЭТО
 using System.Windows.Threading;
-
-
 namespace SimpleDroneGCS.Views
 {
     public partial class FlightDataView : Page
@@ -24,22 +22,26 @@ namespace SimpleDroneGCS.Views
         private VehicleType _currentVehicleType;
 
         private DispatcherTimer _updateTimer;
-        private GMapMarker _droneMarker = null; // ДОБАВЬ ЭТО
+        private GMapMarker _droneMarker = null;
 
-        private List<GMapMarker> _missionMarkers = new List<GMapMarker>();
+        private GMapRoute _headingLine = null;
+
+        private readonly List<GMapMarker> _missionMarkers = new List<GMapMarker>();
         private GMapMarker _homeMarker = null;
-        // СЕКУНДОМЕР
+
         private DispatcherTimer _connectionTimer;
-        private DateTime _lastHeadingLog = DateTime.MinValue; // ДОБАВЬ
+        private DateTime _lastHeadingLog = DateTime.MinValue;
+
+        // Защита от повторной инициализации
+        private bool _isInitialized = false;
 
         public FlightDataView(MAVLinkService mavlinkService)
         {
             InitializeComponent();
 
-            // Получаем единый экземпляр сервиса
             _mavlinkService = mavlinkService;
 
-            // ⭐ ИНИЦИАЛИЗАЦИЯ ТИПА ДРОНА
+            // ИНИЦИАЛИЗАЦИЯ ТИПА ДРОНА
             try
             {
                 var vehicleManager = VehicleManager.Instance;
@@ -47,7 +49,7 @@ namespace SimpleDroneGCS.Views
                 {
                     _currentVehicleType = vehicleManager.CurrentVehicleType;
                     vehicleManager.VehicleTypeChanged += OnVehicleTypeChanged;
-                    UpdateVehicleTypeDisplay(); // ⭐ ДОБАВЬ ЭТУ СТРОКУ
+                    UpdateVehicleTypeDisplay();
                     System.Diagnostics.Debug.WriteLine($"[FlightDataView] Vehicle: {_currentVehicleType}");
                 }
                 else
@@ -62,12 +64,12 @@ namespace SimpleDroneGCS.Views
                 System.Diagnostics.Debug.WriteLine($"[FlightDataView] Init error: {ex.Message}");
             }
 
-            // Подписываемся на события
+            // Подписки
             _mavlinkService.TelemetryReceived += OnTelemetryReceived;
             _mavlinkService.MessageReceived += OnDroneMessage;
             _mavlinkService.OnStatusTextReceived += OnCalibrationStatus;
 
-            // Таймер для обновления UI
+            // Таймер UI
             _updateTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(33)
@@ -83,31 +85,95 @@ namespace SimpleDroneGCS.Views
             _connectionTimer.Tick += UpdateConnectionTimer;
             _connectionTimer.Start();
 
-            // Инициализация карты ПОСЛЕ загрузки
-            this.Loaded += (s, e) =>
+            // Инициализация карты после загрузки страницы
+            // Инициализация карты после загрузки страницы
+            Loaded += (s, e) =>
             {
+                // Таймеры запускаем при каждом показе
+                if (!_updateTimer.IsEnabled)
+                    _updateTimer.Start();
+                if (!_connectionTimer.IsEnabled)
+                    _connectionTimer.Start();
+
+                // Карту инициализируем только ОДИН раз
+                if (!_isInitialized)
+                {
+                    _isInitialized = true;
+
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        try
+                        {
+                            InitializeMap();
+                            UpdateComboBoxes();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[FlightDataView] Init error: {ex.Message}");
+                        }
+                    }), DispatcherPriority.Background);
+                }
+
+                // Миссию загружаем КАЖДЫЙ раз при показе страницы
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    try
-                    {
-                        InitializeMap();
-                        LoadActiveMission();
-                        UpdateComboBoxes(); // ⭐ ДОБАВИЛ ВЫЗОВ
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Ошибка инициализации: {ex.Message}");
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Background);
+                    LoadActiveMission();
+                }), DispatcherPriority.Background);
             };
 
-            // Первое обновление
             UpdateUI(null, null);
         }
 
         private void OnTelemetryReceived(object sender, EventArgs e)
         {
-            // Телеметрия обновится в UpdateUI по таймеру
+            // Телеметрия применяется в UpdateUI по таймеру
+        }
+
+        /// <summary>
+        /// Вычислить точку на заданном расстоянии и направлении от исходной
+        /// </summary>
+        private PointLatLng CalculatePointAtDistance(PointLatLng start, double headingDegrees, double distanceKm)
+        {
+            const double R = 6371; // Радиус Земли в км
+            double lat1 = start.Lat * Math.PI / 180;
+            double lon1 = start.Lng * Math.PI / 180;
+            double bearing = headingDegrees * Math.PI / 180;
+
+            double lat2 = Math.Asin(Math.Sin(lat1) * Math.Cos(distanceKm / R) +
+                                   Math.Cos(lat1) * Math.Sin(distanceKm / R) * Math.Cos(bearing));
+            double lon2 = lon1 + Math.Atan2(Math.Sin(bearing) * Math.Sin(distanceKm / R) * Math.Cos(lat1),
+                                             Math.Cos(distanceKm / R) - Math.Sin(lat1) * Math.Sin(lat2));
+
+            return new PointLatLng(lat2 * 180 / Math.PI, lon2 * 180 / Math.PI);
+        }
+
+        /// <summary>
+        /// Обновить линию направления дрона (до края карты)
+        /// </summary>
+        private void UpdateHeadingLine(PointLatLng dronePosition, double heading)
+        {
+            // Удаляем старую линию
+            if (_headingLine != null)
+                MainMap.Markers.Remove(_headingLine);
+
+            // Вычисляем конечную точку (50 км вперёд - достаточно для любого зума)
+            var endPoint = CalculatePointAtDistance(dronePosition, heading, 50);
+
+            var points = new List<PointLatLng> { dronePosition, endPoint };
+
+            _headingLine = new GMapRoute(points)
+            {
+                Shape = new System.Windows.Shapes.Path
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(255, 180, 0)), // Оранжевый
+                    StrokeThickness = 2,
+                    StrokeDashArray = new DoubleCollection { 6, 3 }, // Пунктир
+                    Opacity = 0.8
+                },
+                ZIndex = 500
+            };
+
+            MainMap.Markers.Add(_headingLine);
         }
 
 
@@ -116,99 +182,98 @@ namespace SimpleDroneGCS.Views
         /// </summary>
         private async void ActivateMissionButton_Click(object sender, RoutedEventArgs e)
         {
+            var owner = Window.GetWindow(this);
+
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                MessageBox.Show("Дрон не подключен", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning("Дрон не подключен.", owner, subtitle: "Подключение");
                 return;
             }
 
             if (!_mavlinkService.HasPlannedMission)
             {
-                MessageBox.Show(
-                    "Миссия не загружена.\n\n" +
-                    "Создайте миссию на странице 'План полёта' и нажмите 'Write'.",
-                    "Ошибка",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning(
+                    "Миссия не загружена.\n\nСоздайте миссию на странице 'План полёта' и нажмите 'Write'.",
+                    owner,
+                    subtitle: "Миссия"
+                );
                 return;
             }
 
-            if (!_mavlinkService.CurrentTelemetry.Armed)
-            {
-                MessageBox.Show(
-                    "⚠️ Дрон не активирован!\n\n" +
-                    "Сначала:\n" +
-                    "1. ARM дрон\n" +
-                    "2. Выполните Takeoff\n" +
-                    "3. Затем активируйте миссию",
-                    "Предупреждение",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
+            bool confirm = AppMessageBox.ShowConfirm(
+                $"Активировать миссию из {_mavlinkService.PlannedMissionCount} точек?\n\n" +
+                "Последовательность:\n" +
+                "1. Загрузка миссии в дрон\n" +
+                "2. ARM (активация моторов)\n" +
+                "3. AUTO режим (взлёт и выполнение)\n\n" +
+                "⚠️ Дрон взлетит автоматически!",
+                owner,
+                subtitle: "Подтверждение"
+            );
 
-            if (MessageBox.Show(
-                $"🚁 Активировать миссию из {_mavlinkService.PlannedMissionCount} точек?\n\n" +
-                "⚠️ Дрон переключится в AUTO режим и начнёт выполнение миссии!",
-                "Подтверждение",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question) != MessageBoxResult.Yes)
-            {
-                return;
-            }
+            if (!confirm) return;
 
             try
             {
-                // Блокируем кнопку
                 ActivateMissionButton.IsEnabled = false;
-                ActivateMissionButton.Content = "Отправка...";
 
-                // 1. Отправляем миссию в дрон
-                System.Diagnostics.Debug.WriteLine("📤 Отправка миссии в дрон...");
+                // ШАГ 1: Загрузка миссии
+                ActivateMissionButton.Content = "Загрузка миссии...";
+                System.Diagnostics.Debug.WriteLine("[Mission] Шаг 1: Загрузка миссии...");
+
                 bool uploadSuccess = await _mavlinkService.UploadPlannedMission();
-
                 if (!uploadSuccess)
                 {
-                    MessageBox.Show(
-                        "❌ Ошибка отправки миссии в дрон",
-                        "Ошибка",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-
-                    ActivateMissionButton.IsEnabled = true;
-                    ActivateMissionButton.Content = "Активировать миссию";
+                    AppMessageBox.ShowError("Ошибка загрузки миссии.", owner, subtitle: "Ошибка");
+                    ResetActivateButton();
                     return;
                 }
 
-                System.Diagnostics.Debug.WriteLine("✅ Миссия отправлена");
+                await Task.Delay(500);
 
-                // 2. Запускаем AUTO режим
-                await Task.Delay(1000); // Даём время дрону обработать миссию
+                // ШАГ 2: ARM
+                ActivateMissionButton.Content = "ARM...";
+                System.Diagnostics.Debug.WriteLine("[Mission] Шаг 2: ARM...");
+
+                _mavlinkService.SetArm(true, true); // force ARM
+                await Task.Delay(1000);
+
+                // Проверяем что ARM прошёл
+                if (!_mavlinkService.CurrentTelemetry.Armed)
+                {
+                    AppMessageBox.ShowError("Не удалось активировать дрон (ARM).", owner, subtitle: "Ошибка");
+                    ResetActivateButton();
+                    return;
+                }
+
+                // ШАГ 3: AUTO режим (сразу после ARM!)
+                ActivateMissionButton.Content = "AUTO...";
+                System.Diagnostics.Debug.WriteLine("[Mission] Шаг 3: Запуск AUTO режима...");
+
                 _mavlinkService.StartMission();
 
-                MessageBox.Show(
-                    "✅ Миссия активирована!\n\n" +
-                    "Дрон переключен в AUTO режим и начал выполнение миссии.",
-                    "Успех",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                System.Diagnostics.Debug.WriteLine("[Mission] ✅ Миссия активирована!");
 
-                System.Diagnostics.Debug.WriteLine("🎯 AUTO режим активирован");
+                AppMessageBox.ShowSuccess(
+                    "Миссия активирована!\n\nДрон выполняет миссию в AUTO режиме.",
+                    owner,
+                    subtitle: "Успех"
+                );
 
-                // Возвращаем кнопку
-                ActivateMissionButton.IsEnabled = true;
-                ActivateMissionButton.Content = "Активировать миссию";
+                ResetActivateButton();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-
-                System.Diagnostics.Debug.WriteLine($"❌ Exception: {ex.Message}");
-
-                ActivateMissionButton.IsEnabled = true;
-                ActivateMissionButton.Content = "Активировать миссию";
+                AppMessageBox.ShowError($"Ошибка: {ex.Message}", owner, subtitle: "Активация миссии");
+                System.Diagnostics.Debug.WriteLine($"[Mission] Exception: {ex.Message}");
+                ResetActivateButton();
             }
+        }
+
+        private void ResetActivateButton()
+        {
+            ActivateMissionButton.IsEnabled = true;
+            ActivateMissionButton.Content = "Активировать миссию";
         }
 
         /// <summary>
@@ -216,63 +281,168 @@ namespace SimpleDroneGCS.Views
         /// </summary>
         private void LoadActiveMission()
         {
-            if (_mavlinkService == null || MainMap == null) return;
+            if (MainMap == null) return;
 
-            // Очищаем ТОЛЬКО маркеры миссии (НЕ дрон!)
+            // Удаляем старые маркеры миссии
             foreach (var marker in _missionMarkers)
             {
-                if (marker != _droneMarker) // ЗАЩИТА от удаления дрона
-                {
+                if (marker != _droneMarker)
                     MainMap.Markers.Remove(marker);
-                }
             }
             _missionMarkers.Clear();
 
-            // Удаляем ТОЛЬКО маршруты миссии (НЕ линии дрона!)
-            var oldRoutes = MainMap.Markers
-                .Where(m => m.Tag?.ToString() == "MissionRoute")
-                .ToList();
-            foreach (var route in oldRoutes)
+            // Удаляем HOME маркер
+            if (_homeMarker != null)
             {
-                MainMap.Markers.Remove(route);
+                MainMap.Markers.Remove(_homeMarker);
+                _homeMarker = null;
             }
 
-            if (!_mavlinkService.HasActiveMission) return;
+            // Удаляем маршруты миссии
+            var oldRoutes = MainMap.Markers
+                .Where(m => m.Tag?.ToString() == "MissionRoute" || m.Tag?.ToString() == "HomeRoute")
+                .ToList();
+            foreach (var route in oldRoutes)
+                MainMap.Markers.Remove(route);
 
-            var mission = _mavlinkService.ActiveMission;
-            System.Diagnostics.Debug.WriteLine($"📍 Загружаем миссию на FlightDataView: {mission.Count} точек");
+            // Загружаем миссию для текущего типа
+            var mission = MissionStore.Get((int)_currentVehicleType);
+
+            if (mission == null || mission.Count == 0)
+            {
+                UpdateMissionStatus();
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[FlightDataView] Загрузка миссии: {mission.Count} точек");
+
+            // Находим HOME и waypoints отдельно
+            var homeWp = mission.FirstOrDefault(w => w.CommandType == "HOME");
+            var waypoints = mission.Where(w => w.CommandType != "HOME" &&
+                                                w.CommandType != "TAKEOFF" &&
+                                                w.CommandType != "RETURN_TO_LAUNCH").ToList();
+
+            // Отображаем HOME
+            if (homeWp != null)
+            {
+                var homePos = new PointLatLng(homeWp.Latitude, homeWp.Longitude);
+                _homeMarker = CreateHomeMarker(homePos);
+                MainMap.Markers.Add(_homeMarker);
+                System.Diagnostics.Debug.WriteLine($"[FlightDataView] HOME: {homeWp.Latitude:F6}, {homeWp.Longitude:F6}");
+            }
 
             // Отображаем waypoints
-            for (int i = 0; i < mission.Count; i++)
+            int wpNumber = 1;
+            foreach (var wp in waypoints)
             {
-                var wp = mission[i];
                 var position = new PointLatLng(wp.Latitude, wp.Longitude);
-                var marker = CreateMissionWaypointMarker(position, i + 1);
+                var marker = CreateMissionWaypointMarker(position, wpNumber++);
                 MainMap.Markers.Add(marker);
                 _missionMarkers.Add(marker);
             }
 
             // Рисуем маршрут
-            if (mission.Count >= 2)
+            if (waypoints.Count >= 1)
             {
-                var routePoints = mission.Select(w => new PointLatLng(w.Latitude, w.Longitude)).ToList();
-                var route = new GMapRoute(routePoints);
-                route.Shape = new Path
+                var routePoints = new List<PointLatLng>();
+
+                // HOME → первая точка (пунктир)
+                if (homeWp != null && waypoints.Count > 0)
                 {
-                    Stroke = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                    StrokeThickness = 2,
-                    Opacity = 0.6,
-                    StrokeDashArray = new DoubleCollection { 4, 2 }
-                };
-                route.Tag = "MissionRoute";
-                route.ZIndex = 30;
-                MainMap.Markers.Add(route);
+                    var homePoint = new PointLatLng(homeWp.Latitude, homeWp.Longitude);
+                    var firstPoint = new PointLatLng(waypoints[0].Latitude, waypoints[0].Longitude);
+
+                    var homeToFirst = new GMapRoute(new List<PointLatLng> { homePoint, firstPoint })
+                    {
+                        Shape = new Path
+                        {
+                            Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                            StrokeThickness = 2,
+                            StrokeDashArray = new DoubleCollection { 5, 3 },
+                            Opacity = 0.8
+                        },
+                        Tag = "HomeRoute",
+                        ZIndex = 30
+                    };
+                    MainMap.Markers.Add(homeToFirst);
+
+                    // Последняя точка → HOME (пунктир)
+                    var lastPoint = new PointLatLng(waypoints[waypoints.Count - 1].Latitude,
+                                                    waypoints[waypoints.Count - 1].Longitude);
+                    var lastToHome = new GMapRoute(new List<PointLatLng> { lastPoint, homePoint })
+                    {
+                        Shape = new Path
+                        {
+                            Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                            StrokeThickness = 2,
+                            StrokeDashArray = new DoubleCollection { 5, 3 },
+                            Opacity = 0.8
+                        },
+                        Tag = "HomeRoute",
+                        ZIndex = 30
+                    };
+                    MainMap.Markers.Add(lastToHome);
+                }
+
+                // Основной маршрут (сплошной)
+                if (waypoints.Count >= 2)
+                {
+                    routePoints = waypoints.Select(w => new PointLatLng(w.Latitude, w.Longitude)).ToList();
+                    var route = new GMapRoute(routePoints)
+                    {
+                        Shape = new Path
+                        {
+                            Stroke = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                            StrokeThickness = 3,
+                            Opacity = 0.8
+                        },
+                        Tag = "MissionRoute",
+                        ZIndex = 35
+                    };
+                    MainMap.Markers.Add(route);
+                }
             }
+
+            UpdateMissionStatus();
         }
 
         /// <summary>
-        /// Создание маркера waypoint миссии
+        /// Создать маркер HOME
         /// </summary>
+        private GMapMarker CreateHomeMarker(PointLatLng position)
+        {
+            var grid = new Grid { Width = 36, Height = 36 };
+
+            var circle = new Ellipse
+            {
+                Width = 36,
+                Height = 36,
+                Fill = new SolidColorBrush(Color.FromArgb(200, 239, 68, 100)),
+                Stroke = Brushes.White,
+                StrokeThickness = 3
+            };
+
+            var text = new TextBlock
+            {
+                Text = "H",
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 16,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            grid.Children.Add(circle);
+            grid.Children.Add(text);
+
+            return new GMapMarker(position)
+            {
+                Shape = grid,
+                Offset = new Point(-18, -18),
+                ZIndex = 60
+            };
+        }
+
         private GMapMarker CreateMissionWaypointMarker(PointLatLng position, int number)
         {
             var grid = new Grid { Width = 30, Height = 30 };
@@ -308,7 +478,7 @@ namespace SimpleDroneGCS.Views
         }
 
         /// <summary>
-        /// Обновление всех данных на странице
+        /// Обновление UI
         /// </summary>
         private void UpdateUI(object sender, EventArgs e)
         {
@@ -318,39 +488,76 @@ namespace SimpleDroneGCS.Views
 
             try
             {
-                // ВЫСОТА ОТ HOME
                 AltitudeValue.Text = $"{telemetry.RelativeAltitude:F1} м";
-                // СКОРОСТЬ
                 SpeedValue.Text = $"{telemetry.Speed:F1} м/с";
 
-                // GPS СТАТУС
-                UpdateGpsStatus();
+                // Дрон вращается по Heading
+                DroneHeadingRotation.Angle = _mavlinkService.CurrentTelemetry.Heading;
+                HeadingText.Text = $"{_mavlinkService.CurrentTelemetry.Heading:F0}°";
 
-                // ARM КНОПКА
+                // Координаты дрона
+                DroneLatText.Text = _mavlinkService.CurrentTelemetry.Latitude.ToString("F6");
+                DroneLonText.Text = _mavlinkService.CurrentTelemetry.Longitude.ToString("F6");
+
+                // Высота MSL
+                AltMslText.Text = _mavlinkService.CurrentTelemetry.Altitude.ToString("F1");
+
+                // HOME: приоритет — реальный от дрона, иначе — из плана
+                if (_mavlinkService.HasHomePosition)
+                {
+                    // Реальный HOME после армирования
+                    HomeLatText.Text = _mavlinkService.HomeLat.Value.ToString("F6");
+                    HomeLonText.Text = _mavlinkService.HomeLon.Value.ToString("F6");
+                    HomeSourceText.Text = " (дрон)";
+                    HomeSourceText.Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25));
+                }
+                else
+                {
+                    // Кастомный HOME из MissionStore
+                    var home = MissionStore.GetHome((int)_currentVehicleType);
+
+                    if (home != null)
+                    {
+                        HomeLatText.Text = home.Latitude.ToString("F6");
+                        HomeLonText.Text = home.Longitude.ToString("F6");
+                        
+                        HomeSourceText.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102));
+                    }
+                    else
+                    {
+                        HomeLatText.Text = "---.------";
+                        HomeLonText.Text = "---.------";
+                        HomeSourceText.Text = "";
+                    }
+                }
+
+                // Обновление VTOL моторов
+                if (Motor1Border.Visibility == Visibility.Visible)
+                {
+                    Motor1Value.Text = $"{_mavlinkService.CurrentTelemetry.Motor1Percent}%";
+                    Motor2Value.Text = $"{_mavlinkService.CurrentTelemetry.Motor2Percent}%";
+                    Motor3Value.Text = $"{_mavlinkService.CurrentTelemetry.Motor3Percent}%";
+                    Motor4Value.Text = $"{_mavlinkService.CurrentTelemetry.Motor4Percent}%";
+                    PusherMotorValue.Text = $"{_mavlinkService.CurrentTelemetry.PusherPercent}%";
+                }
+
+                UpdateGpsStatus();
                 UpdateArmButton();
 
-                // ТЕЛЕМЕТРИЯ
                 SatellitesValue.Text = $"{telemetry.SatellitesVisible}";
                 FlightModeValue.Text = telemetry.FlightMode;
                 BatteryVoltageValue.Text = $"{telemetry.BatteryVoltage:F1}V";
                 BatteryPercentValue.Text = $"{telemetry.BatteryPercent}%";
 
-                // ATTITUDE INDICATOR
                 AttitudeIndicator.Roll = telemetry.Roll;
                 AttitudeIndicator.Pitch = telemetry.Pitch;
 
-                // КАРТА
                 UpdateMapPosition();
-
-               
-
-                // СТАТУС МИССИИ
                 UpdateMissionStatus();
 
-                // ПРОВЕРКА СВЯЗИ
                 if (!_mavlinkService.IsConnected || telemetry.IsStale())
                 {
-                    ShowError("Потеряна связь с дроном");
+                    ShowError("Потеряна связь с дроном.");
                 }
                 else
                 {
@@ -359,41 +566,22 @@ namespace SimpleDroneGCS.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[UI UPDATE ERROR] {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[UI] Update error: {ex.Message}");
             }
-
-            // УБРАЛИ DEBUG ВЫВОД - ОН УБИВАЛ ПРОИЗВОДИТЕЛЬНОСТЬ!
-            // Если нужен debug - раскомментируй ТОЛЬКО при тестировании
-
-            // System.Diagnostics.Debug.WriteLine(
-            //     $"[UI] Alt={telemetry.Altitude:F1}м, " +
-            //     $"Speed={telemetry.Speed:F1}м/с, " +
-            //     $"Sats={telemetry.SatellitesVisible}, " +
-            //     $"Mode={telemetry.FlightMode}, " +
-            //     $"Armed={telemetry.Armed}"
-            // );
         }
 
-
-        /// <summary>
-        /// Обработка прокрутки колесика для зума карты
-        /// </summary>
-        private void ScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (MainMap == null) return;
 
-            // Если курсор над картой - пропускаем событие к карте для зума
             var mousePos = e.GetPosition(MainMap);
             if (mousePos.X >= 0 && mousePos.Y >= 0 &&
                 mousePos.X <= MainMap.ActualWidth && mousePos.Y <= MainMap.ActualHeight)
             {
-                e.Handled = false; // Пропускаем к карте
+                e.Handled = false;
             }
         }
 
-        /// <summary>
-        /// Обновление секундомера подключения
-        /// </summary>
         private void UpdateConnectionTimer(object sender, EventArgs e)
         {
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
@@ -402,40 +590,29 @@ namespace SimpleDroneGCS.Views
                 return;
             }
 
-            // БЕРЁМ ВРЕМЯ ИЗ MAVLinkService (он всегда активен!)
             var elapsed = _mavlinkService.GetConnectionTime();
             ConnectionTimerText.Text = $"{elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
         }
 
-
-        /// <summary>
-        /// Принудительный зум карты колесиком
-        /// </summary>
-        private void MainMap_MouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        private void MainMap_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (MainMap == null) return;
 
-            // Зумим карту напрямую
             double newZoom = MainMap.Zoom + (e.Delta > 0 ? 1 : -1);
 
-            // Ограничиваем зум в пределах Min/Max
             if (newZoom >= MainMap.MinZoom && newZoom <= MainMap.MaxZoom)
             {
                 MainMap.Zoom = newZoom;
 
-                // Обновляем слайдер зума
                 if (ZoomSlider != null)
                 {
                     ZoomSlider.Value = newZoom;
                 }
             }
 
-            e.Handled = true; // Останавливаем распространение события
+            e.Handled = true;
         }
 
-        /// <summary>
-        /// Обновление статуса миссии в UI
-        /// </summary>
         private void UpdateMissionStatus()
         {
             if (_mavlinkService == null) return;
@@ -443,7 +620,7 @@ namespace SimpleDroneGCS.Views
             if (_mavlinkService.HasPlannedMission)
             {
                 MissionStatusText.Text = $"Готова миссия: {_mavlinkService.PlannedMissionCount} точек";
-                MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)); // Зеленый
+                MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25));
                 ActivateMissionButton.IsEnabled = _mavlinkService.IsConnected;
             }
             else
@@ -454,56 +631,86 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-
-        /// <summary>
-        /// Инициализация карты
-        /// </summary>
         private void InitializeMap()
         {
             try
             {
-                GMap.NET.GMaps.Instance.Mode = GMap.NET.AccessMode.ServerAndCache;
+                // === НАСТРОЙКА КЭША ===
+                string cacheFolder = System.IO.Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory, "MapCache");
+
+                if (!System.IO.Directory.Exists(cacheFolder))
+                    System.IO.Directory.CreateDirectory(cacheFolder);
+
+                // === АВТООПРЕДЕЛЕНИЕ ОНЛАЙН/ОФЛАЙН ===
+                bool hasInternet = CheckInternetConnection();
+
+                GMap.NET.GMaps.Instance.Mode = hasInternet
+                    ? GMap.NET.AccessMode.ServerAndCache
+                    : GMap.NET.AccessMode.CacheOnly;
+
                 System.Net.ServicePointManager.ServerCertificateValidationCallback =
                     (snd, certificate, chain, sslPolicyErrors) => true;
 
                 if (MainMap == null) return;
 
+                // === КЭШИРОВАНИЕ ===
+                MainMap.CacheLocation = cacheFolder;
+
                 MainMap.MapProvider = GMapProviders.GoogleSatelliteMap;
-                MainMap.Position = new PointLatLng(43.238949, 76.889709); // Алматы
+                MainMap.Position = new PointLatLng(43.238949, 76.889709);
                 MainMap.Zoom = 15;
                 MainMap.MinZoom = 2;
                 MainMap.MaxZoom = 20;
                 MainMap.MouseWheelZoomType = MouseWheelZoomType.MousePositionAndCenter;
                 MainMap.CanDragMap = true;
-                MainMap.DragButton = System.Windows.Input.MouseButton.Left;
+                MainMap.DragButton = MouseButton.Left;
                 MainMap.ShowCenter = false;
                 MainMap.ShowTileGridLines = false;
-
                 MainMap.MouseWheelZoomEnabled = true;
-                MainMap.MouseWheelZoomType = MouseWheelZoomType.MousePositionAndCenter;
 
-                System.Diagnostics.Debug.WriteLine("✅ Карта инициализирована");
-                // Загружаем миссию если есть
-                try
-                {
-                    LoadActiveMission();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Ошибка загрузки миссии: {ex.Message}");
-                }
+                LoadActiveMission();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Ошибка карты: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Map] Init error: {ex.Message}");
             }
-            // Загружаем активную миссию если есть
-            LoadActiveMission();
         }
 
-        /// <summary>
-        /// Смена провайдера карты
-        /// </summary>
+        private bool CheckInternetConnection()
+        {
+            // Способ 1: HTTP
+            try
+            {
+                using (var client = new System.Net.WebClient())
+                using (client.OpenRead("http://www.google.com"))
+                    return true;
+            }
+            catch { }
+
+            // Способ 2: Ping
+            try
+            {
+                using (var ping = new System.Net.NetworkInformation.Ping())
+                {
+                    var result = ping.Send("8.8.8.8", 1000);
+                    if (result.Status == System.Net.NetworkInformation.IPStatus.Success)
+                        return true;
+                }
+            }
+            catch { }
+
+            // Способ 3: DNS
+            try
+            {
+                var host = System.Net.Dns.GetHostEntry("www.google.com");
+                return host.AddressList.Length > 0;
+            }
+            catch { }
+
+            return false;
+        }
+
         private void MapTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (MainMap == null || MapTypeCombo.SelectedItem == null) return;
@@ -536,7 +743,7 @@ namespace SimpleDroneGCS.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка смены провайдера: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Map] Provider change error: {ex.Message}");
             }
         }
 
@@ -549,53 +756,46 @@ namespace SimpleDroneGCS.Views
             {
                 var dronePosition = new PointLatLng(telemetry.Latitude, telemetry.Longitude);
 
-                // Создаем маркер дрона если его еще нет
                 if (_droneMarker == null)
                 {
                     _droneMarker = CreateDroneMarker(dronePosition);
                     MainMap.Markers.Add(_droneMarker);
-                    System.Diagnostics.Debug.WriteLine($"🚁 Дрон создан на карте, heading={telemetry.Heading:F1}°");
 
-                    // ПРИМЕНЯЕМ НАЧАЛЬНОЕ НАПРАВЛЕНИЕ
                     if (_droneMarker.Tag is Grid grid)
                     {
                         grid.RenderTransform = new RotateTransform(telemetry.Heading, 250, 250);
                     }
+
+                    // === ДОБАВЬ ЭТУ СТРОКУ ===
+                    UpdateHeadingLine(dronePosition, _mavlinkService.CurrentTelemetry.Heading);
                 }
                 else
                 {
-                    // Обновляем позицию существующего маркера
                     _droneMarker.Position = dronePosition;
 
-                    // ОБНОВЛЯЕМ НАПРАВЛЕНИЕ (heading)
                     if (_droneMarker.Tag is Grid grid)
                     {
                         grid.RenderTransform = new RotateTransform(telemetry.Heading, 250, 250);
 
-                        // Debug раз в секунду
                         if ((DateTime.Now - _lastHeadingLog).TotalSeconds > 1)
                         {
-                            System.Diagnostics.Debug.WriteLine($"🧭 Heading обновлён: {telemetry.Heading:F1}°");
                             _lastHeadingLog = DateTime.Now;
                         }
                     }
                 }
 
-                // Обновляем позицию карты только если дрон переместился значительно
                 if (Math.Abs(MainMap.Position.Lat - dronePosition.Lat) > 0.0001 ||
                     Math.Abs(MainMap.Position.Lng - dronePosition.Lng) > 0.0001)
                 {
                     MainMap.Position = dronePosition;
                 }
 
-                // РИСУЕМ ЛИНИИ ОТ ДРОНА К МИССИИ
                 UpdateDroneToMissionLines();
             }
         }
 
-
         /// <summary>
-        /// Рисование пунктирных линий от дрона к первой и последней точке миссии
+        /// Пунктирные линии от дрона к миссии
         /// </summary>
         private void UpdateDroneToMissionLines()
         {
@@ -610,53 +810,54 @@ namespace SimpleDroneGCS.Views
 
             var dronePosition = new PointLatLng(telemetry.Latitude, telemetry.Longitude);
 
-            // Удаляем ТОЛЬКО линии от дрона (НЕ сам маркер дрона!)
             var oldDroneLines = MainMap.Markers
                 .Where(m => m is GMapRoute && m.Tag?.ToString() == "DroneToMission")
                 .Cast<GMapRoute>()
                 .ToList();
+
             foreach (var line in oldDroneLines)
             {
                 MainMap.Markers.Remove(line);
             }
 
-            // Линия от ДРОНА к ПЕРВОЙ точке миссии (ПУНКТИР)
             var firstWp = mission[0];
             var firstPoint = new PointLatLng(firstWp.Latitude, firstWp.Longitude);
-            var droneToFirstRoute = new GMapRoute(new List<PointLatLng> { dronePosition, firstPoint });
-            droneToFirstRoute.Shape = new Path
+            var droneToFirstRoute = new GMapRoute(new List<PointLatLng> { dronePosition, firstPoint })
             {
-                Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)), // Красный
-                StrokeThickness = 3,
-                StrokeDashArray = new DoubleCollection { 8, 4 }, // ПУНКТИР
-                Opacity = 0.8
+                Shape = new Path
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                    StrokeThickness = 3,
+                    StrokeDashArray = new DoubleCollection { 8, 4 },
+                    Opacity = 0.8
+                },
+                Tag = "DroneToMission",
+                ZIndex = 40
             };
-            droneToFirstRoute.Tag = "DroneToMission";
-            droneToFirstRoute.ZIndex = 40;
             MainMap.Markers.Add(droneToFirstRoute);
 
-            // Линия от ПОСЛЕДНЕЙ точки к ДРОНУ (ПУНКТИР)
             if (mission.Count > 1)
             {
                 var lastWp = mission[mission.Count - 1];
                 var lastPoint = new PointLatLng(lastWp.Latitude, lastWp.Longitude);
-                var lastToDroneRoute = new GMapRoute(new List<PointLatLng> { lastPoint, dronePosition });
-                lastToDroneRoute.Shape = new Path
+                var lastToDroneRoute = new GMapRoute(new List<PointLatLng> { lastPoint, dronePosition })
                 {
-                    Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)), // Красный
-                    StrokeThickness = 3,
-                    StrokeDashArray = new DoubleCollection { 8, 4 }, // ПУНКТИР
-                    Opacity = 0.8
+                    Shape = new Path
+                    {
+                        Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                        StrokeThickness = 3,
+                        StrokeDashArray = new DoubleCollection { 8, 4 },
+                        Opacity = 0.8
+                    },
+                    Tag = "DroneToMission",
+                    ZIndex = 40
                 };
-                lastToDroneRoute.Tag = "DroneToMission";
-                lastToDroneRoute.ZIndex = 40;
                 MainMap.Markers.Add(lastToDroneRoute);
             }
         }
 
-
         /// <summary>
-        /// Создание иконки дрона с линией направления
+        /// Маркер дрона (без эмодзи fallback)
         /// </summary>
         private GMapMarker CreateDroneMarker(PointLatLng position)
         {
@@ -666,84 +867,65 @@ namespace SimpleDroneGCS.Views
                 Height = 500
             };
 
-            // ДЛИННАЯ линия направления (heading)
-            var headingLine = new Line
-            {
-                X1 = 250, // Центр grid
-                Y1 = 250,
-                X2 = 250,
-                Y2 = 0,  // Длинная линия до края
-                Stroke = new SolidColorBrush(Color.FromRgb(235, 232, 0)), // yellow
-                StrokeThickness = 3,
-                StrokeEndLineCap = PenLineCap.Triangle,
-                Name = "HeadingLine"
-            };
+            
 
-            // ИКОНКА ДРОНА (без кругов)
             var droneIcon = new Image
             {
                 Source = new System.Windows.Media.Imaging.BitmapImage(
                     new Uri("pack://application:,,,/Images/drone_icon.png")),
-                Width = 50,  // Увеличил размер
+                Width = 50,
                 Height = 50,
                 Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // Fallback на эмодзи если иконка не загрузится
+            // Fallback: белый треугольник
             droneIcon.ImageFailed += (s, e) =>
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ Иконка дрона не найдена, используем эмодзи");
-                var fallback = new TextBlock
+                var tri = new Polygon
                 {
-                    Text = "🚁",
-                    FontSize = 36,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    Points = new PointCollection
+                    {
+                        new Point(250, 220),
+                        new Point(230, 270),
+                        new Point(270, 270)
+                    },
+                    Fill = Brushes.White,
+                    Stroke = Brushes.Black,
+                    StrokeThickness = 1
                 };
+
                 grid.Children.Remove(droneIcon);
-                grid.Children.Add(fallback);
+                grid.Children.Add(tri);
             };
 
-            grid.Children.Add(headingLine);  // Линия направления
-            grid.Children.Add(droneIcon);    // Иконка дрона поверх
+            
+            grid.Children.Add(droneIcon);
 
-            var marker = new GMapMarker(position)
+            return new GMapMarker(position)
             {
                 Shape = grid,
-                Offset = new Point(-250, -250),  // Центрируем grid
+                Offset = new Point(-250, -250),
                 ZIndex = 1000,
-                Tag = grid  // Сохраняем для поворота
+                Tag = grid
             };
-
-            return marker;
         }
 
-
-        /// <summary>
-        /// Обработка текстовых сообщений от дрона
-        /// </summary>
         private void OnDroneMessage(object sender, string message)
         {
             Dispatcher.Invoke(() =>
             {
-                // Показываем в статусе или логах
-                System.Diagnostics.Debug.WriteLine($"📢 DRONE MESSAGE: {message}");
+                System.Diagnostics.Debug.WriteLine($"[Drone] Message: {message}");
 
-                // Если калибровка - показываем
                 if (message.Contains("Calibrat") || message.Contains("calib"))
                 {
                     MissionStatusText.Text = message;
-                    MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Оранжевый
+                    MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0));
                 }
             });
         }
 
-
-        /// <summary>
-        /// Обновление статуса GPS
-        /// </summary>
         private void UpdateGpsStatus()
         {
             if (_mavlinkService == null) return;
@@ -757,11 +939,13 @@ namespace SimpleDroneGCS.Views
                     GpsStatusText.Foreground = Brushes.Red;
                     GpsIndicator.Fill = Brushes.Red;
                     break;
+
                 case 2:
                     GpsStatusText.Text = "2D FIX";
                     GpsStatusText.Foreground = Brushes.Yellow;
                     GpsIndicator.Fill = Brushes.Yellow;
                     break;
+
                 case 3:
                 default:
                     GpsStatusText.Text = "GPS FIX";
@@ -771,9 +955,6 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-        /// <summary>
-        /// Обновление статуса ARM кнопки
-        /// </summary>
         private void UpdateArmButton()
         {
             if (_mavlinkService == null) return;
@@ -781,69 +962,83 @@ namespace SimpleDroneGCS.Views
             if (_mavlinkService.CurrentTelemetry.Armed)
             {
                 ArmButton.Content = "ДЕАКТИВИРОВАТЬ";
-                ArmButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Красный
+                ArmButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
                 ArmButton.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 38, 38));
             }
             else
             {
                 ArmButton.Content = "АКТИВИРОВАТЬ";
-                ArmButton.Background = new SolidColorBrush(Color.FromRgb(42, 67, 97)); // Темно-синий
+                ArmButton.Background = new SolidColorBrush(Color.FromRgb(42, 67, 97));
                 ArmButton.BorderBrush = new SolidColorBrush(Color.FromRgb(42, 90, 143));
             }
         }
 
-        /// <summary>
-        /// Обработчик кнопки ARM/DISARM
-        /// </summary>
         private void ArmButton_Click(object sender, RoutedEventArgs e)
         {
+            var owner = Window.GetWindow(this);
+
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                MessageBox.Show("Дрон не подключен", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning("Дрон не подключен.", owner, subtitle: "Подключение");
                 return;
             }
 
             var telemetry = _mavlinkService.CurrentTelemetry;
 
-            // Если уже ARM - делаем DISARM
+            // DISARM (если уже активирован)
             if (telemetry.Armed)
             {
-                if (MessageBox.Show(
-                    "🔴 ДЕАКТИВИРОВАТЬ моторы?\n\n" +
-                    "⚠️ Дрон выключится!",
-                    "DISARM - Подтверждение",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning) == MessageBoxResult.Yes)
-                {
-                    _mavlinkService.SetArm(false);
-                    System.Diagnostics.Debug.WriteLine("🔵 DISARM команда отправлена");
-                }
-                return;
-            }
+                bool inAir = telemetry.RelativeAltitude > 2.0;
 
-            // Если НЕ ARM - делаем FORCE ARM (БЕЗ ПРОВЕРОК GPS!)
-            if (MessageBox.Show(
-                "🔴 ПРИНУДИТЕЛЬНЫЙ ARM?\n\n" +
-                "⚠️ ВНИМАНИЕ:\n" +
-                "• GPS проверки ОТКЛЮЧЕНЫ\n" +
-                "• Все проверки безопасности ИГНОРИРУЮТСЯ\n" +
-                "• Используйте на свой риск!\n\n" +
-                "Убедитесь что:\n" +
-                "• Пропеллеры установлены\n" +
-                "• Дрон на безопасном расстоянии\n" +
-                "• Готовы к немедленному взлёту",
-                "FORCE ARM - Подтверждение",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                if (inAir)
+                {
+                    // Сначала предлагаем безопасную посадку
+                    if (AppMessageBox.ShowConfirm(
+                        "Дрон в воздухе!\n\nВыполнить безопасную посадку (LAND)?",
+                        owner,
+                        subtitle: "Деактивация"))
+                    {
+                        _mavlinkService.Land();
+                    }
+                    else
+                    {
+                        // Если отказался от LAND - предлагаем аварийный DISARM
+                        if (AppMessageBox.ShowConfirm(
+                            "Выполнить аварийный DISARM?\n\n⚠️ ВНИМАНИЕ: Дрон упадёт!",
+                            owner,
+                            subtitle: "Опасно!"))
+                        {
+                            _mavlinkService.SetArm(false, true);
+                        }
+                    }
+                }
+                else
+                {
+                    // На земле - обычный DISARM
+                    if (AppMessageBox.ShowConfirm(
+                        "Деактивировать дрон (DISARM)?",
+                        owner,
+                        subtitle: "Подтверждение"))
+                    {
+                        _mavlinkService.SetArm(false, true);
+                    }
+                }
+            }
+            // ARM (если не активирован)
+            else
             {
-                _mavlinkService.ForceArm(); // ИСПОЛЬЗУЕМ FORCE ARM!
-                System.Diagnostics.Debug.WriteLine("🔴 FORCE ARM команда отправлена");
+                if (AppMessageBox.ShowConfirm(
+                    "Активировать дрон (ARM)?\n\nУбедитесь что:\n• Пропеллеры свободны\n• Зона безопасна\n• GPS Fix получен",
+                    owner,
+                    subtitle: "Подтверждение"))
+                {
+                    _mavlinkService.SetArm(true, false);
+                }
             }
         }
 
         /// <summary>
-        /// Показать ошибку
+        /// Показать панель ошибки (не модальное окно)
         /// </summary>
         private void ShowError(string message)
         {
@@ -851,9 +1046,6 @@ namespace SimpleDroneGCS.Views
             ErrorPanel.Visibility = Visibility.Visible;
         }
 
-        /// <summary>
-        /// Обработчик ползунка зума
-        /// </summary>
         private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (MainMap != null)
@@ -862,9 +1054,6 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-        /// <summary>
-        /// Cleanup при выгрузке страницы
-        /// </summary>
         public void Cleanup()
         {
             if (_updateTimer != null)
@@ -879,53 +1068,43 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-
         #region УПРАВЛЯЮЩИЕ КНОПКИ
 
-        /// <summary>
-        /// LOITER - Удержание точки
-        /// </summary>
         private void LoiterButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CheckConnection()) return;
 
-            if (MessageBox.Show(
-                "Переключить в режим LOITER?\n\n" +
-                "Дрон будет удерживать текущую позицию GPS.",
-                "LOITER - Удержание точки",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question) == MessageBoxResult.Yes)
+            var owner = Window.GetWindow(this);
+            if (AppMessageBox.ShowConfirm(
+                "Переключить в режим LOITER?\n\nДрон будет удерживать текущую позицию GPS.",
+                owner,
+                subtitle: "Подтверждение"
+            ))
             {
                 _mavlinkService.SetFlightMode("LOITER");
-                System.Diagnostics.Debug.WriteLine("🎯 LOITER режим активирован");
             }
         }
 
-        /// <summary>
-        /// ALT_HOLD - Удержание высоты
-        /// </summary>
         private void AltHoldButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CheckConnection()) return;
 
-            if (MessageBox.Show(
-                "Переключить в режим ALT_HOLD?\n\n" +
-                "Дрон будет удерживать текущую высоту.",
-                "ALT_HOLD - Удержание высоты",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question) == MessageBoxResult.Yes)
+            var owner = Window.GetWindow(this);
+            if (AppMessageBox.ShowConfirm(
+                "Переключить в режим ALT_HOLD?\n\nДрон будет удерживать текущую высоту.",
+                owner,
+                subtitle: "Подтверждение"
+            ))
             {
                 _mavlinkService.SetFlightMode("ALT_HOLD");
-                System.Diagnostics.Debug.WriteLine("📏 ALT_HOLD режим активирован");
             }
         }
 
-        /// <summary>
-        /// Калибровка - выполнить выбранную калибровку
-        /// </summary>
         private void CalibrateButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CheckConnection()) return;
+
+            var owner = Window.GetWindow(this);
 
             if (CalibrationCombo.SelectedItem is ComboBoxItem item)
             {
@@ -933,37 +1112,29 @@ namespace SimpleDroneGCS.Views
 
                 if (string.IsNullOrEmpty(calibrationType))
                 {
-                    MessageBox.Show(
-                        "Выберите тип калибровки из списка",
-                        "Ошибка",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
+                    AppMessageBox.ShowWarning("Выберите тип калибровки из списка.", owner, subtitle: "Калибровка");
                     return;
                 }
 
                 if (calibrationType == "PREFLIGHT")
                 {
-                    if (MessageBox.Show(
-                        "⚠️ Запустить Preflight Calibration?\n\n" +
-                        "Это выполнит предполётную калибровку датчиков.\n" +
-                        "Дрон должен быть неподвижен на ровной поверхности.",
-                        "Preflight Calibration",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    if (AppMessageBox.ShowConfirm(
+                        "Запустить Preflight Calibration?\n\nЭто выполнит предполётную калибровку датчиков.\nДрон должен быть неподвижен на ровной поверхности.",
+                        owner,
+                        subtitle: "Подтверждение"
+                    ))
                     {
                         _mavlinkService.SendPreflightCalibration();
-                        System.Diagnostics.Debug.WriteLine("🔧 Preflight Calibration запущена");
                     }
                 }
             }
         }
 
-        /// <summary>
-        /// Выполнить - переключить на выбранный режим полета
-        /// </summary>
         private void ExecuteModeButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CheckConnection()) return;
+
+            var owner = Window.GetWindow(this);
 
             if (FlightModeCombo.SelectedItem is ComboBoxItem item)
             {
@@ -971,76 +1142,60 @@ namespace SimpleDroneGCS.Views
 
                 if (string.IsNullOrEmpty(modeName))
                 {
-                    MessageBox.Show(
-                        "Выберите режим полета из списка",
-                        "Ошибка",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
+                    AppMessageBox.ShowWarning("Выберите режим полета из списка.", owner, subtitle: "Режим полёта");
                     return;
                 }
 
-                if (MessageBox.Show(
+                if (AppMessageBox.ShowConfirm(
                     $"Переключить в режим {modeName}?",
-                    "Смена режима полета",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    owner,
+                    subtitle: "Подтверждение"
+                ))
                 {
                     _mavlinkService.SetFlightMode(modeName);
-                    System.Diagnostics.Debug.WriteLine($"✈️ Режим {modeName} активирован");
                 }
             }
         }
 
-        /// <summary>
-        /// STABILIZE - Ручной режим
-        /// </summary>
         private void ManualModeButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CheckConnection()) return;
 
-            if (MessageBox.Show(
-                "Переключить в ручной режим (STABILIZE)?\n\n" +
-                "⚠️ Потребуется ручное управление через пульт!",
-                "STABILIZE - Ручной режим",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            var owner = Window.GetWindow(this);
+
+            if (AppMessageBox.ShowConfirm(
+                "Переключить в ручной режим (STABILIZE)?\n\nПотребуется ручное управление через пульт.",
+                owner,
+                subtitle: "Подтверждение"
+            ))
             {
                 _mavlinkService.SetFlightMode("STABILIZE");
-                System.Diagnostics.Debug.WriteLine("🎮 STABILIZE режим активирован");
             }
         }
 
-        /// <summary>
-        /// RTL - Возврат домой
-        /// </summary>
         private void RtlButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CheckConnection()) return;
 
-            if (MessageBox.Show(
-                "🏠 Активировать возврат домой (RTL)?\n\n" +
-                "Дрон вернется на точку взлёта и выполнит посадку.",
-                "RTL - Возврат домой",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question) == MessageBoxResult.Yes)
+            var owner = Window.GetWindow(this);
+
+            if (AppMessageBox.ShowConfirm(
+                "Активировать возврат домой (RTL)?\n\nДрон вернется на точку взлёта и выполнит посадку.",
+                owner,
+                subtitle: "Подтверждение"
+            ))
             {
                 _mavlinkService.SendRTL();
-                System.Diagnostics.Debug.WriteLine("🏠 RTL режим активирован");
             }
         }
 
-        /// <summary>
-        /// Проверка подключения к дрону
-        /// </summary>
         private bool CheckConnection()
         {
+            var owner = Window.GetWindow(this);
+
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                MessageBox.Show(
-                    "Дрон не подключен",
-                    "Ошибка",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning("Дрон не подключен.", owner, subtitle: "Подключение");
                 return false;
             }
             return true;
@@ -1052,10 +1207,14 @@ namespace SimpleDroneGCS.Views
 
         private void OnVehicleTypeChanged(object sender, VehicleProfile profile)
         {
-            _currentVehicleType = profile.Type;
-            UpdateComboBoxes();
-            UpdateVehicleTypeDisplay(); // ⭐ ДОБАВЛЕНА ЭТА СТРОКА
-            System.Diagnostics.Debug.WriteLine($"[FlightDataView] Vehicle changed: {profile.Type}");
+            Dispatcher.Invoke(() =>
+            {
+                _currentVehicleType = profile.Type;
+                UpdateVehicleTypeDisplay();
+
+                // Перезагружаем миссию для нового типа
+                LoadActiveMission();
+            });
         }
 
         private void UpdateComboBoxes()
@@ -1097,81 +1256,50 @@ namespace SimpleDroneGCS.Views
                         }
                     }
                     CalibrationCombo.SelectedIndex = 0;
-
-                    System.Diagnostics.Debug.WriteLine($"[UpdateComboBoxes] {modes?.Count ?? 0} modes, {calibrations?.Count ?? 0} calibrations");
                 });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[UpdateComboBoxes] ERROR: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"[UpdateComboBoxes] Stack: {ex.StackTrace}");
             }
         }
 
         private void FlightModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            try
-            {
-                if (FlightModeCombo.SelectedItem is ComboBoxItem item && !string.IsNullOrEmpty(item.Tag?.ToString()))
-                {
-                    string mode = item.Tag.ToString();
-                    _mavlinkService?.SetFlightMode(mode);
-                    System.Diagnostics.Debug.WriteLine($"[FlightMode] Set: {mode}");
-                    FlightModeCombo.SelectedIndex = 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[FlightMode] ERROR: {ex.Message}");
-            }
+            // Режим активируется только кнопкой "Выполнить"
         }
 
         private void CalibrationCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            try
-            {
-                if (CalibrationCombo.SelectedItem is ComboBoxItem item && !string.IsNullOrEmpty(item.Tag?.ToString()))
-                {
-                    string calibration = item.Tag.ToString();
-                    StartNewCalibration(calibration);
-                    CalibrationCombo.SelectedIndex = 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[Calibration] ERROR: {ex.Message}");
-            }
+            // Калибровка активируется только кнопкой "Калибровать"
         }
 
         private void StartNewCalibration(string calibration)
         {
+            var owner = Window.GetWindow(this);
+
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                MessageBox.Show("Подключитесь к дрону!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning("Подключитесь к дрону!", owner, subtitle: "Подключение");
                 return;
             }
 
-            System.Diagnostics.Debug.WriteLine($"[Calibration] Starting: {calibration}");
-
-            // Специальное предупреждение для Barometer+Airspeed
+            // Специальное предупреждение для Barometer + Airspeed
             if (calibration == "BarAS")
             {
-                if (MessageBox.Show(
-                    "⚠️ Калибровка Barometer + Airspeed\n\n" +
-                    "ВАЖНО:\n" +
-                    "• Накройте трубку Пито тканью или рукой\n" +
-                    "• Дрон должен быть неподвижен\n" +
-                    "• Калибровка займёт ~30 секунд\n\n" +
-                    "Продолжить?",
-                    "Калибровка BarAS",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
-                {
-                    return;
-                }
+                bool ok = AppMessageBox.ShowConfirm(
+                    "Калибровка Barometer + Airspeed.\n\nВажно:\n" +
+                    "- Накройте трубку Пито тканью или рукой\n" +
+                    "- Дрон должен быть неподвижен\n" +
+                    "- Калибровка займет около 30 секунд\n\nПродолжить?",
+                    owner,
+                    subtitle: "Подтверждение"
+                );
+
+                if (!ok) return;
             }
 
-            // Отправляем правильную калибровку
             switch (calibration)
             {
                 case "Gyro":
@@ -1183,82 +1311,69 @@ namespace SimpleDroneGCS.Views
                     break;
 
                 case "BarAS":
-                    // Для Plane: barometer включает и airspeed
                     _mavlinkService.SendPreflightCalibration(barometer: true);
                     break;
 
                 case "Accelerometer":
-                    if (MessageBox.Show(
-                        "⚠️ Калибровка акселерометра\n\n" +
-                        "Дрон должен лежать на ровной поверхности.\n\n" +
-                        "Продолжить?",
-                        "Калибровка Accelerometer",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    if (AppMessageBox.ShowConfirm(
+                        "Калибровка акселерометра.\n\nДрон должен лежать на ровной поверхности.\n\nПродолжить?",
+                        owner,
+                        subtitle: "Подтверждение"
+                    ))
                     {
                         _mavlinkService.SendPreflightCalibration(accelerometer: true);
                     }
                     break;
 
                 case "CompassMot":
-                    if (MessageBox.Show(
-                        "⚠️ CompassMot калибровка\n\n" +
-                        "Проверка помех от моторов на компас.\n" +
-                        "Пропеллеры будут вращаться!\n\n" +
-                        "ВНИМАНИЕ: Убедитесь что дрон закреплён!\n\n" +
-                        "Продолжить?",
-                        "CompassMot",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    if (AppMessageBox.ShowConfirm(
+                        "Калибровка CompassMot.\n\nБудет проверка помех от моторов на компас.\n" +
+                        "Моторы могут вращаться.\n\nУбедитесь что дрон надежно закреплен.\n\nПродолжить?",
+                        owner,
+                        subtitle: "Подтверждение"
+                    ))
                     {
                         _mavlinkService.SendPreflightCalibration(compassMot: true);
                     }
                     break;
 
                 case "Radio Trim":
-                    if (MessageBox.Show(
-                        "⚠️ Radio Trim калибровка\n\n" +
-                        "Установите все стики пульта в центральное положение.\n\n" +
-                        "Продолжить?",
-                        "Radio Trim",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    if (AppMessageBox.ShowConfirm(
+                        "Калибровка Radio Trim.\n\nУстановите все стики пульта в центральное положение.\n\nПродолжить?",
+                        owner,
+                        subtitle: "Подтверждение"
+                    ))
                     {
                         _mavlinkService.SendPreflightCalibration(radioTrim: true);
                     }
                     break;
 
                 default:
-                    MessageBox.Show($"Неизвестная калибровка: {calibration}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    AppMessageBox.ShowError($"Неизвестная калибровка: {calibration}", owner, subtitle: "Калибровка");
                     break;
             }
         }
 
         private void VehicleTypeSelector_Click(object sender, MouseButtonEventArgs e)
         {
-            // Создаём popup меню выбора типа
             var contextMenu = new ContextMenu();
 
-            // Copter
             var copterItem = new MenuItem
             {
-                Header = "🚁 Мультикоптер",
+                Header = "Мультикоптер",
                 Tag = VehicleType.Copter
             };
             copterItem.Click += VehicleTypeMenuItem_Click;
             contextMenu.Items.Add(copterItem);
 
-            // QuadPlane
             var quadPlaneItem = new MenuItem
             {
-                Header = "✈️ VTOL",
+                Header = "VTOL",
                 Tag = VehicleType.QuadPlane
             };
             quadPlaneItem.Click += VehicleTypeMenuItem_Click;
             contextMenu.Items.Add(quadPlaneItem);
 
-            // Показываем меню
             contextMenu.IsOpen = true;
             contextMenu.PlacementTarget = sender as UIElement;
             contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
@@ -1266,17 +1381,19 @@ namespace SimpleDroneGCS.Views
 
         private void VehicleTypeMenuItem_Click(object sender, RoutedEventArgs e)
         {
+            var owner = Window.GetWindow(this);
+
             if (sender is MenuItem menuItem && menuItem.Tag is VehicleType newType)
             {
-                if (MessageBox.Show(
-                    $"Переключить на {(newType == VehicleType.Copter ? "Мультикоптер" : "VTOL")}?\n\n" +
-                    "Режимы полета и калибровки обновятся.",
-                    "Смена типа дрона",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question) == MessageBoxResult.Yes)
+                string name = (newType == VehicleType.Copter) ? "Мультикоптер" : "VTOL";
+
+                if (AppMessageBox.ShowConfirm(
+                    $"Переключить на {name}?\n\nРежимы полета и калибровки обновятся.",
+                    owner,
+                    subtitle: "Подтверждение"
+                ))
                 {
                     VehicleManager.Instance.SetVehicleType(newType);
-                    System.Diagnostics.Debug.WriteLine($"[VehicleTypeSelector] Changed to: {newType}");
                 }
             }
         }
@@ -1287,40 +1404,41 @@ namespace SimpleDroneGCS.Views
             {
                 var profile = VehicleManager.Instance.CurrentProfile;
 
-                // Обновляем текст
                 VehicleTypeName.Text = profile.DisplayName;
 
-                // Обновляем иконку
                 VehicleIcon.Text = profile.Type switch
                 {
-                    VehicleType.Copter => "🚁",
-                    VehicleType.QuadPlane => "✈️",
-                    _ => "🚁"
+                    VehicleType.Copter => "MC",
+                    VehicleType.QuadPlane => "VT",
+                    _ => "MC"
                 };
 
-                System.Diagnostics.Debug.WriteLine($"[Display] Vehicle: {profile.DisplayName}");
+                // Показать/скрыть моторы VTOL
+                var vtolVisibility = profile.Type == VehicleType.QuadPlane
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+
+                Motor1Border.Visibility = vtolVisibility;
+                Motor2Border.Visibility = vtolVisibility;
+                Motor3Border.Visibility = vtolVisibility;
+                Motor4Border.Visibility = vtolVisibility;
+                PusherBorder.Visibility = vtolVisibility;
             });
         }
-
 
         private void OnCalibrationStatus(string statusText)
         {
             Dispatcher.Invoke(() =>
             {
-                // Фильтруем только важные сообщения о калибровке
                 if (statusText.Contains("Calibrat") || statusText.Contains("calib") ||
                     statusText.Contains("level") || statusText.Contains("Place") ||
                     statusText.Contains("Complete") || statusText.Contains("Failed"))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[CalibrationStatus] {statusText}");
-
-                    // Показываем в статусе миссии (временно)
                     MissionStatusText.Text = statusText;
 
-                    // Зелёный для успеха, красный для ошибок
                     if (statusText.Contains("Complete") || statusText.Contains("success"))
                     {
-                        MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)); // Зелёный
+                        MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25));
                     }
                     else if (statusText.Contains("Failed") || statusText.Contains("Error"))
                     {
@@ -1328,12 +1446,12 @@ namespace SimpleDroneGCS.Views
                     }
                     else
                     {
-                        MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Оранжевый (в процессе)
+                        MissionStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0));
                     }
                 }
             });
         }
-        #endregion
 
+        #endregion
     }
 }

@@ -34,6 +34,13 @@ namespace SimpleDroneGCS.Models
         public double BatteryCurrent { get; set; }// Ток (А)
         public int BatteryPercent { get; set; }   // Заряд (%)
 
+        // VTOL моторы (для QuadPlane)
+        public int Motor1Percent { get; set; }    // Мотор 1 (%)
+        public int Motor2Percent { get; set; }    // Мотор 2 (%)
+        public int Motor3Percent { get; set; }    // Мотор 3 (%)
+        public int Motor4Percent { get; set; }    // Мотор 4 (%)
+        public int PusherPercent { get; set; }    // Толкающий мотор (%)
+
         // HEARTBEAT - статус
         public string FlightMode { get; set; }    // Режим полёта
         public bool Armed { get; set; }           // Вооружён/Разоружён

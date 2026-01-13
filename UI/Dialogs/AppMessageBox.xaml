@@ -1,0 +1,217 @@
+﻿<Window x:Class="SimpleDroneGCS.UI.Dialogs.AppMessageBox"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        KeyDown="Window_KeyDown">
+
+	<!-- Card -->
+	<Border CornerRadius="18"
+            BorderThickness="0"
+            Padding="0"
+            Width="620"
+            Background="Transparent"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+
+		<Border.BorderBrush>
+			<LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+				<GradientStop Color="#2A4361" Offset="0"/>
+				<GradientStop Color="#0D1733" Offset="1"/>
+			</LinearGradientBrush>
+		</Border.BorderBrush>
+
+		<!-- Внутренний неоновый фон -->
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+			</Grid.RowDefinitions>
+
+			<!-- Background gradients -->
+			<Border CornerRadius="16" Grid.RowSpan="3">
+				<Border.Background>
+					<LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+						<GradientStop Color="#061026" Offset="0"/>
+						<GradientStop Color="#060B1A" Offset="0.55"/>
+						<GradientStop Color="#050813" Offset="1"/>
+					</LinearGradientBrush>
+				</Border.Background>
+				<Border.Effect>
+					<DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="0" Opacity="0.8"/>
+				</Border.Effect>
+			</Border>
+
+			<!-- Glow ring (accent) -->
+			<Border CornerRadius="16"
+                    BorderThickness="2"
+                    Margin="1">
+				<Border.BorderBrush>
+					<SolidColorBrush Color="{Binding AccentColor}"/>
+				</Border.BorderBrush>
+				<Border.Effect>
+					<DropShadowEffect Color="{Binding AccentColor}" BlurRadius="22" ShadowDepth="0" Opacity="0.55"/>
+				</Border.Effect>
+			</Border>
+
+			<!-- Header -->
+			<Grid Grid.Row="0" Margin="6,4,6,14">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="Auto"/>
+				</Grid.ColumnDefinitions>
+
+				<!-- small status dot -->
+				<Ellipse Width="10" Height="10" Margin="0,6,12,0"
+                         Fill="{Binding AccentBrush}"
+                         VerticalAlignment="Top"/>
+
+				<StackPanel Grid.Column="1">
+					<TextBlock Text="{Binding TitleText}"
+                               Foreground="White"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+					<TextBlock Text="{Binding SubTitleText}"
+                               Foreground="#9CA3AF"
+                               FontSize="12"
+                               Margin="0,2,0,0"
+                               Visibility="{Binding SubTitleVisibility}"/>
+				</StackPanel>
+
+				<!-- Close -->
+				<Button Grid.Column="2"
+                        Content="✕"
+                        Width="34" Height="34"
+                        Background="#0D1733"
+                        Foreground="#9CA3AF"
+                        BorderBrush="#2A4361"
+                        BorderThickness="1"
+                        Cursor="Hand"
+                        Click="Close_Click">
+					<Button.Template>
+						<ControlTemplate TargetType="Button">
+							<Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="10">
+								<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</ControlTemplate>
+					</Button.Template>
+				</Button>
+			</Grid>
+
+			<!-- Body -->
+			<Grid Grid.Row="1" Margin="6,0,6,18">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="*"/>
+				</Grid.ColumnDefinitions>
+
+				<!-- Icon box -->
+				<Border Width="64" Height="64"
+                        CornerRadius="18"
+                        Background="#0D1733"
+                        BorderBrush="#2A4361"
+                        BorderThickness="1"
+                        VerticalAlignment="Top">
+					<Grid>
+						<Border CornerRadius="18"
+                                BorderThickness="2"
+                                BorderBrush="{Binding AccentBrush}"
+                                Opacity="0.25"/>
+						<TextBlock Text="{Binding IconText}"
+                                   FontSize="30"
+                                   Foreground="{Binding AccentBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+					</Grid>
+					<Border.Effect>
+						<DropShadowEffect Color="{Binding AccentColor}" BlurRadius="18" ShadowDepth="0" Opacity="0.35"/>
+					</Border.Effect>
+				</Border>
+
+				<StackPanel Grid.Column="1" Margin="16,2,0,0">
+					<TextBlock Text="{Binding MessageText}"
+                               Foreground="#E5E7EB"
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               LineHeight="20"/>
+
+					<!-- Optional hint -->
+					<TextBlock Text="{Binding HintText}"
+                               Foreground="#93C5FD"
+                               FontSize="12"
+                               Margin="0,10,0,0"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding HintVisibility}"/>
+				</StackPanel>
+			</Grid>
+
+			<!-- Buttons -->
+			<Grid Grid.Row="2" Margin="6,0,6,6">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="Auto"/>
+				</Grid.ColumnDefinitions>
+
+				<Button x:Name="CancelButton"
+                        Grid.Column="1"
+                        Content="{Binding CancelText}"
+                        Width="140" Height="44"
+                        Margin="0,14,10,0"
+                        Background="#0D1733"
+                        Foreground="#E5E7EB"
+                        BorderBrush="#2A4361"
+                        BorderThickness="1"
+                        Cursor="Hand"
+                        Click="Cancel_Click">
+					<Button.Template>
+						<ControlTemplate TargetType="Button">
+							<Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="14">
+								<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</ControlTemplate>
+					</Button.Template>
+				</Button>
+
+				<Button x:Name="OkButton"
+                        Grid.Column="2"
+                        Content="{Binding OkText}"
+                        Width="160" Height="44"
+                        Margin="0,14,0,0"
+                        Background="#98F019"
+                        Foreground="#050813"
+                        FontWeight="Bold"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="Ok_Click">
+					<Button.Template>
+						<ControlTemplate TargetType="Button">
+							<Border Background="{TemplateBinding Background}"
+                                    CornerRadius="14">
+								<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</ControlTemplate>
+					</Button.Template>
+					<Button.Effect>
+						<DropShadowEffect Color="{Binding AccentColor}" BlurRadius="20" ShadowDepth="0" Opacity="0.55"/>
+					</Button.Effect>
+				</Button>
+			</Grid>
+		</Grid>
+	</Border>
+</Window>

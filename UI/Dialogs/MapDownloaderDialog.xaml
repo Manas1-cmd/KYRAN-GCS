@@ -1,0 +1,180 @@
+﻿<Window x:Class="SimpleDroneGCS.UI.Dialogs.MapDownloaderDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Скачивание карты"
+        Height="400" Width="450"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#060B1A"
+        WindowStyle="None"
+        AllowsTransparency="True">
+
+	<Border BorderBrush="#2A4361" BorderThickness="1" CornerRadius="8">
+		<Grid Margin="20">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="Auto"/>
+			</Grid.RowDefinitions>
+
+			<!-- Заголовок -->
+			<StackPanel Grid.Row="0" Orientation="Horizontal">
+				<TextBlock Text="🗺️" FontSize="24" VerticalAlignment="Center"/>
+				<TextBlock Text=" Скачать карту Казахстана"
+                           Foreground="#98F019" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+			</StackPanel>
+
+			<TextBlock Grid.Row="0" Text="✕" Foreground="#888" FontSize="16"
+                       HorizontalAlignment="Right" Cursor="Hand"
+                       MouseLeftButtonDown="CloseButton_Click"/>
+
+			<!-- Выбор региона -->
+			<StackPanel Grid.Row="1" Margin="0,20,0,0">
+				<TextBlock Text="Регион:" Foreground="Black" Margin="0,0,0,5"/>
+				<ComboBox x:Name="RegionCombo" SelectedIndex="0"
+                          Background="#0D1733" Foreground="Black">
+					<ComboBoxItem Content="🇰🇿 Весь Казахстан" Tag="KZ"/>
+					<ComboBoxItem Content="📍 Алматы и область" Tag="ALMATY"/>
+					<ComboBoxItem Content="📍 Астана и область" Tag="ASTANA"/>
+					<ComboBoxItem Content="📍 Текущая позиция (50 км)" Tag="CURRENT"/>
+				</ComboBox>
+			</StackPanel>
+
+			<!-- Выбор зума -->
+			<StackPanel Grid.Row="2" Margin="0,15,0,0">
+				<TextBlock Text="Уровни детализации:" Foreground="White" Margin="0,0,0,5"/>
+				<Grid>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="*"/>
+					</Grid.ColumnDefinitions>
+
+					<TextBlock Grid.Column="0" Text="От:" Foreground="#888" VerticalAlignment="Center" Margin="0,0,8,0"/>
+					<ComboBox x:Name="ZoomFromCombo" Grid.Column="1" Width="55" SelectedIndex="1">
+						<ComboBoxItem Content="5"/>
+						<ComboBoxItem Content="6"/>
+						<ComboBoxItem Content="7"/>
+						<ComboBoxItem Content="8"/>
+						<ComboBoxItem Content="9"/>
+						<ComboBoxItem Content="10"/>
+					</ComboBox>
+
+					<TextBlock Grid.Column="2" Text="До:" Foreground="#888" VerticalAlignment="Center" Margin="20,0,8,0"/>
+					<ComboBox x:Name="ZoomToCombo" Grid.Column="3" Width="55" SelectedIndex="3">
+						<ComboBoxItem Content="10"/>
+						<ComboBoxItem Content="11"/>
+						<ComboBoxItem Content="12"/>
+						<ComboBoxItem Content="13"/>
+						<ComboBoxItem Content="14"/>
+						<ComboBoxItem Content="15"/>
+					</ComboBox>
+				</Grid>
+
+				<StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+					<TextBlock Text="💡 " FontSize="11"/>
+					<TextBlock Text="Зум 6-10: обзор | 11-13: навигация | 14+: детали (много данных!)"
+                               Foreground="#888" FontSize="11"/>
+				</StackPanel>
+			</StackPanel>
+
+			<!-- Инфо о размере -->
+			<Border Grid.Row="3" Background="#0D1733" CornerRadius="6" Padding="12" Margin="0,15,0,0">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*"/>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+
+					<TextBlock Grid.Row="0" Grid.Column="0" Text="Тайлов:" Foreground="#888"/>
+					<TextBlock Grid.Row="0" Grid.Column="1" x:Name="TileCountText" Text="~0" Foreground="White" FontWeight="Bold"/>
+
+					<TextBlock Grid.Row="1" Grid.Column="0" Text="Примерный размер:" Foreground="#888" Margin="0,4,0,0"/>
+					<TextBlock Grid.Row="1" Grid.Column="1" x:Name="EstimatedSizeText" Text="~0 MB" Foreground="White" Margin="0,4,0,0"/>
+
+					<TextBlock Grid.Row="2" Grid.Column="0" Text="Время (примерно):" Foreground="#888" Margin="0,4,0,0"/>
+					<TextBlock Grid.Row="2" Grid.Column="1" x:Name="EstimatedTimeText" Text="~0 мин" Foreground="White" Margin="0,4,0,0"/>
+				</Grid>
+			</Border>
+
+			<!-- Прогресс -->
+			<StackPanel Grid.Row="4" Margin="0,15,0,0">
+				<Grid>
+					<ProgressBar x:Name="DownloadProgress" Height="24" Maximum="100" Value="0"
+                                 Background="#0D1733" Foreground="#98F019"/>
+					<TextBlock x:Name="ProgressPercent" Text="0%"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="White" FontWeight="Bold"/>
+				</Grid>
+				<TextBlock x:Name="ProgressText" Text="Готов к скачиванию"
+                           Foreground="#888" FontSize="11" Margin="0,5,0,0"/>
+			</StackPanel>
+
+			<!-- Статус -->
+			<Border Grid.Row="5" Margin="0,10,0,0">
+				<TextBlock x:Name="StatusText" Text=""
+                           Foreground="#98F019" TextWrapping="Wrap" FontSize="12"/>
+			</Border>
+
+			<!-- Кнопки -->
+			<Grid Grid.Row="6">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="Auto"/>
+				</Grid.ColumnDefinitions>
+
+				<Button Grid.Column="1" x:Name="StartButton" Content="▶ Скачать"
+                        Width="110" Height="36"
+                        Background="#98F019" Foreground="#060B1A" FontWeight="Bold"
+                        BorderThickness="0" Cursor="Hand" Click="StartButton_Click">
+					<Button.Style>
+						<Style TargetType="Button">
+							<Setter Property="Template">
+								<Setter.Value>
+									<ControlTemplate TargetType="Button">
+										<Border Background="{TemplateBinding Background}"
+                                                CornerRadius="4" Padding="12,8">
+											<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+										</Border>
+									</ControlTemplate>
+								</Setter.Value>
+							</Setter>
+						</Style>
+					</Button.Style>
+				</Button>
+
+				<Button Grid.Column="2" x:Name="CancelButton" Content="Закрыть"
+                        Width="90" Height="36" Margin="10,0,0,0"
+                        Background="#2A4361" Foreground="White"
+                        BorderThickness="0" Cursor="Hand" Click="CancelButton_Click">
+					<Button.Style>
+						<Style TargetType="Button">
+							<Setter Property="Template">
+								<Setter.Value>
+									<ControlTemplate TargetType="Button">
+										<Border Background="{TemplateBinding Background}"
+                                                CornerRadius="4" Padding="12,8">
+											<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+										</Border>
+									</ControlTemplate>
+								</Setter.Value>
+							</Setter>
+						</Style>
+					</Button.Style>
+				</Button>
+			</Grid>
+		</Grid>
+	</Border>
+</Window>

@@ -4,6 +4,8 @@
         xmlns:local="clr-namespace:SimpleDroneGCS.Controls"
         Title="SimpleDroneGCS - Professional" 
         Height="900" Width="1600"
+        MinWidth="1200"
+        MinHeight="700"
         WindowState="Maximized"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -80,186 +82,219 @@
             </Border>
 
             <!-- ОСНОВНОЙ КОНТЕНТ -->
-            <Grid Grid.Row="1" Background="#060B1A">    
+            <Grid Grid.Row="1" Background="#060B1A">
 
                 <!-- ОСНОВНОЙ LAYOUT -->
-    <Grid Margin="20,0,20,20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+                <Grid Margin="10,0,10,10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-        <!-- ==== ВЕРХНИЙ БЛОК НАВИГАЦИИ ==== -->
-        <Border Grid.Row="0"
-                Background="#0D1733"
-                BorderThickness="3"
-                CornerRadius="20"
-                Padding="15,0,15,0"
-                Margin="0,0,200,0" Height="75">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                    <!-- ==== ВЕРХНИЙ БЛОК НАВИГАЦИИ ==== -->
+                    <Border Grid.Row="0"
+                            Background="#0D1733"
+                            BorderThickness="3"
+                            CornerRadius="18"
+                            Padding="12,0,12,0"
+                            Margin="0,0,160,0" Height="72">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                <!-- НАВИГАЦИОННЫЕ КНОПКИ (круглые с иконками) -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    
-                    <!-- ПОЛЁТНЫЕ ДАННЫЕ -->
-                    <StackPanel Margin="20,0,70,0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="FlightDataButton" 
-                                Style="{StaticResource ActiveNavButtonStyle}"
-                                Click="NavigationButton_Click" 
-                                Tag="FlightData" Width="40" Height="40">
-                            <Image Source="/Images/flight_data_icon.png" Width="20" Height="20"/>
-                        </Button>
-                        <TextBlock Text="ПОЛЁТНЫЕ ДАННЫЕ" 
-                                   FontSize="9" 
-                                   FontWeight="Bold" 
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,5,0,0"/>
-                    </StackPanel>
+                            <!-- НАВИГАЦИОННЫЕ КНОПКИ -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
 
-                    <!-- ПЛАН ПОЛЁТА -->
-                    <StackPanel Margin="0,0,70,0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="FlightPlanButton" 
-                                Style="{StaticResource NavButtonStyle}"
-                                Click="NavigationButton_Click" 
-                                Tag="FlightPlan" Width="40" Height="40">
-                            <Image Source="/Images/flight_plan_icon.png" Width="20" Height="20"/>
-                        </Button>
-                        <TextBlock Text="ПЛАН ПОЛЁТА" 
-                                   FontSize="9" 
-                                   FontWeight="Bold" 
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,5,0,0"/>
-                    </StackPanel>
+                                <!-- ПОЛЁТНЫЕ ДАННЫЕ -->
+                                <StackPanel Margin="15,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button x:Name="FlightDataButton" 
+                                            Style="{StaticResource ActiveNavButtonStyle}"
+                                            Click="NavigationButton_Click" 
+                                            Tag="FlightData" Width="38" Height="38">
+                                        <Image Source="/Images/flight_data_icon.png" Width="19" Height="19"/>
+                                    </Button>
+                                    <TextBlock Text="ДАННЫЕ" 
+                                               FontSize="8" 
+                                               FontWeight="Bold" 
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
 
-                    <!-- ВЗЛЁТ -->
-                    <StackPanel Margin="0,0,70,0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="TakeoffButton" 
-                                Style="{StaticResource NavButtonStyle}"
-                                Click="TakeoffButton_Click" Width="40" Height="40">
-                            <Image Source="/Images/takeoff_icon.png" Width="21" Height="20" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                        </Button>
-                        <TextBlock Text="ВЗЛЁТ" 
-                                   FontSize="9" 
-                                   FontWeight="Bold" 
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,5,0,0"/>
-                    </StackPanel>
+                                <!-- ПЛАН ПОЛЁТА -->
+                                <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button x:Name="FlightPlanButton" 
+                                            Style="{StaticResource NavButtonStyle}"
+                                            Click="NavigationButton_Click" 
+                                            Tag="FlightPlan" Width="38" Height="38">
+                                        <Image Source="/Images/flight_plan_icon.png" Width="19" Height="19"/>
+                                    </Button>
+                                    <TextBlock Text="ПЛАН" 
+                                               FontSize="8" 
+                                               FontWeight="Bold" 
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
 
-                    <!-- АВАРИЙНАЯ ПОСАДКА -->
-                    <StackPanel Margin="0,0,50,0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="LandButton" 
-                                Style="{StaticResource NavButtonStyle}"
-                                Click="LandButton_Click" Width="40" Height="40">
-                            <Image Source="/Images/landing_icon.png" Width="20" Height="20"/>
-                        </Button>
-                        <TextBlock Text="АВАРИЙНАЯ ПОСАДКА" 
-                                   FontSize="9" 
-                                   FontWeight="Bold" 
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,5,0,0"/>
-                    </StackPanel>
+                                <!-- КАМЕРА -->
+                                <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button x:Name="CameraButton" 
+                                            Style="{StaticResource NavButtonStyle}"
+                                            Click="CameraButton_Click" Width="38" Height="38">
+                                        <Image Source="/Images/camera.png" Width="22" Height="22"/>
+                                    </Button>
+                                    <TextBlock Text="КАМЕРА" 
+                                               FontSize="8" 
+                                               FontWeight="Bold" 
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
 
-                    <!-- ВОЗВРАТ ДОМОЙ -->
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="RthButton" 
-                                Style="{StaticResource NavButtonStyle}"
-                                Click="RthButton_Click" Width="40" Height="40">
-                            <Image Source="/Images/home_icon.png" Width="20" Height="20"/>
-                        </Button>
-                        <TextBlock Text="ВОЗВРАТ ДОМОЙ" 
-                                   FontSize="9" 
-                                   FontWeight="Bold" 
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,5,0,0"/>
-                    </StackPanel>
+                                <!-- АВАРИЙНАЯ ПОСАДКА -->
+                                <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button x:Name="LandButton" 
+                                            Style="{StaticResource NavButtonStyle}"
+                                            Click="LandButton_Click" Width="38" Height="38">
+                                        <Image Source="/Images/landing_icon.png" Width="19" Height="19"/>
+                                    </Button>
+                                    <TextBlock Text="ПОСАДКА" 
+                                               FontSize="8" 
+                                               FontWeight="Bold" 
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
 
-                </StackPanel>
+                                <!-- ВОЗВРАТ ДОМОЙ -->
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button x:Name="RthButton" 
+                                            Style="{StaticResource NavButtonStyle}"
+                                            Click="RthButton_Click" Width="38" Height="38">
+                                        <Image Source="/Images/home_icon.png" Width="19" Height="19"/>
+                                    </Button>
+                                    <TextBlock Text="ДОМОЙ" 
+                                               FontSize="8" 
+                                               FontWeight="Bold" 
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
 
-                <!-- COMBOBOX + КНОПКА ПОДКЛЮЧЕНИЯ -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            </StackPanel>
 
-                    <local:LanguageToggle Margin="0,0,15,0"/>
+                            <!-- COMBOBOX + КНОПКА ПОДКЛЮЧЕНИЯ -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+
+                                <local:LanguageToggle Margin="0,0,12,0"/>
 
                                 <!-- BAUD RATE -->
-                    <ComboBox x:Name="BaudRateComboBox"
-                            Style="{StaticResource CustomComboBoxStyle}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            Margin="0,0,10,0"
-                            MinWidth="120"
-                            SelectionChanged="BaudRateComboBox_SelectionChanged" Width="150" Height="36">
-                        <ComboBoxItem Content="Выбор BAUD" IsSelected="True"/>
-                        <ComboBoxItem Content="57600"/>
-                        <ComboBoxItem Content="115200"/>
-                    </ComboBox>
+                                <ComboBox x:Name="BaudRateComboBox"
+                                        Style="{StaticResource CustomComboBoxStyle}"
+                                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                        Margin="0,0,8,0"
+                                        SelectionChanged="BaudRateComboBox_SelectionChanged" Width="95" Height="34">
+                                    <ComboBoxItem Content="BAUD" IsSelected="True"/>
+                                    <ComboBoxItem Content="57600"/>
+                                    <ComboBoxItem Content="115200"/>
+                                </ComboBox>
 
-                    <!-- COM PORT -->
-                    <ComboBox x:Name="ComPortComboBox"
-                            Style="{StaticResource CustomComboBoxStyle}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            Margin="0,0,10,0"
-                            MinWidth="120"
-                            DropDownOpened="ComPortComboBox_DropDownOpened"
-                            SelectionChanged="BaudRateComboBox_SelectionChanged"
-                              Width="219" Height="36" >
-                        <ComboBoxItem Content="COM Порт" IsSelected="True"/>
-                    </ComboBox>
+                                <!-- COM PORT -->
+                                <ComboBox x:Name="ComPortComboBox"
+                                        Style="{StaticResource CustomComboBoxStyle}"
+                                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                        Margin="0,0,8,0"
+                                        DropDownOpened="ComPortComboBox_DropDownOpened"
+                                        SelectionChanged="ComPortComboBox_SelectionChanged"
+                                        Width="140" Height="34">
+                                    <ComboBoxItem Content="COM Порт" Tag="placeholder" IsSelected="True"/>
+                                    <ComboBoxItem Content="📡 UDP" Tag="UDP"/>
+                                </ComboBox>
 
-                    <!-- КНОПКА ПОДКЛЮЧЕНИЯ (КРУГЛАЯ) -->
-                    <Button x:Name="ConnectButton"
-        Style="{StaticResource NavButtonStyle}"
-        Width="40"
-        Height="40"
-        Click="ConnectButton_Click"
-        Cursor="Hand">
-                        <Image x:Name="ConnectButtonIcon" 
-           Source="/Images/connect_icon.png" 
-           Width="24" 
-           Height="24"/>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
+                                <!-- КНОПКА ПОДКЛЮЧЕНИЯ -->
+                                <Button x:Name="ConnectButton"
+                                        Style="{StaticResource NavButtonStyle}"
+                                        Width="38"
+                                        Height="38"
+                                        Click="ConnectButton_Click"
+                                        Cursor="Hand">
+                                    <Image x:Name="ConnectButtonIcon" 
+                                           Source="/Images/connect_icon.png" 
+                                           Width="20" 
+                                           Height="20"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
-        <!-- ==== ИНДИКАТОР ПОДКЛЮЧЕНИЯ (СПРАВА СВЕРХУ) ==== -->
-        <Border Grid.Row="0"
-                Background="#0D1733"
-                BorderBrush="#2A4361"
-                BorderThickness="3"
-                CornerRadius="8"
-                Padding="12,8"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="0,20,20,0">
-            <StackPanel Orientation="Horizontal">
-                <Ellipse x:Name="ConnectionIndicator" 
-                         Width="14" 
-                         Height="14" 
-                         Fill="Red" 
-                         Margin="0,0,10,0"/>
-                <TextBlock x:Name="ConnectionStatusText" 
-                           Text="Не подключено" 
-                           Foreground="White" 
-                           FontSize="12" 
-                           FontWeight="Bold"/>
-            </StackPanel>
-        </Border>
+                    <!-- ==== ИНДИКАТОР ПОДКЛЮЧЕНИЯ (СПРАВА СВЕРХУ) ==== -->
+                    <Border Grid.Row="0"
+                            Background="#0D1733"
+                            BorderBrush="#2A4361"
+                            BorderThickness="2"
+                            CornerRadius="8"
+                            Padding="10,6"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,15,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="ConnectionIndicator" 
+                                     Width="12" 
+                                     Height="12" 
+                                     Fill="Red" 
+                                     Margin="0,0,8,0"/>
+                            <TextBlock x:Name="ConnectionStatusText" 
+                                       Text="Не подключено" 
+                                       Foreground="White" 
+                                       FontSize="11" 
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
 
-        <!-- ==== КОНТЕНТНАЯ ОБЛАСТЬ ==== -->
-        <Frame x:Name="MainFrame" 
-               Grid.Row="1"
-               NavigationUIVisibility="Hidden"
-               Background="Transparent"/>
-    </Grid>
+                    <!-- ==== КОНТЕНТНАЯ ОБЛАСТЬ ==== -->
+                    <Frame x:Name="MainFrame" 
+                           Grid.Row="1"
+                           NavigationUIVisibility="Hidden"
+                           Background="Transparent"/>
+                </Grid>
+
+                <!-- ==== ОВЕРЛЕЙ ЗАГРУЗКИ ==== -->
+                <Grid x:Name="LoadingOverlay" 
+                      Visibility="Collapsed" 
+                      Background="#AA060B1A">
+                    <Border Background="#0D1733" 
+                            CornerRadius="15" 
+                            Padding="30,20"
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            BorderBrush="#2A4361"
+                            BorderThickness="2">
+                        <StackPanel HorizontalAlignment="Center">
+                            <!-- Вращающийся спиннер -->
+                            <Border x:Name="SpinnerBorder" 
+                                    Width="50" Height="50" 
+                                    CornerRadius="25"
+                                    BorderBrush="#98F019" 
+                                    BorderThickness="4,4,1,1"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <RotateTransform x:Name="SpinnerRotate" Angle="0"/>
+                                </Border.RenderTransform>
+                            </Border>
+                            <TextBlock x:Name="LoadingText" 
+                                       Text="Запуск ViewLink..." 
+                                       Foreground="White" 
+                                       FontSize="14" 
+                                       FontWeight="SemiBold"
+                                       Margin="0,15,0,0"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
         </Grid>
     </Border>
