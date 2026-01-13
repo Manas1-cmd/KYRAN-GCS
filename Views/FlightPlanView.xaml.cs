@@ -420,63 +420,69 @@ namespace SimpleDroneGCS.Views
         {
             // Пересчитываем радиус в метрах в пиксели на основе зума
             double radiusInPixels = MetersToPixels(waypoint.Radius, waypoint.Latitude, PlanMap.Zoom);
-
-            // РЕАЛИЗМ: только ограничиваем, не масштабируем!
             radiusInPixels = Math.Max(3, Math.Min(500, radiusInPixels));
 
-            System.Diagnostics.Debug.WriteLine($"    CreateMarkerShape WP{waypoint.Number}: {waypoint.Radius:F0}м → {radiusInPixels:F2}px @ zoom {PlanMap.Zoom:F1}");
+            // МИНИМАЛЬНЫЙ размер Grid для нормального отображения
+            double minGridSize = 60;
+            double gridSize = Math.Max(minGridSize, radiusInPixels * 2);
 
             var grid = new Grid
             {
-                Width = radiusInPixels * 2,
-                Height = radiusInPixels * 2
+                Width = gridSize,
+                Height = gridSize
             };
 
-            // КРИТИЧНО: Делаем границу ТОЛЩЕ для маленьких кругов (чтобы их было видно)
-            double strokeThickness = radiusInPixels < 20 ? 3 : 2; // Если маленький - толстая граница
-
-            // Радиус (круг)
-            var radiusCircle = new Ellipse
+            // Круг радиуса (показываем только если достаточно большой)
+            if (radiusInPixels > 15)
             {
-                Width = radiusInPixels * 2,
-                Height = radiusInPixels * 2,
-                Stroke = new SolidColorBrush(Color.FromArgb(200, 152, 240, 25)), // Ярче для видимости
-                StrokeThickness = strokeThickness,
-                Fill = new SolidColorBrush(Color.FromArgb(50, 152, 240, 25)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+                double strokeThickness = radiusInPixels < 20 ? 3 : 2;
 
-            // Центральная точка - КРУПНЕЕ для видимости
+                var radiusCircle = new Ellipse
+                {
+                    Width = radiusInPixels * 2,
+                    Height = radiusInPixels * 2,
+                    Stroke = new SolidColorBrush(Color.FromArgb(200, 152, 240, 25)),
+                    StrokeThickness = strokeThickness,
+                    Fill = new SolidColorBrush(Color.FromArgb(50, 152, 240, 25)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                grid.Children.Add(radiusCircle);
+                waypoint.RadiusCircle = radiusCircle;
+            }
+            else
+            {
+                waypoint.RadiusCircle = null;
+            }
+
+            // Центральная точка
             var centerPoint = new Ellipse
             {
-                Width = 24, // Было 20
-                Height = 24,
+                Width = 28,
+                Height = 28,
                 Fill = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
                 Stroke = Brushes.White,
-                StrokeThickness = 3, // Было 2
+                StrokeThickness = 3,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // Номер - крупнее
+            // Номер waypoint
             var numberText = new TextBlock
             {
                 Text = waypoint.Number.ToString(),
                 Foreground = Brushes.Black,
                 FontWeight = FontWeights.Bold,
-                FontSize = 14, // Было 12
+                FontSize = 14,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            grid.Children.Add(radiusCircle);
             grid.Children.Add(centerPoint);
             grid.Children.Add(numberText);
 
-            // Сохраняем ссылки
             waypoint.ShapeGrid = grid;
-            waypoint.RadiusCircle = radiusCircle;
 
             return grid;
         }
@@ -823,39 +829,39 @@ namespace SimpleDroneGCS.Views
                     Background = new SolidColorBrush(Color.FromRgb(13, 23, 51)),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(42, 67, 97)),
                     BorderThickness = new Thickness(0, 0, 0, 1),
-                    Padding = new Thickness(0, 5, 5, 5),
+                    Padding = new Thickness(4, 4, 4, 4),
                     Margin = new Thickness(0, 0, 0, 2)
                 };
 
                 var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });              // Номер - фикс
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Команда - растягивается
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });              // Высота - фикс
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });              // Задержка - фикс
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });              // Кнопки - фикс
 
                 // Номер
                 var numberText = new TextBlock
                 {
                     Text = wp.Number.ToString(),
                     Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                    FontSize = 14,
+                    FontSize = 12,
                     FontWeight = FontWeights.Bold,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
                 Grid.SetColumn(numberText, 0);
 
-                // ComboBox команды с расширенным списком
+                // ComboBox команды
                 var commandCombo = new ComboBox
                 {
-                    SelectedIndex = 0, // По умолчанию первая
+                    SelectedIndex = 0,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Height = 28,
-                    FontSize = 11,
-                    Margin = new Thickness(5, 0, 5, 0),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Height = 26,
+                    Margin = new Thickness(2, 0, 2, 0),
                     Tag = wp,
-                    Style = (Style)Application.Current.FindResource("CustomComboBoxStyle")
+                    Style = (Style)Application.Current.FindResource("CompactComboBoxStyle")
                 };
 
                 // Список команд БЕЗ TAKEOFF, RTL, SET_HOME (они фиксированы)
@@ -878,7 +884,6 @@ namespace SimpleDroneGCS.Views
                         Style = (Style)Application.Current.FindResource("CustomComboBoxItemStyle")
                     };
 
-                    // Выбираем нужный элемент
                     if (cmd.Tag == wp.CommandType)
                     {
                         item.IsSelected = true;
@@ -890,26 +895,25 @@ namespace SimpleDroneGCS.Views
                 commandCombo.SelectionChanged += CommandCombo_SelectionChanged;
                 Grid.SetColumn(commandCombo, 1);
 
-                // TextBox высоты с закруглением
+                // TextBox высоты
                 var altitudeBox = new TextBox
                 {
                     Text = wp.Altitude.ToString("F0"),
                     VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Height = 28,
-                    FontSize = 11,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Width = 44,
+                    Height = 24,
+                    FontSize = 10,
                     Background = new SolidColorBrush(Color.FromRgb(26, 36, 51)),
                     Foreground = Brushes.White,
                     BorderBrush = new SolidColorBrush(Color.FromRgb(42, 67, 97)),
                     BorderThickness = new Thickness(1),
-                    Padding = new Thickness(5, 0, 5, 0),
-                    Margin = new Thickness(0, 0, 0, 0),
+                    Padding = new Thickness(3, 0, 3, 0),
+                    Margin = new Thickness(0, 0, 2, 0),
                     VerticalContentAlignment = VerticalAlignment.Center,
                     Tag = wp
                 };
 
-                // ДОБАВЛЯЕМ ЗАКРУГЛЕНИЕ
-                // СНАЧАЛА создаем Style, ПОТОМ присваиваем
                 var altitudeStyle = new Style(typeof(TextBox));
                 altitudeStyle.Setters.Add(new Setter(TextBox.TemplateProperty, CreateRoundedTextBoxTemplate()));
                 altitudeBox.Style = altitudeStyle;
@@ -917,25 +921,25 @@ namespace SimpleDroneGCS.Views
                 altitudeBox.LostFocus += AltitudeBox_LostFocus;
                 Grid.SetColumn(altitudeBox, 2);
 
-                // TextBox задержки с закруглением
+                // TextBox задержки
                 var delayBox = new TextBox
                 {
                     Text = wp.Delay.ToString("F0"),
                     VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Height = 28,
-                    FontSize = 11,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Width = 44,
+                    Height = 24,
+                    FontSize = 10,
                     Background = new SolidColorBrush(Color.FromRgb(26, 36, 51)),
                     Foreground = Brushes.White,
                     BorderBrush = new SolidColorBrush(Color.FromRgb(42, 67, 97)),
                     BorderThickness = new Thickness(1),
-                    Padding = new Thickness(5, 0, 5, 0),
-                    Margin = new Thickness(0, 0, 10, 0),
+                    Padding = new Thickness(3, 0, 3, 0),
+                    Margin = new Thickness(0, 0, 2, 0),
                     VerticalContentAlignment = VerticalAlignment.Center,
                     Tag = wp
                 };
 
-                // ДОБАВЛЯЕМ ЗАКРУГЛЕНИЕ
                 var delayStyle = new Style(typeof(TextBox));
                 delayStyle.Setters.Add(new Setter(TextBox.TemplateProperty, CreateRoundedTextBoxTemplate()));
                 delayBox.Style = delayStyle;
@@ -951,27 +955,26 @@ namespace SimpleDroneGCS.Views
                     VerticalAlignment = VerticalAlignment.Center
                 };
 
-                // Кнопка вверх (КРУГЛАЯ)
+                // Кнопка вверх
                 var upButton = new Button
                 {
                     Background = new SolidColorBrush(Color.FromRgb(62, 69, 83)),
                     BorderThickness = new Thickness(1),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 65)),
-                    Width = 30,
-                    Height = 30,
+                    Width = 24,
+                    Height = 24,
                     Padding = new Thickness(0),
-                    Margin = new Thickness(2, 0, 2, 0),
+                    Margin = new Thickness(1, 0, 1, 0),
                     Cursor = Cursors.Hand,
                     Tag = wp
                 };
 
-                // Создаем Template для круглой кнопки
                 var upTemplate = new ControlTemplate(typeof(Button));
                 var upBorder = new FrameworkElementFactory(typeof(Border));
                 upBorder.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Button.BackgroundProperty));
                 upBorder.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(Button.BorderBrushProperty));
                 upBorder.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Button.BorderThicknessProperty));
-                upBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(15)); // КРУГЛАЯ
+                upBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
 
                 var upContent = new FrameworkElementFactory(typeof(ContentPresenter));
                 upContent.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
@@ -980,70 +983,40 @@ namespace SimpleDroneGCS.Views
                 upTemplate.VisualTree = upBorder;
                 upButton.Template = upTemplate;
 
-                // Кнопка вверх - ВЕКТОРНАЯ иконка
                 var upIcon = new Path
                 {
                     Data = System.Windows.Media.Geometry.Parse("M 12 4 L 6 10 L 7.41 11.41 L 11 7.83 L 11 20 L 13 20 L 13 7.83 L 16.59 11.41 L 18 10 Z"),
                     Fill = Brushes.White,
                     Stretch = Stretch.Uniform,
-                    Width = 16,
-                    Height = 16,
+                    Width = 12,
+                    Height = 12,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 upButton.Content = upIcon;
-
                 upButton.Click += MoveUpButton_Click;
 
-                // Эффект наведения
-                // Для кнопки ВВЕРХ с анимацией
                 upButton.MouseEnter += (s, e) =>
                 {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(82, 89, 103),
-                        Duration = TimeSpan.FromMilliseconds(150)
-                    };
+                    var anim = new ColorAnimation { To = Color.FromRgb(82, 89, 103), Duration = TimeSpan.FromMilliseconds(150) };
                     upButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
                 };
                 upButton.MouseLeave += (s, e) =>
                 {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(62, 69, 83),
-                        Duration = TimeSpan.FromMilliseconds(150)
-                    };
-                    upButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
-                };
-                upButton.PreviewMouseDown += (s, e) =>
-                {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(42, 49, 63),
-                        Duration = TimeSpan.FromMilliseconds(100)
-                    };
-                    upButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
-                };
-                upButton.PreviewMouseUp += (s, e) =>
-                {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(82, 89, 103),
-                        Duration = TimeSpan.FromMilliseconds(100)
-                    };
+                    var anim = new ColorAnimation { To = Color.FromRgb(62, 69, 83), Duration = TimeSpan.FromMilliseconds(150) };
                     upButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
                 };
 
-                // Кнопка вниз (КРУГЛАЯ)
+                // Кнопка вниз
                 var downButton = new Button
                 {
                     Background = new SolidColorBrush(Color.FromRgb(62, 69, 83)),
                     BorderThickness = new Thickness(1),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 65)),
-                    Width = 30,
-                    Height = 30,
+                    Width = 24,
+                    Height = 24,
                     Padding = new Thickness(0),
-                    Margin = new Thickness(2, 0, 2, 0),
+                    Margin = new Thickness(1, 0, 1, 0),
                     Cursor = Cursors.Hand,
                     Tag = wp
                 };
@@ -1053,7 +1026,7 @@ namespace SimpleDroneGCS.Views
                 downBorder.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Button.BackgroundProperty));
                 downBorder.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(Button.BorderBrushProperty));
                 downBorder.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Button.BorderThicknessProperty));
-                downBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(15)); // КРУГЛАЯ
+                downBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
 
                 var downContent = new FrameworkElementFactory(typeof(ContentPresenter));
                 downContent.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
@@ -1062,70 +1035,40 @@ namespace SimpleDroneGCS.Views
                 downTemplate.VisualTree = downBorder;
                 downButton.Template = downTemplate;
 
-                // Кнопка вниз - ВЕКТОРНАЯ иконка
                 var downIcon = new Path
                 {
                     Data = System.Windows.Media.Geometry.Parse("M 12 20 L 18 14 L 16.59 12.59 L 13 16.17 L 13 4 L 11 4 L 11 16.17 L 7.41 12.59 L 6 14 Z"),
                     Fill = Brushes.White,
                     Stretch = Stretch.Uniform,
-                    Width = 16,
-                    Height = 16,
+                    Width = 12,
+                    Height = 12,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 downButton.Content = downIcon;
-
                 downButton.Click += MoveDownButton_Click;
-
-                // После downButton.Click += MoveDownButton_Click; добавь:
 
                 downButton.MouseEnter += (s, e) =>
                 {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(82, 89, 103),
-                        Duration = TimeSpan.FromMilliseconds(150)
-                    };
+                    var anim = new ColorAnimation { To = Color.FromRgb(82, 89, 103), Duration = TimeSpan.FromMilliseconds(150) };
                     downButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
                 };
                 downButton.MouseLeave += (s, e) =>
                 {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(62, 69, 83),
-                        Duration = TimeSpan.FromMilliseconds(150)
-                    };
-                    downButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
-                };
-                downButton.PreviewMouseDown += (s, e) =>
-                {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(42, 49, 63),
-                        Duration = TimeSpan.FromMilliseconds(100)
-                    };
-                    downButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
-                };
-                downButton.PreviewMouseUp += (s, e) =>
-                {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(82, 89, 103),
-                        Duration = TimeSpan.FromMilliseconds(100)
-                    };
+                    var anim = new ColorAnimation { To = Color.FromRgb(62, 69, 83), Duration = TimeSpan.FromMilliseconds(150) };
                     downButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
                 };
 
-                // Кнопка удалить (КРУГЛАЯ)
+                // Кнопка удалить
                 var deleteButton = new Button
                 {
                     Background = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
                     BorderThickness = new Thickness(1),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
-                    Width = 30,
-                    Height = 30,
+                    Width = 24,
+                    Height = 24,
                     Padding = new Thickness(0),
-                    Margin = new Thickness(2, 0, 2, 0),
+                    Margin = new Thickness(1, 0, 1, 0),
                     Cursor = Cursors.Hand,
                     Tag = wp
                 };
@@ -1135,7 +1078,7 @@ namespace SimpleDroneGCS.Views
                 deleteBorder.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Button.BackgroundProperty));
                 deleteBorder.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(Button.BorderBrushProperty));
                 deleteBorder.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Button.BorderThicknessProperty));
-                deleteBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(15)); // КРУГЛАЯ
+                deleteBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
 
                 var deleteContent = new FrameworkElementFactory(typeof(ContentPresenter));
                 deleteContent.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
@@ -1144,57 +1087,27 @@ namespace SimpleDroneGCS.Views
                 deleteTemplate.VisualTree = deleteBorder;
                 deleteButton.Template = deleteTemplate;
 
-                // Кнопка удалить - ВЕКТОРНАЯ иконка корзины
                 var deleteIcon = new Path
                 {
                     Data = System.Windows.Media.Geometry.Parse("M 6 19 C 6 20.1 6.9 21 8 21 L 16 21 C 17.1 21 18 20.1 18 19 L 18 7 L 6 7 L 6 19 Z M 19 4 L 15.5 4 L 14.5 3 L 9.5 3 L 8.5 4 L 5 4 L 5 6 L 19 6 L 19 4 Z"),
                     Fill = Brushes.White,
                     Stretch = Stretch.Uniform,
-                    Width = 14,
-                    Height = 14,
+                    Width = 12,
+                    Height = 12,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 deleteButton.Content = deleteIcon;
-
                 deleteButton.Click += DeleteButton_Click;
-
-                // После deleteButton.Click += DeleteButton_Click; добавь:
 
                 deleteButton.MouseEnter += (s, e) =>
                 {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(255, 88, 88), // Светлее красного
-                        Duration = TimeSpan.FromMilliseconds(150)
-                    };
+                    var anim = new ColorAnimation { To = Color.FromRgb(255, 88, 88), Duration = TimeSpan.FromMilliseconds(150) };
                     deleteButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
                 };
                 deleteButton.MouseLeave += (s, e) =>
                 {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(239, 68, 68), // Обычный красный
-                        Duration = TimeSpan.FromMilliseconds(150)
-                    };
-                    deleteButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
-                };
-                deleteButton.PreviewMouseDown += (s, e) =>
-                {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(220, 38, 38), // Темнее красного
-                        Duration = TimeSpan.FromMilliseconds(100)
-                    };
-                    deleteButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
-                };
-                deleteButton.PreviewMouseUp += (s, e) =>
-                {
-                    var anim = new ColorAnimation
-                    {
-                        To = Color.FromRgb(255, 88, 88), // Как при наведении
-                        Duration = TimeSpan.FromMilliseconds(100)
-                    };
+                    var anim = new ColorAnimation { To = Color.FromRgb(239, 68, 68), Duration = TimeSpan.FromMilliseconds(150) };
                     deleteButton.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
                 };
 

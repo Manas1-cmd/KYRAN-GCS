@@ -152,6 +152,13 @@
         </Setter>
     </Style>
 
+    <!-- Компактный ComboBox для списка waypoints -->
+    <Style x:Key="CompactComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource CustomComboBoxStyle}">
+        <Setter Property="MinWidth" Value="80"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
     <Style x:Key="CustomComboBoxItemStyle" TargetType="ComboBoxItem">
         <Setter Property="Background" Value="{StaticResource DarkPanel}"/>
         <Setter Property="Foreground" Value="{StaticResource WhiteText}"/>

@@ -307,11 +307,12 @@
 
                     <!-- Кнопка ARM/DISARM -->
                     <Button x:Name="ArmButton"
-       Content="АКТИВИРОВАТЬ"
-       Style="{StaticResource NavButtonStyle}"
-       Height="42"
-       Click="ArmButton_Click"
-       Margin="0,0,0,6">
+                           Content="АКТИВИРОВАТЬ"
+                           Style="{StaticResource NavButtonStyle}"
+                           Height="42"
+                            Width="350"
+                           Click="ArmButton_Click"
+                           Margin="0,0,0,6">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="border"
@@ -353,8 +354,8 @@
 
                             <!-- Кол-во спутников -->
                             <Border Grid.Row="0" Grid.Column="0"
-                Style="{StaticResource TelemetryBoxStyle}"
-                Margin="12,12,6,4" Height="32">
+                            Style="{StaticResource TelemetryBoxStyle}"
+                            Margin="12,12,6,4" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Спутники"
                            Foreground="{StaticResource WhiteText}"
@@ -372,7 +373,7 @@
                             <!-- Режимы -->
                             <Border Grid.Row="0" Grid.Column="1"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="6,12,12,4" Height="32">
+                Margin="6,12,12,4" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Режим"
                            Foreground="{StaticResource WhiteText}"
@@ -391,7 +392,7 @@
                             <!-- Батарея -->
                             <Border Grid.Row="1" Grid.Column="0"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="12,4,6,12" Height="32">
+                Margin="12,4,6,12" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Батарея"
                            Foreground="{StaticResource WhiteText}"
@@ -410,7 +411,7 @@
                             <!-- Заряд -->
                             <Border Grid.Row="1" Grid.Column="1"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="6,4,12,12" Height="32">
+                Margin="6,4,12,12" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Заряд"
                            Foreground="{StaticResource WhiteText}"
@@ -431,7 +432,7 @@
                             <!-- Мотор 1 -->
                             <Border x:Name="Motor1Border" Grid.Row="2" Grid.Column="0"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="12,0,6,4" Height="32"
+                Margin="12,0,6,4" Height="32" Padding="8,4" 
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Мотор 1"
@@ -451,7 +452,7 @@
                             <!-- Мотор 2 -->
                             <Border x:Name="Motor2Border" Grid.Row="2" Grid.Column="1"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="6,0,12,4" Height="32"
+                Margin="6,0,12,4" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Мотор 2"
@@ -471,7 +472,7 @@
                             <!-- Мотор 3 -->
                             <Border x:Name="Motor3Border" Grid.Row="3" Grid.Column="0"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="12,0,6,4" Height="32"
+                Margin="12,0,6,4" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Мотор 3"
@@ -491,7 +492,7 @@
                             <!-- Мотор 4 -->
                             <Border x:Name="Motor4Border" Grid.Row="3" Grid.Column="1"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="6,0,12,4" Height="32"
+                Margin="6,0,12,4" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Мотор 4"
@@ -511,7 +512,7 @@
                             <!-- Толкающий мотор -->
                             <Border x:Name="PusherBorder" Grid.Row="4" Grid.ColumnSpan="2"
                 Style="{StaticResource TelemetryBoxStyle}"
-                Margin="12,0,12,12" Height="32"
+                Margin="12,0,12,12" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
                                     <TextBlock Text="Толкающий мотор"

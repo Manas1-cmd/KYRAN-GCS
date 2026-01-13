@@ -9,7 +9,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition/>
-            <ColumnDefinition Width="360"/>
+            <ColumnDefinition Width="420"/>
         </Grid.ColumnDefinitions>
 
         <!-- ЛЕВАЯ ЧАСТЬ: КАРТА ДЛЯ ПЛАНИРОВАНИЯ -->
