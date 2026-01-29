@@ -32,6 +32,9 @@ namespace SimpleDroneGCS.Views
         private ObservableCollection<WaypointItem> _waypoints;
         private GMapMarker _currentDragMarker;
         private double _waypointRadius = 30; // метры
+        private WaypointItem _radiusDragWaypoint = null;  // Точка у которой меняем радиус
+        private bool _isRadiusDragging = false;           // Флаг drag радиуса
+        private TextBlock _radiusTooltip = null;          // Подсказка с радиусом
         private MAVLinkService _mavlinkService;
         private GMapMarker _droneMarker = null;
         private WaypointItem _homePosition = null; // HOME позиция
@@ -44,6 +47,7 @@ namespace SimpleDroneGCS.Views
         private double _rtlAltitude = 15;      // высота RTL по умолчанию
         private bool _wasArmed = false; // для отслеживания армирования
         private SrtmElevationProvider _elevationProvider = new(); // Провайдер высот SRTM
+        private Dictionary<WaypointItem, GMapMarker> _resizeHandles = new(); // Ручки изменения радиуса
 
         public FlightPlanView(MAVLinkService mavlinkService = null)
         {
@@ -153,6 +157,10 @@ namespace SimpleDroneGCS.Views
                     PlanMap.Cursor = Cursors.Arrow;
                 }
             };
+
+            // Завершение drag радиуса
+            this.MouseLeftButtonUp += (s, e) => EndRadiusDrag();
+            this.MouseLeave += (s, e) => EndRadiusDrag();
         }
 
 
@@ -411,20 +419,20 @@ namespace SimpleDroneGCS.Views
 
             // Drag&Drop
             SetupMarkerDragDrop(marker, waypoint);
+
+            // Создаём ручку изменения радиуса (отдельный маркер на краю круга)
+            CreateResizeHandle(waypoint);
         }
 
         /// <summary>
-        /// Создание визуального элемента метки
+        /// Создание визуального элемента метки (без ручки - она создается отдельным маркером)
         /// </summary>
         private UIElement CreateMarkerShape(WaypointItem waypoint)
         {
-            // Пересчитываем радиус в метрах в пиксели на основе зума
             double radiusInPixels = MetersToPixels(waypoint.Radius, waypoint.Latitude, PlanMap.Zoom);
-            radiusInPixels = Math.Max(3, Math.Min(500, radiusInPixels));
+            radiusInPixels = Math.Max(20, Math.Min(500, radiusInPixels));
 
-            // МИНИМАЛЬНЫЙ размер Grid для нормального отображения
-            double minGridSize = 60;
-            double gridSize = Math.Max(minGridSize, radiusInPixels * 2);
+            double gridSize = Math.Max(60, radiusInPixels * 2);
 
             var grid = new Grid
             {
@@ -432,29 +440,19 @@ namespace SimpleDroneGCS.Views
                 Height = gridSize
             };
 
-            // Круг радиуса (показываем только если достаточно большой)
-            if (radiusInPixels > 15)
+            // Круг радиуса
+            var radiusCircle = new Ellipse
             {
-                double strokeThickness = radiusInPixels < 20 ? 3 : 2;
-
-                var radiusCircle = new Ellipse
-                {
-                    Width = radiusInPixels * 2,
-                    Height = radiusInPixels * 2,
-                    Stroke = new SolidColorBrush(Color.FromArgb(200, 152, 240, 25)),
-                    StrokeThickness = strokeThickness,
-                    Fill = new SolidColorBrush(Color.FromArgb(50, 152, 240, 25)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-
-                grid.Children.Add(radiusCircle);
-                waypoint.RadiusCircle = radiusCircle;
-            }
-            else
-            {
-                waypoint.RadiusCircle = null;
-            }
+                Width = radiusInPixels * 2,
+                Height = radiusInPixels * 2,
+                Stroke = new SolidColorBrush(Color.FromArgb(200, 152, 240, 25)),
+                StrokeThickness = 2,
+                Fill = new SolidColorBrush(Color.FromArgb(40, 152, 240, 25)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            grid.Children.Add(radiusCircle);
+            waypoint.RadiusCircle = radiusCircle;
 
             // Центральная точка
             var centerPoint = new Ellipse
@@ -467,6 +465,7 @@ namespace SimpleDroneGCS.Views
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
+            grid.Children.Add(centerPoint);
 
             // Номер waypoint
             var numberText = new TextBlock
@@ -478,8 +477,6 @@ namespace SimpleDroneGCS.Views
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-
-            grid.Children.Add(centerPoint);
             grid.Children.Add(numberText);
 
             waypoint.ShapeGrid = grid;
@@ -524,6 +521,14 @@ namespace SimpleDroneGCS.Views
                     waypoint.Latitude = newPosition.Lat;
                     waypoint.Longitude = newPosition.Lng;
 
+                    // Обновляем позицию ручки радиуса
+                    if (_resizeHandles.ContainsKey(waypoint))
+                    {
+                        var handlePos = CalculatePointAtDistance(
+                            waypoint.Latitude, waypoint.Longitude, 90, waypoint.Radius / 1000.0);
+                        _resizeHandles[waypoint].Position = new PointLatLng(handlePos.Lat, handlePos.Lng);
+                    }
+
                     UpdateRoute();
                     UpdateStatistics();
                 }
@@ -547,11 +552,234 @@ namespace SimpleDroneGCS.Views
             };
         }
 
+        #region RADIUS DRAG
+
+        private GMapMarker _tooltipMarker = null;
+
+        /// <summary>
+        /// Начало изменения радиуса
+        /// </summary>
+        private void ResizeHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Ellipse handle && handle.Tag is WaypointItem wp)
+            {
+                _radiusDragWaypoint = wp;
+                _isRadiusDragging = true;
+                handle.CaptureMouse();
+                PlanMap.CanDragMap = false;
+
+                // Создаём tooltip как маркер
+                CreateRadiusTooltip();
+                var pos = e.GetPosition(PlanMap);
+                var latLng = PlanMap.FromLocalToLatLng((int)pos.X, (int)pos.Y);
+                UpdateRadiusTooltip(latLng, wp.Radius);
+
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Создание tooltip как GMapMarker
+        /// </summary>
+        private void CreateRadiusTooltip()
+        {
+            if (_radiusTooltip == null)
+            {
+                _radiusTooltip = new TextBlock
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(220, 13, 23, 51)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                    Padding = new Thickness(6, 3, 6, 3),
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold
+                };
+            }
+
+            if (_tooltipMarker == null)
+            {
+                _tooltipMarker = new GMapMarker(new PointLatLng(0, 0))
+                {
+                    Shape = _radiusTooltip,
+                    Offset = new Point(15, -10),
+                    ZIndex = 9999
+                };
+            }
+
+            if (!PlanMap.Markers.Contains(_tooltipMarker))
+            {
+                PlanMap.Markers.Add(_tooltipMarker);
+            }
+        }
+
+        /// <summary>
+        /// Обновление позиции и текста tooltip
+        /// </summary>
+        private void UpdateRadiusTooltip(PointLatLng position, double radius)
+        {
+            if (_radiusTooltip == null || _tooltipMarker == null) return;
+
+            double minRadius = GetMinRadius();
+
+            if (radius < minRadius)
+            {
+                _radiusTooltip.Foreground = Brushes.Red;
+                _radiusTooltip.Text = $"{radius:F0}м (мин: {minRadius}м)";
+            }
+            else
+            {
+                _radiusTooltip.Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25));
+                _radiusTooltip.Text = $"{radius:F0}м";
+            }
+
+            _tooltipMarker.Position = position;
+        }
+
+        /// <summary>
+        /// Скрыть tooltip
+        /// </summary>
+        private void HideRadiusTooltip()
+        {
+            if (_tooltipMarker != null && PlanMap.Markers.Contains(_tooltipMarker))
+            {
+                PlanMap.Markers.Remove(_tooltipMarker);
+            }
+        }
+
+        /// <summary>
+        /// Получить минимальный радиус для текущего типа дрона
+        /// </summary>
+        private double GetMinRadius()
+        {
+            return _currentVehicleType == VehicleType.QuadPlane ? 80 : 5;
+        }
+
+        /// <summary>
+        /// Завершение drag радиуса
+        /// </summary>
+        private void EndRadiusDrag()
+        {
+            if (_isRadiusDragging)
+            {
+                _isRadiusDragging = false;
+                _radiusDragWaypoint = null;
+                PlanMap.CanDragMap = true;
+                HideRadiusTooltip();
+            }
+        }
+
+        /// <summary>
+        /// Создать ручку изменения радиуса (отдельный маркер на краю круга)
+        /// </summary>
+        /// <summary>
+        /// Создать ручку изменения радиуса (отдельный маркер на краю круга)
+        /// </summary>
+        private void CreateResizeHandle(WaypointItem waypoint)
+        {
+            // Удаляем старую если есть
+            if (_resizeHandles.ContainsKey(waypoint))
+            {
+                PlanMap.Markers.Remove(_resizeHandles[waypoint]);
+                _resizeHandles.Remove(waypoint);
+            }
+
+            // Позиция ручки = справа от центра на расстоянии радиуса
+            var handlePos = CalculatePointAtDistance(
+                waypoint.Latitude, waypoint.Longitude,
+                90, // 90° = восток (вправо)
+                waypoint.Radius / 1000.0); // в км
+
+            var handle = new Ellipse
+            {
+                Width = 16,
+                Height = 16,
+                Fill = Brushes.White,
+                Stroke = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                StrokeThickness = 3,
+                Cursor = Cursors.SizeWE,
+                Tag = waypoint
+            };
+
+            // MouseDown - начало drag
+            handle.MouseLeftButtonDown += ResizeHandle_MouseLeftButtonDown;
+
+            // MouseUp - ВАЖНО: завершение drag прямо на ручке
+            handle.MouseLeftButtonUp += (s, e) =>
+            {
+                if (_isRadiusDragging)
+                {
+                    handle.ReleaseMouseCapture();
+                    EndRadiusDrag();
+                    e.Handled = true;
+                }
+            };
+
+            // MouseMove - обработка drag прямо на ручке
+            handle.MouseMove += (s, e) =>
+            {
+                if (_isRadiusDragging && _radiusDragWaypoint == waypoint)
+                {
+                    var pos = e.GetPosition(PlanMap);
+                    var latLng = PlanMap.FromLocalToLatLng((int)pos.X, (int)pos.Y);
+
+                    double newRadius = CalculateDistanceLatLng(
+                        waypoint.Latitude, waypoint.Longitude,
+                        latLng.Lat, latLng.Lng);
+
+                    double minRadius = GetMinRadius();
+                    newRadius = Math.Max(minRadius, Math.Min(500, newRadius));
+
+                    waypoint.Radius = newRadius;
+                    UpdateWaypointRadiusVisual(waypoint);
+                    UpdateRadiusTooltip(latLng, newRadius);
+                }
+            };
+
+            handle.MouseEnter += (s, e) => handle.Fill = new SolidColorBrush(Color.FromRgb(152, 240, 25));
+            handle.MouseLeave += (s, e) => { if (!_isRadiusDragging) handle.Fill = Brushes.White; };
+
+            var marker = new GMapMarker(new PointLatLng(handlePos.Lat, handlePos.Lng))
+            {
+                Shape = handle,
+                Offset = new Point(-8, -8),
+                ZIndex = 150
+            };
+
+            PlanMap.Markers.Add(marker);
+            _resizeHandles[waypoint] = marker;
+        }
+
+        /// <summary>
+        /// Рассчитать точку на расстоянии от исходной
+        /// </summary>
+        private PointLatLng CalculatePointAtDistance(double lat, double lon, double bearingDeg, double distanceKm)
+        {
+            const double R = 6371; // Радиус Земли в км
+            double lat1 = lat * Math.PI / 180;
+            double lon1 = lon * Math.PI / 180;
+            double bearing = bearingDeg * Math.PI / 180;
+
+            double lat2 = Math.Asin(Math.Sin(lat1) * Math.Cos(distanceKm / R) +
+                                   Math.Cos(lat1) * Math.Sin(distanceKm / R) * Math.Cos(bearing));
+            double lon2 = lon1 + Math.Atan2(Math.Sin(bearing) * Math.Sin(distanceKm / R) * Math.Cos(lat1),
+                                             Math.Cos(distanceKm / R) - Math.Sin(lat1) * Math.Sin(lat2));
+
+            return new PointLatLng(lat2 * 180 / Math.PI, lon2 * 180 / Math.PI);
+        }
+
+        #endregion
+
         /// <summary>
         /// Удаление waypoint
         /// </summary>
         private void RemoveWaypoint(WaypointItem waypoint)
         {
+            // Удаляем ручку радиуса
+            if (_resizeHandles.ContainsKey(waypoint))
+            {
+                PlanMap.Markers.Remove(_resizeHandles[waypoint]);
+                _resizeHandles.Remove(waypoint);
+            }
+
             // Удаляем маркер с карты
             if (waypoint.Marker != null)
             {
@@ -865,15 +1093,40 @@ namespace SimpleDroneGCS.Views
                 };
 
                 // Список команд БЕЗ TAKEOFF, RTL, SET_HOME (они фиксированы)
-                var commands = new[]
+                // Команды зависят от типа дрона
+                dynamic[] commands;
+                if (_currentVehicleType == VehicleType.QuadPlane)
                 {
-                    new { Content = "Путевая точка", Tag = "WAYPOINT" },       // 16
-                    new { Content = "Кружение", Tag = "LOITER_UNLIM" },        // 17
-                    new { Content = "Кружение (время)", Tag = "LOITER_TIME" }, // 19
-                    new { Content = "Посадка", Tag = "LAND" },                 // 21
-                    new { Content = "Задержка", Tag = "DELAY" },               // 93
-                    new { Content = "Смена скорости", Tag = "CHANGE_SPEED" },  // 178
-                };
+                    commands = new dynamic[]
+                    {
+        new { Content = "Путевая точка", Tag = "WAYPOINT" },           // 16
+        new { Content = "VTOL Взлёт", Tag = "VTOL_TAKEOFF" },          // 84
+        new { Content = "VTOL Посадка", Tag = "VTOL_LAND" },           // 85
+        new { Content = "Переход → Самолёт", Tag = "VTOL_TRANSITION_FW" }, // 3000 (param1=3)
+        new { Content = "Переход → Коптер", Tag = "VTOL_TRANSITION_MC" },  // 3000 (param1=4)
+        new { Content = "Кружение", Tag = "LOITER_UNLIM" },            // 17
+        new { Content = "Кружение (время)", Tag = "LOITER_TIME" },     // 19
+        new { Content = "Кружение (круги)", Tag = "LOITER_TURNS" },    // 18
+        new { Content = "Возврат (RTL)", Tag = "RETURN_TO_LAUNCH" },   // 20
+        new { Content = "Задержка", Tag = "DELAY" },                   // 93
+        new { Content = "Смена скорости", Tag = "CHANGE_SPEED" },      // 178
+                    };
+                }
+                else
+                {
+                    commands = new dynamic[]
+                    {
+        new { Content = "Путевая точка", Tag = "WAYPOINT" },       // 16
+        new { Content = "Взлёт", Tag = "TAKEOFF" },                // 22
+        new { Content = "Посадка", Tag = "LAND" },                 // 21
+        new { Content = "Кружение", Tag = "LOITER_UNLIM" },        // 17
+        new { Content = "Кружение (время)", Tag = "LOITER_TIME" }, // 19
+        new { Content = "Кружение (круги)", Tag = "LOITER_TURNS" },// 18
+        new { Content = "Возврат (RTL)", Tag = "RETURN_TO_LAUNCH" }, // 20
+        new { Content = "Задержка", Tag = "DELAY" },               // 93
+        new { Content = "Смена скорости", Tag = "CHANGE_SPEED" },  // 178
+                    };
+                }
 
                 foreach (var cmd in commands)
                 {
@@ -1670,10 +1923,13 @@ namespace SimpleDroneGCS.Views
                 // Конвертируем тип команды в MAV_CMD
                 ushort mavCmd = ConvertCommandTypeToMAVCmd(wp.CommandType);
 
-                System.Diagnostics.Debug.WriteLine($"  WP{i + 1}: {wp.CommandType} (MAV_CMD={mavCmd}) at {wp.Latitude:F7}, {wp.Longitude:F7}, alt={wp.Altitude:F2}");
+                // Получаем правильные параметры для команды
+                var (p1, p2, p3, p4) = GetCommandParams(wp);
+
+                System.Diagnostics.Debug.WriteLine($"  WP{i + 1}: {wp.CommandType} (MAV_CMD={mavCmd}) p1={p1} at {wp.Latitude:F7}, {wp.Longitude:F7}, alt={wp.Altitude:F2}");
 
                 // Формат: index current frame command p1 p2 p3 p4 lat lon alt autocontinue
-                lines.Add($"{i + 1}\t0\t3\t{mavCmd}\t{wp.Delay}\t0\t0\t0\t{wp.Latitude:F7}\t{wp.Longitude:F7}\t{wp.Altitude:F2}\t1");
+                lines.Add($"{i + 1}\t0\t3\t{mavCmd}\t{p1}\t{p2}\t{p3}\t{p4}\t{wp.Latitude:F7}\t{wp.Longitude:F7}\t{wp.Altitude:F2}\t1");
             }
 
             // КРИТИЧНО: Записываем с перезаписью
@@ -1681,6 +1937,32 @@ namespace SimpleDroneGCS.Views
 
             System.Diagnostics.Debug.WriteLine($" Миссия сохранена в {fullPath}");
             System.Diagnostics.Debug.WriteLine($"   Всего строк: {lines.Count}");
+        }
+
+        /// <summary>
+        /// Получить параметры команды (p1, p2, p3, p4)
+        /// </summary>
+        private (double p1, double p2, double p3, double p4) GetCommandParams(WaypointItem wp)
+        {
+            switch (wp.CommandType)
+            {
+                case "VTOL_TRANSITION_FW":
+                    return (3, 0, 0, 0);  // param1=3 = переход в самолёт
+                case "VTOL_TRANSITION_MC":
+                    return (4, 0, 0, 0);  // param1=4 = переход в коптер
+                case "LOITER_TIME":
+                    return (wp.Delay, 0, wp.Radius, 0);
+                case "LOITER_TURNS":
+                    return (wp.Delay, 0, wp.Radius, 0);  // p1=кругов, p3=радиус
+                case "LOITER_UNLIM":
+                    return (0, 0, wp.Radius, 0);
+                case "WAYPOINT":
+                    return (wp.Delay, 0, 0, 0);  // p1=hold time, p2=0 (use FC default)
+                case "DELAY":
+                    return (wp.Delay, 0, 0, 0);
+                default:
+                    return (wp.Delay, 0, 0, 0);
+            }
         }
 
         /// <summary>
@@ -1694,15 +1976,20 @@ namespace SimpleDroneGCS.Views
             {
                 case "WAYPOINT": result = 16; break;
                 case "LOITER_UNLIM": result = 17; break;
+                case "LOITER_TURNS": result = 18; break;
                 case "LOITER_TIME": result = 19; break;
                 case "RETURN_TO_LAUNCH": result = 20; break;
                 case "LAND": result = 21; break;
                 case "TAKEOFF": result = 22; break;
+                case "VTOL_TAKEOFF": result = 84; break;
+                case "VTOL_LAND": result = 85; break;
+                case "VTOL_TRANSITION_FW": result = 3000; break;
+                case "VTOL_TRANSITION_MC": result = 3000; break;
                 case "DELAY": result = 93; break;
                 case "CHANGE_SPEED": result = 178; break;
                 case "SET_HOME": result = 179; break;
                 default:
-                    System.Diagnostics.Debug.WriteLine($" Неизвестный тип команды: '{commandType}', использую WAYPOINT");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ Неизвестный тип команды: '{commandType}', использую WAYPOINT");
                     result = 16;
                     break;
             }
@@ -1891,13 +2178,14 @@ namespace SimpleDroneGCS.Views
 
 
         /// <summary>
-        /// Собрать полную миссию: TAKEOFF + waypoints + RTL
+        /// Собрать полную миссию: TAKEOFF + waypoints + LAND/RTL
         /// </summary>
         public List<WaypointItem> GetFullMission()
         {
             var mission = new List<WaypointItem>();
+            bool isVTOL = _currentVehicleType == VehicleType.QuadPlane;
 
-            // 1. TAKEOFF
+            // 1. TAKEOFF (VTOL или обычный)
             if (_homePosition != null)
             {
                 mission.Add(new WaypointItem
@@ -1906,7 +2194,7 @@ namespace SimpleDroneGCS.Views
                     Latitude = _homePosition.Latitude,
                     Longitude = _homePosition.Longitude,
                     Altitude = _takeoffAltitude,
-                    CommandType = "TAKEOFF"
+                    CommandType = isVTOL ? "VTOL_TAKEOFF" : "TAKEOFF"
                 });
             }
 
@@ -1925,15 +2213,34 @@ namespace SimpleDroneGCS.Views
                 });
             }
 
-            // 3. RTL
-            mission.Add(new WaypointItem
+            // 3. LAND/RTL (VTOL_LAND или RTL)
+            if (isVTOL)
             {
-                Number = mission.Count,
-                Latitude = 0, // RTL не требует координат
-                Longitude = 0,
-                Altitude = _rtlAltitude,
-                CommandType = "RETURN_TO_LAUNCH"
-            });
+                // Для VTOL добавляем VTOL_LAND в позиции HOME
+                if (_homePosition != null)
+                {
+                    mission.Add(new WaypointItem
+                    {
+                        Number = mission.Count,
+                        Latitude = _homePosition.Latitude,
+                        Longitude = _homePosition.Longitude,
+                        Altitude = 0,
+                        CommandType = "VTOL_LAND"
+                    });
+                }
+            }
+            else
+            {
+                // Для коптера - RTL
+                mission.Add(new WaypointItem
+                {
+                    Number = mission.Count,
+                    Latitude = 0,
+                    Longitude = 0,
+                    Altitude = _rtlAltitude,
+                    CommandType = "RETURN_TO_LAUNCH"
+                });
+            }
 
             return mission;
         }
@@ -1990,101 +2297,101 @@ namespace SimpleDroneGCS.Views
         /// Загрузить миссию для указанного типа (из RAM на карту)
         /// </summary>
         /// <summary>
-/// Загрузить миссию для указанного типа (из RAM на карту)
-/// </summary>
-private void LoadMissionForType(VehicleType type)
-{
-    System.Diagnostics.Debug.WriteLine($"[LoadMission] Загрузка миссии для {type}...");
-
-    // 1. Удаляем ВСЕ маркеры waypoints с карты
-    foreach (var wp in _waypoints)
-    {
-        if (wp.Marker != null)
+        /// Загрузить миссию для указанного типа (из RAM на карту)
+        /// </summary>
+        private void LoadMissionForType(VehicleType type)
         {
-            PlanMap.Markers.Remove(wp.Marker);
-            wp.Marker = null;
-        }
-    }
+            System.Diagnostics.Debug.WriteLine($"[LoadMission] Загрузка миссии для {type}...");
 
-    // 2. Удаляем HOME маркер
-    if (_homePosition?.Marker != null)
-    {
-        PlanMap.Markers.Remove(_homePosition.Marker);
-        _homePosition.Marker = null;
-    }
-
-    // 3. Удаляем ВСЕ маршруты (линии)
-    var oldRoutes = PlanMap.Markers.OfType<GMapRoute>().ToList();
-    foreach (var r in oldRoutes)
-    {
-        PlanMap.Markers.Remove(r);
-    }
-
-    // 4. Очищаем коллекции БЕЗ триггера CollectionChanged
-    var tempCollection = _waypoints;
-    _waypoints = new ObservableCollection<WaypointItem>();
-    tempCollection.Clear();
-    
-    // Восстанавливаем подписку
-    _waypoints.CollectionChanged += (s, e) =>
-    {
-        UpdateStatistics();
-        UpdateWaypointsList();
-    };
-
-    _homePosition = null;
-
-    System.Diagnostics.Debug.WriteLine($"[LoadMission] Карта очищена. Загружаем тип {type}...");
-
-    // 5. Загружаем HOME для нового типа
-    if (_homeByType.TryGetValue(type, out var savedHome) && savedHome != null)
-    {
-        _homePosition = new WaypointItem
-        {
-            Number = 0,
-            Latitude = savedHome.Latitude,
-            Longitude = savedHome.Longitude,
-            Altitude = savedHome.Altitude,
-            CommandType = "HOME",
-            Radius = savedHome.Radius
-        };
-        AddHomeMarkerToMap(_homePosition);
-        System.Diagnostics.Debug.WriteLine($"[LoadMission] HOME загружен: {savedHome.Latitude:F6}, {savedHome.Longitude:F6}");
-    }
-
-    // 6. Загружаем waypoints для нового типа
-    if (_missionsByType.TryGetValue(type, out var savedWaypoints) && savedWaypoints != null)
-    {
-        foreach (var wp in savedWaypoints)
-        {
-            var newWp = new WaypointItem
+            // 1. Удаляем ВСЕ маркеры waypoints с карты
+            foreach (var wp in _waypoints)
             {
-                Number = _waypoints.Count + 1,
-                Latitude = wp.Latitude,
-                Longitude = wp.Longitude,
-                Altitude = wp.Altitude,
-                CommandType = wp.CommandType,
-                Delay = wp.Delay,
-                Radius = wp.Radius > 0 ? wp.Radius : _waypointRadius
+                if (wp.Marker != null)
+                {
+                    PlanMap.Markers.Remove(wp.Marker);
+                    wp.Marker = null;
+                }
+            }
+
+            // 2. Удаляем HOME маркер
+            if (_homePosition?.Marker != null)
+            {
+                PlanMap.Markers.Remove(_homePosition.Marker);
+                _homePosition.Marker = null;
+            }
+
+            // 3. Удаляем ВСЕ маршруты (линии)
+            var oldRoutes = PlanMap.Markers.OfType<GMapRoute>().ToList();
+            foreach (var r in oldRoutes)
+            {
+                PlanMap.Markers.Remove(r);
+            }
+
+            // 4. Очищаем коллекции БЕЗ триггера CollectionChanged
+            var tempCollection = _waypoints;
+            _waypoints = new ObservableCollection<WaypointItem>();
+            tempCollection.Clear();
+
+            // Восстанавливаем подписку
+            _waypoints.CollectionChanged += (s, e) =>
+            {
+                UpdateStatistics();
+                UpdateWaypointsList();
             };
-            _waypoints.Add(newWp);
-            AddMarkerToMap(newWp);
+
+            _homePosition = null;
+
+            System.Diagnostics.Debug.WriteLine($"[LoadMission] Карта очищена. Загружаем тип {type}...");
+
+            // 5. Загружаем HOME для нового типа
+            if (_homeByType.TryGetValue(type, out var savedHome) && savedHome != null)
+            {
+                _homePosition = new WaypointItem
+                {
+                    Number = 0,
+                    Latitude = savedHome.Latitude,
+                    Longitude = savedHome.Longitude,
+                    Altitude = savedHome.Altitude,
+                    CommandType = "HOME",
+                    Radius = savedHome.Radius
+                };
+                AddHomeMarkerToMap(_homePosition);
+                System.Diagnostics.Debug.WriteLine($"[LoadMission] HOME загружен: {savedHome.Latitude:F6}, {savedHome.Longitude:F6}");
+            }
+
+            // 6. Загружаем waypoints для нового типа
+            if (_missionsByType.TryGetValue(type, out var savedWaypoints) && savedWaypoints != null)
+            {
+                foreach (var wp in savedWaypoints)
+                {
+                    var newWp = new WaypointItem
+                    {
+                        Number = _waypoints.Count + 1,
+                        Latitude = wp.Latitude,
+                        Longitude = wp.Longitude,
+                        Altitude = wp.Altitude,
+                        CommandType = wp.CommandType,
+                        Delay = wp.Delay,
+                        Radius = wp.Radius > 0 ? wp.Radius : _waypointRadius
+                    };
+                    _waypoints.Add(newWp);
+                    AddMarkerToMap(newWp);
+                }
+                System.Diagnostics.Debug.WriteLine($"[LoadMission] Загружено {savedWaypoints.Count} точек");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadMission] Нет сохранённой миссии для {type}");
+            }
+
+
+            // 7. Обновляем UI (без авто-создания HOME!)
+            UpdateRouteOnly();  // ← Новый метод!
+            UpdateStatistics();
+            UpdateWaypointsList();
+
+            System.Diagnostics.Debug.WriteLine($"[LoadMission] Завершено: {_waypoints.Count} точек, HOME: {_homePosition != null}");
         }
-        System.Diagnostics.Debug.WriteLine($"[LoadMission] Загружено {savedWaypoints.Count} точек");
-    }
-    else
-    {
-        System.Diagnostics.Debug.WriteLine($"[LoadMission] Нет сохранённой миссии для {type}");
-    }
-
-
-    // 7. Обновляем UI (без авто-создания HOME!)
-    UpdateRouteOnly();  // ← Новый метод!
-    UpdateStatistics();
-    UpdateWaypointsList();
-
-    System.Diagnostics.Debug.WriteLine($"[LoadMission] Завершено: {_waypoints.Count} точек, HOME: {_homePosition != null}");
-}
 
         #endregion
 
@@ -2268,6 +2575,21 @@ private void LoadMissionForType(VehicleType type)
 
                 if (VehicleTypeFullText != null)
                     VehicleTypeFullText.Text = profile.Type == VehicleType.Copter ? "Мультикоптер" : "СВВП";
+
+                // Обновляем надписи TAKEOFF/RTL для VTOL
+                if (profile.Type == VehicleType.QuadPlane)
+                {
+                    if (TakeoffLabel != null) TakeoffLabel.Text = "VTOL ВЗЛЁТ";
+                    if (RtlLabel != null) RtlLabel.Text = "VTOL ПОСАДКА";
+                }
+                else
+                {
+                    if (TakeoffLabel != null) TakeoffLabel.Text = "ВЗЛЁТ";
+                    if (RtlLabel != null) RtlLabel.Text = "ВОЗВРАТ (RTL)";
+                }
+
+                // Обновляем список команд
+                UpdateWaypointsList();
             }
             catch
             {
@@ -2288,14 +2610,86 @@ private void LoadMissionForType(VehicleType type)
             dialog.ShowDialog();
         }
 
+        /// <summary>
+        /// Обновление визуала радиуса точки
+        /// </summary>
+        private void UpdateWaypointRadiusVisual(WaypointItem wp)
+        {
+            if (wp.RadiusCircle == null || wp.ShapeGrid == null) return;
+
+            double radiusInPixels = MetersToPixels(wp.Radius, wp.Latitude, PlanMap.Zoom);
+            radiusInPixels = Math.Max(20, Math.Min(500, radiusInPixels));
+
+            double diameter = radiusInPixels * 2;
+            double gridSize = Math.Max(60, diameter);
+
+            // Обновляем размеры круга
+            wp.RadiusCircle.Width = diameter;
+            wp.RadiusCircle.Height = diameter;
+            wp.ShapeGrid.Width = gridSize;
+            wp.ShapeGrid.Height = gridSize;
+
+            // Цвет круга: красный если < минимума
+            double minRadius = GetMinRadius();
+            if (wp.Radius < minRadius)
+            {
+                wp.RadiusCircle.Stroke = Brushes.Red;
+                wp.RadiusCircle.Fill = new SolidColorBrush(Color.FromArgb(40, 255, 0, 0));
+            }
+            else
+            {
+                wp.RadiusCircle.Stroke = new SolidColorBrush(Color.FromArgb(200, 152, 240, 25));
+                wp.RadiusCircle.Fill = new SolidColorBrush(Color.FromArgb(40, 152, 240, 25));
+            }
+
+            // Обновляем offset маркера
+            if (wp.Marker != null)
+            {
+                wp.Marker.Offset = new Point(-gridSize / 2, -gridSize / 2);
+            }
+
+            // Обновляем позицию ручки
+            if (_resizeHandles.ContainsKey(wp))
+            {
+                var handlePos = CalculatePointAtDistance(
+                    wp.Latitude, wp.Longitude, 90, wp.Radius / 1000.0);
+                _resizeHandles[wp].Position = new PointLatLng(handlePos.Lat, handlePos.Lng);
+            }
+        }
+
         #region CURSOR DISTANCE
 
         private void PlanMap_MouseMove(object sender, MouseEventArgs e)
         {
+            // === DRAG РАДИУСА ===
+            if (_isRadiusDragging && _radiusDragWaypoint != null)
+            {
+                var dragPoint = e.GetPosition(PlanMap);
+                var dragLatLng = PlanMap.FromLocalToLatLng((int)dragPoint.X, (int)dragPoint.Y);
+
+                // Расстояние от центра точки до курсора = новый радиус
+                double newRadius = CalculateDistanceLatLng(
+                    _radiusDragWaypoint.Latitude, _radiusDragWaypoint.Longitude,
+                    dragLatLng.Lat, dragLatLng.Lng);
+
+                // Ограничиваем радиус
+                double minRadius = GetMinRadius();
+                newRadius = Math.Max(minRadius, Math.Min(500, newRadius));
+
+                // Обновляем waypoint
+                _radiusDragWaypoint.Radius = newRadius;
+
+                // Обновляем визуал круга
+                UpdateWaypointRadiusVisual(_radiusDragWaypoint);
+
+                // Обновляем tooltip
+                UpdateRadiusTooltip(dragLatLng, newRadius);
+
+                return; // Не обрабатываем остальное
+            }
+
             var point = e.GetPosition(PlanMap);
             var cursorLatLng = PlanMap.FromLocalToLatLng((int)point.X, (int)point.Y);
-
-           
 
             // === ОТЛАДКА ===
             System.Diagnostics.Debug.WriteLine($"[MouseMove] Lat={cursorLatLng.Lat:F4}, Lng={cursorLatLng.Lng:F4}");
@@ -2307,24 +2701,11 @@ private void LoadMissionForType(VehicleType type)
             if (CursorLngText != null)
                 CursorLngText.Text = cursorLatLng.Lng.ToString("F6");
 
-            // === КООРДИНАТЫ И ВЫСОТА ===
-            if (CursorLatText != null)
-                CursorLatText.Text = cursorLatLng.Lat.ToString("F6");
-
-            if (CursorLngText != null)
-                CursorLngText.Text = cursorLatLng.Lng.ToString("F6");
-
             // Высота из SRTM
             if (CursorAltText != null)
             {
-                System.Diagnostics.Debug.WriteLine($"[SRTM] Запрос высоты...");
                 double? elevation = _elevationProvider.GetElevation(cursorLatLng.Lat, cursorLatLng.Lng);
-                System.Diagnostics.Debug.WriteLine($"[SRTM] Результат: {elevation?.ToString() ?? "NULL"}");
                 CursorAltText.Text = elevation.HasValue ? $"{elevation.Value:F0} м" : "— м";
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"[SRTM] CursorAltText is NULL!");
             }
 
             // === ДИСТАНЦИЯ ОТ ПОСЛЕДНЕЙ ТОЧКИ ===
@@ -2371,7 +2752,7 @@ private void LoadMissionForType(VehicleType type)
         }
     }
 
-       #endregion 
+    #endregion
 
 
     public class WaypointItem : INotifyPropertyChanged

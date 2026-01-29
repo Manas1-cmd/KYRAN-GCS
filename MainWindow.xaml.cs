@@ -28,6 +28,8 @@ namespace SimpleDroneGCS
         private FlightDataView _flightDataView;
         private FlightPlanView _flightPlanView;
 
+        private CameraWindow _cameraWindow;
+
         public MAVLinkService MAVLink { get; private set; }
 
         public MainWindow()
@@ -380,88 +382,27 @@ namespace SimpleDroneGCS
 
         #region КОМАНДЫ
 
-        private DispatcherTimer _spinnerTimer;
 
-        private async void CameraButton_Click(object sender, RoutedEventArgs e)
+        private void CameraButton_Click(object sender, RoutedEventArgs e)
         {
-            string viewLinkPath = Properties.Settings.Default.ViewLinkPath;
-
-            // Если путь не задан или файл не существует — спрашиваем
-            if (string.IsNullOrEmpty(viewLinkPath) || !System.IO.File.Exists(viewLinkPath))
+            // Если окно камеры уже открыто - фокусируемся на нём
+            if (_cameraWindow != null && _cameraWindow.IsLoaded)
             {
-                var dialog = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Укажите путь к ViewLink.exe",
-                    Filter = "ViewLink|ViewLink.exe|Исполняемые файлы|*.exe",
-                    FileName = "ViewLink.exe"
-                };
-
-                if (dialog.ShowDialog() == true)
-                {
-                    viewLinkPath = dialog.FileName;
-                    Properties.Settings.Default.ViewLinkPath = viewLinkPath;
-                    Properties.Settings.Default.Save();
-                }
-                else
-                {
-                    return; // Отменил выбор
-                }
+                _cameraWindow.Activate();
+                _cameraWindow.WindowState = WindowState.Normal;
+                return;
             }
 
-            try
+            // Открываем диалог настроек подключения
+            var dialog = new CameraConnectionDialog();
+            dialog.Owner = this;
+
+            if (dialog.ShowDialog() == true && dialog.ConnectionSettings != null)
             {
-                ShowLoading("Запуск ViewLink...");
-
-                await Task.Run(() =>
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = viewLinkPath,
-                        UseShellExecute = true
-                    });
-                });
-
-                await Task.Delay(1500);
-                HideLoading();
+                _cameraWindow = new CameraWindow(dialog.ConnectionSettings, MAVLink);
+                _cameraWindow.Closed += (s, args) => _cameraWindow = null;
+                _cameraWindow.Show();
             }
-            catch (Exception ex)
-            {
-                HideLoading();
-
-                // Сбрасываем путь если не удалось запустить
-                Properties.Settings.Default.ViewLinkPath = "";
-                Properties.Settings.Default.Save();
-
-                AppMessageBox.ShowError(
-                    $"Не удалось запустить ViewLink: {ex.Message}",
-                    owner: this,
-                    subtitle: "Ошибка запуска"
-                );
-            }
-        }
-
-        private void ShowLoading(string text = "Загрузка...")
-        {
-            LoadingText.Text = text;
-            LoadingOverlay.Visibility = Visibility.Visible;
-
-            // Запускаем анимацию вращения
-            _spinnerTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(20)
-            };
-            _spinnerTimer.Tick += (s, e) =>
-            {
-                SpinnerRotate.Angle = (SpinnerRotate.Angle + 10) % 360;
-            };
-            _spinnerTimer.Start();
-        }
-
-        private void HideLoading()
-        {
-            _spinnerTimer?.Stop();
-            _spinnerTimer = null;
-            LoadingOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void LandButton_Click(object sender, RoutedEventArgs e)

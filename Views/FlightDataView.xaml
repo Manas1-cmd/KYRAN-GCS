@@ -577,22 +577,14 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- РЕЖИМЫ ПОЛЕТА -->
+                            <!-- РЕЖИМЫ ПОЛЕТА (загружаются динамически из VehicleManager) -->
                             <ComboBox x:Name="FlightModeCombo"
                                       Grid.Column="0"
                                       Style="{StaticResource CustomComboBoxStyle}"
                                       ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                       SelectionChanged="FlightModeCombo_SelectionChanged"
-                                      SelectedIndex="0"
                                       Margin="0,0,4,0">
-                                <ComboBoxItem Content="Режимы полетов" Tag=""/>
-                                <ComboBoxItem Content="STABILIZE" Tag="STABILIZE"/>
-                                <ComboBoxItem Content="ALT_HOLD" Tag="ALT_HOLD"/>
-                                <ComboBoxItem Content="LOITER" Tag="LOITER"/>
-                                <ComboBoxItem Content="AUTO" Tag="AUTO"/>
-                                <ComboBoxItem Content="GUIDED" Tag="GUIDED"/>
-                                <ComboBoxItem Content="RTL" Tag="RTL"/>
-                                <ComboBoxItem Content="LAND" Tag="LAND"/>
+                                <!-- Режимы загружаются в UpdateComboBoxes() -->
                             </ComboBox>
 
                             <!-- КАЛИБРОВКИ -->

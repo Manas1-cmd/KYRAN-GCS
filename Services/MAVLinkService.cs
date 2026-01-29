@@ -1225,7 +1225,10 @@ namespace SimpleDroneGCS.Services
                 { "BRAKE", 17 },
                 { "THROW", 18 },
                 { "GUIDED_NOGPS", 20 },
-                { "SMART_RTL", 21 }
+                { "SMART_RTL", 21 },
+                { "FLOWHOLD", 22 },
+                { "FOLLOW", 23 },
+                { "ZIGZAG", 24 }
             };
 
             // Маппинг для PLANE/QUADPLANE
@@ -1241,17 +1244,18 @@ namespace SimpleDroneGCS.Services
                 { "CRUISE", 7 },
                 { "AUTOTUNE", 8 },
                 { "AUTO", 10 },
-                { "RTL", 11 },        // ⚠️ PLANE RTL = 11
+                { "RTL", 11 },
                 { "LOITER", 12 },
+                { "TAKEOFF", 13 },
                 { "GUIDED", 15 },
-                { "QSTABILIZE", 17 }, // VTOL режимы
+                { "QSTABILIZE", 17 },
                 { "QHOVER", 18 },
                 { "QLOITER", 19 },
                 { "QLAND", 20 },
                 { "QRTL", 21 },
+                { "QAUTOTUNE", 22 },
                 { "QACRO", 23 },
-                { "TAKEOFF", 13 },
-                { "THERMAL", 25 }
+                { "THERMAL", 24 }
             };
 
             // Выбираем правильную карту
@@ -1516,6 +1520,48 @@ namespace SimpleDroneGCS.Services
         {
             ushort mavCmd = ConvertCommandTypeToMAVCmd(wp.CommandType);
 
+            // Определяем param1 в зависимости от типа команды
+            float param1 = 0;
+            float param2 = 0;
+            float param3 = 0;
+            float param4 = 0;
+
+            switch (wp.CommandType)
+            {
+                case "VTOL_TRANSITION_FW":
+                    param1 = 3;  // MAV_VTOL_STATE_FW (переход в самолёт)
+                    break;
+                case "VTOL_TRANSITION_MC":
+                    param1 = 4;  // MAV_VTOL_STATE_MC (переход в коптер)
+                    break;
+                case "DELAY":
+                    param1 = (float)wp.Delay;  // Задержка в секундах
+                    break;
+                case "LOITER_TIME":
+                    param1 = (float)wp.Delay;  // Время кружения
+                    break;
+                case "LOITER_TURNS":
+                    param1 = (float)wp.Delay;  // Количество кругов
+                    param3 = (float)wp.Radius; // Радиус
+                    break;
+                case "LOITER_UNLIM":
+                    param3 = (float)wp.Radius; // Радиус
+                    break;
+                case "WAYPOINT":
+                    param1 = (float)wp.Delay;  // Hold time
+                    param2 = 0;  // 0 = использовать WPNAV_RADIUS из параметров FC
+                    break;
+                case "VTOL_TAKEOFF":
+                    // param1 не используется, высота в z
+                    break;
+                case "VTOL_LAND":
+                    // param1 не используется
+                    break;
+                default:
+                    param1 = (float)wp.Delay;
+                    break;
+            }
+
             return new MAVLink.mavlink_mission_item_int_t
             {
                 target_system = (byte)DroneStatus.SystemId,
@@ -1525,10 +1571,10 @@ namespace SimpleDroneGCS.Services
                 command = mavCmd,
                 current = 0, // 0 = не текущая
                 autocontinue = 1,
-                param1 = (float)wp.Delay,  // Задержка в секундах
-                param2 = 0,
-                param3 = 0,
-                param4 = 0, // Yaw angle
+                param1 = param1,
+                param2 = param2,
+                param3 = param3,
+                param4 = param4,
                 x = (int)(wp.Latitude * 1e7),
                 y = (int)(wp.Longitude * 1e7),
                 z = (float)wp.Altitude,
@@ -1545,10 +1591,15 @@ namespace SimpleDroneGCS.Services
             {
                 case "WAYPOINT": return (ushort)MAVLink.MAV_CMD.WAYPOINT;               // 16
                 case "LOITER_UNLIM": return (ushort)MAVLink.MAV_CMD.LOITER_UNLIM;       // 17
+                case "LOITER_TURNS": return 18;                                          // 18
                 case "LOITER_TIME": return (ushort)MAVLink.MAV_CMD.LOITER_TIME;         // 19
                 case "RETURN_TO_LAUNCH": return (ushort)MAVLink.MAV_CMD.RETURN_TO_LAUNCH; // 20
                 case "LAND": return (ushort)MAVLink.MAV_CMD.LAND;                       // 21
                 case "TAKEOFF": return (ushort)MAVLink.MAV_CMD.TAKEOFF;                 // 22
+                case "VTOL_TAKEOFF": return 84;                                          // MAV_CMD_NAV_VTOL_TAKEOFF
+                case "VTOL_LAND": return 85;                                             // MAV_CMD_NAV_VTOL_LAND
+                case "VTOL_TRANSITION_FW": return 3000;                                  // MAV_CMD_DO_VTOL_TRANSITION (самолёт)
+                case "VTOL_TRANSITION_MC": return 3000;                                  // MAV_CMD_DO_VTOL_TRANSITION (коптер)
                 case "DELAY": return (ushort)MAVLink.MAV_CMD.DELAY;                     // 93
                 case "CHANGE_SPEED": return (ushort)MAVLink.MAV_CMD.DO_CHANGE_SPEED;    // 178
                 case "SET_HOME": return (ushort)MAVLink.MAV_CMD.DO_SET_HOME;            // 179
@@ -1567,15 +1618,23 @@ namespace SimpleDroneGCS.Services
         /// <summary>
         /// Запуск миссии (AUTO режим)
         /// </summary>
-        /// <summary>
-        /// Запуск миссии (AUTO режим)
-        /// </summary>
         public void StartMission()
         {
             if (!IsConnected) return;
 
-            // 1. Устанавливаем AUTO режим
-            SetMode(3); // AUTO mode для Copter
+            // 1. Определяем режим AUTO в зависимости от типа дрона
+            uint autoMode = 3; // По умолчанию для Copter
+            try
+            {
+                var vehicleType = VehicleManager.Instance.CurrentVehicleType;
+                if (vehicleType == VehicleType.QuadPlane)
+                {
+                    autoMode = 10; // AUTO mode для QuadPlane
+                }
+            }
+            catch { }
+
+            SetMode(autoMode);
 
             // 2. Отправляем команду старта миссии
             var cmd = new MAVLink.mavlink_command_long_t
@@ -1595,7 +1654,7 @@ namespace SimpleDroneGCS.Services
 
             SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
 
-            System.Diagnostics.Debug.WriteLine("[MAVLink] Миссия запущена (AUTO + MISSION_START)");
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] Миссия запущена (AUTO={autoMode} + MISSION_START)");
         }
 
         /// <summary>

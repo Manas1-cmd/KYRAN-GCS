@@ -25,7 +25,7 @@ namespace SimpleDroneGCS.Services
         {
             CurrentVehicleType = type;
             CurrentProfile = _profiles[type];
-            
+
             // Raise event for UI updates
             VehicleTypeChanged?.Invoke(this, CurrentProfile);
         }
@@ -46,11 +46,11 @@ namespace SimpleDroneGCS.Services
                     SupportsVTOL = false,
                     RequiresAirspeed = false,
                     SupportsHover = true,
-                    
+
                     SupportedFlightModes = new[]
                     {
                         "STABILIZE",
-                        "ALT_HOLD", 
+                        "ALT_HOLD",
                         "LOITER",
                         "AUTO",
                         "GUIDED",
@@ -65,7 +65,7 @@ namespace SimpleDroneGCS.Services
                         "BRAKE",
                         "SMART_RTL"
                     },
-                    
+
                     TelemetryConfig = new TelemetryConfiguration
                     {
                         ShowAirspeed = false,
@@ -79,7 +79,7 @@ namespace SimpleDroneGCS.Services
                         MaxRange = 5,       // km
                         CruiseSpeed = 15    // m/s
                     },
-                    
+
                     DefaultParameters = new ParameterSet
                     {
                         Name = "Copter_Defaults",
@@ -97,7 +97,7 @@ namespace SimpleDroneGCS.Services
                         }
                     }
                 },
-                
+
                 [VehicleType.Plane] = new VehicleProfile
                 {
                     Type = VehicleType.Plane,
@@ -108,7 +108,7 @@ namespace SimpleDroneGCS.Services
                     SupportsVTOL = false,
                     RequiresAirspeed = true,
                     SupportsHover = false,
-                    
+
                     SupportedFlightModes = new[]
                     {
                         "MANUAL",
@@ -131,7 +131,7 @@ namespace SimpleDroneGCS.Services
                         "QLAND",
                         "QRTL"
                     },
-                    
+
                     TelemetryConfig = new TelemetryConfiguration
                     {
                         ShowAirspeed = true,
@@ -147,7 +147,7 @@ namespace SimpleDroneGCS.Services
                         MaxAltitude = 1000,  // meters
                         MaxRange = 50        // km
                     },
-                    
+
                     DefaultParameters = new ParameterSet
                     {
                         Name = "Plane_Defaults",
@@ -166,7 +166,7 @@ namespace SimpleDroneGCS.Services
                         }
                     }
                 },
-                
+
                 [VehicleType.QuadPlane] = new VehicleProfile
                 {
                     Type = VehicleType.QuadPlane,
@@ -177,7 +177,7 @@ namespace SimpleDroneGCS.Services
                     SupportsVTOL = true,
                     RequiresAirspeed = true,
                     SupportsHover = true,
-                    
+
                     SupportedFlightModes = new[]
                     {
                         // Plane modes
@@ -188,7 +188,7 @@ namespace SimpleDroneGCS.Services
                         // Special VTOL modes
                         "QAUTOTUNE", "GUIDED", "TAKEOFF", "VTOL_TAKEOFF", "VTOL_LAND"
                     },
-                    
+
                     TelemetryConfig = new TelemetryConfiguration
                     {
                         ShowAirspeed = true,
@@ -204,7 +204,7 @@ namespace SimpleDroneGCS.Services
                         MaxAltitude = 800,      // meters
                         MaxRange = 30           // km
                     },
-                    
+
                     DefaultParameters = new ParameterSet
                     {
                         Name = "QuadPlane_Defaults",
@@ -214,7 +214,7 @@ namespace SimpleDroneGCS.Services
                             ["TRIM_ARSPD_CM"] = 1400,    // cm/s
                             ["ARSPD_FBW_MIN"] = 10,       // m/s
                             ["ARSPD_FBW_MAX"] = 22,       // m/s
-                            
+
                             // Quad parameters
                             ["Q_ENABLE"] = 1,              // Enable QuadPlane
                             ["Q_ANGLE_MAX"] = 3000,        // centidegrees
@@ -222,7 +222,7 @@ namespace SimpleDroneGCS.Services
                             ["Q_ASSIST_ANGLE"] = 30,       // degrees
                             ["Q_TRANSITION_MS"] = 5000,    // ms for transition
                             ["Q_RTL_MODE"] = 1,            // VTOL approach and land
-                            
+
                             // VTOL specific
                             ["Q_VFWD_GAIN"] = 0.05f,      // Forward velocity gain
                             ["Q_WVANE_GAIN"] = 0.1f,      // Weathervaning gain
@@ -235,22 +235,22 @@ namespace SimpleDroneGCS.Services
                 }
             };
         }
-        
+
         public string[] GetFlightModesForCurrentVehicle()
         {
             return CurrentProfile.SupportedFlightModes;
         }
-        
+
         public TelemetryConfiguration GetTelemetryConfig()
         {
             return CurrentProfile.TelemetryConfig;
         }
-        
+
         public string GetVehicleIconPath()
         {
             return CurrentProfile.IconPath ?? GetDefaultIconPath();
         }
-        
+
         private string GetDefaultIconPath()
         {
             return CurrentVehicleType switch
@@ -275,20 +275,23 @@ namespace SimpleDroneGCS.Services
                 case VehicleType.Copter:
                     return new List<string>
                     {
+                        // Основные
                         "STABILIZE", "ALT_HOLD", "LOITER", "RTL", "LAND", "AUTO",
+                        // Продвинутые
                         "ACRO", "GUIDED", "CIRCLE", "POSHOLD", "BRAKE", "SPORT",
-                        "AUTOTUNE", "SMART_RTL", "FLIP", "DRIFT", "THROW",
+                        "AUTOTUNE", "SMART_RTL", "DRIFT", "FLIP", "THROW",
+                        // Специальные (если поддерживаются FC)
                         "FOLLOW", "ZIGZAG", "FLOWHOLD"
                     };
 
                 case VehicleType.QuadPlane:
                     return new List<string>
                     {
-                        // Самолет
+                        // Режимы самолёта
                         "MANUAL", "STABILIZE", "FBWA", "FBWB", "CRUISE", "AUTO",
-                        "RTL", "LOITER", "GUIDED", "TRAINING", "ACRO", "AUTOTUNE",
-                        "CIRCLE", "THERMAL", "TAKEOFF",
-                        // VTOL
+                        "RTL", "LOITER", "GUIDED", "CIRCLE", "AUTOTUNE",
+                        "TRAINING", "ACRO", "TAKEOFF", "THERMAL",
+                        // Режимы коптера (Q-режимы)
                         "QSTABILIZE", "QHOVER", "QLOITER", "QLAND", "QRTL",
                         "QACRO", "QAUTOTUNE"
                     };

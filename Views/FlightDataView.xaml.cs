@@ -520,7 +520,7 @@ namespace SimpleDroneGCS.Views
                     {
                         HomeLatText.Text = home.Latitude.ToString("F6");
                         HomeLonText.Text = home.Longitude.ToString("F6");
-                        
+
                         HomeSourceText.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102));
                     }
                     else
@@ -867,7 +867,7 @@ namespace SimpleDroneGCS.Views
                 Height = 500
             };
 
-            
+
 
             var droneIcon = new Image
             {
@@ -900,7 +900,7 @@ namespace SimpleDroneGCS.Views
                 grid.Children.Add(tri);
             };
 
-            
+
             grid.Children.Add(droneIcon);
 
             return new GMapMarker(position)
@@ -1075,13 +1075,16 @@ namespace SimpleDroneGCS.Views
             if (!CheckConnection()) return;
 
             var owner = Window.GetWindow(this);
-            if (AppMessageBox.ShowConfirm(
-                "Переключить в режим LOITER?\n\nДрон будет удерживать текущую позицию GPS.",
-                owner,
-                subtitle: "Подтверждение"
-            ))
+
+            // Выбираем режим в зависимости от типа дрона
+            string mode = (_currentVehicleType == VehicleType.QuadPlane) ? "QLOITER" : "LOITER";
+            string description = (_currentVehicleType == VehicleType.QuadPlane)
+                ? "Переключить в режим QLOITER?\n\nVTOL будет удерживать позицию в режиме коптера."
+                : "Переключить в режим LOITER?\n\nДрон будет удерживать текущую позицию GPS.";
+
+            if (AppMessageBox.ShowConfirm(description, owner, subtitle: "Подтверждение"))
             {
-                _mavlinkService.SetFlightMode("LOITER");
+                _mavlinkService.SetFlightMode(mode);
             }
         }
 
@@ -1090,13 +1093,16 @@ namespace SimpleDroneGCS.Views
             if (!CheckConnection()) return;
 
             var owner = Window.GetWindow(this);
-            if (AppMessageBox.ShowConfirm(
-                "Переключить в режим ALT_HOLD?\n\nДрон будет удерживать текущую высоту.",
-                owner,
-                subtitle: "Подтверждение"
-            ))
+
+            // Выбираем режим в зависимости от типа дрона
+            string mode = (_currentVehicleType == VehicleType.QuadPlane) ? "QHOVER" : "ALT_HOLD";
+            string description = (_currentVehicleType == VehicleType.QuadPlane)
+                ? "Переключить в режим QHOVER?\n\nVTOL будет удерживать высоту в режиме коптера."
+                : "Переключить в режим ALT_HOLD?\n\nДрон будет удерживать текущую высоту.";
+
+            if (AppMessageBox.ShowConfirm(description, owner, subtitle: "Подтверждение"))
             {
-                _mavlinkService.SetFlightMode("ALT_HOLD");
+                _mavlinkService.SetFlightMode(mode);
             }
         }
 
@@ -1163,13 +1169,15 @@ namespace SimpleDroneGCS.Views
 
             var owner = Window.GetWindow(this);
 
-            if (AppMessageBox.ShowConfirm(
-                "Переключить в ручной режим (STABILIZE)?\n\nПотребуется ручное управление через пульт.",
-                owner,
-                subtitle: "Подтверждение"
-            ))
+            // Выбираем режим в зависимости от типа дрона
+            string mode = (_currentVehicleType == VehicleType.QuadPlane) ? "QSTABILIZE" : "STABILIZE";
+            string description = (_currentVehicleType == VehicleType.QuadPlane)
+                ? "Переключить в режим QSTABILIZE?\n\nVTOL перейдёт в ручной режим коптера.\nПотребуется ручное управление через пульт."
+                : "Переключить в ручной режим (STABILIZE)?\n\nПотребуется ручное управление через пульт.";
+
+            if (AppMessageBox.ShowConfirm(description, owner, subtitle: "Подтверждение"))
             {
-                _mavlinkService.SetFlightMode("STABILIZE");
+                _mavlinkService.SetFlightMode(mode);
             }
         }
 
@@ -1179,11 +1187,11 @@ namespace SimpleDroneGCS.Views
 
             var owner = Window.GetWindow(this);
 
-            if (AppMessageBox.ShowConfirm(
-                "Активировать возврат домой (RTL)?\n\nДрон вернется на точку взлёта и выполнит посадку.",
-                owner,
-                subtitle: "Подтверждение"
-            ))
+            string description = (_currentVehicleType == VehicleType.QuadPlane)
+                ? "Активировать возврат домой (RTL)?\n\nVTOL вернётся на точку взлёта и выполнит посадку."
+                : "Активировать возврат домой (RTL)?\n\nДрон вернется на точку взлёта и выполнит посадку.";
+
+            if (AppMessageBox.ShowConfirm(description, owner, subtitle: "Подтверждение"))
             {
                 _mavlinkService.SendRTL();
             }
@@ -1212,8 +1220,13 @@ namespace SimpleDroneGCS.Views
                 _currentVehicleType = profile.Type;
                 UpdateVehicleTypeDisplay();
 
+                // Обновляем режимы полёта и кнопки для нового типа
+                UpdateComboBoxes();
+
                 // Перезагружаем миссию для нового типа
                 LoadActiveMission();
+
+                System.Diagnostics.Debug.WriteLine($"[FlightDataView] Тип изменён на: {profile.Type}");
             });
         }
 
@@ -1228,6 +1241,8 @@ namespace SimpleDroneGCS.Views
                         System.Diagnostics.Debug.WriteLine("[UpdateComboBoxes] ComboBoxes are NULL!");
                         return;
                     }
+
+                    bool isVTOL = _currentVehicleType == VehicleType.QuadPlane;
 
                     // Режимы полета
                     FlightModeCombo.Items.Clear();
@@ -1256,6 +1271,18 @@ namespace SimpleDroneGCS.Views
                         }
                     }
                     CalibrationCombo.SelectedIndex = 0;
+
+                    // Обновляем текст кнопок быстрых режимов
+                    if (LoiterButton != null)
+                        LoiterButton.Content = isVTOL ? "Q-Удерж" : "Удержание";
+
+                    if (AltHoldButton != null)
+                        AltHoldButton.Content = isVTOL ? "Q-Высота" : "Высота";
+
+                    if (ManualModeButton != null)
+                        ManualModeButton.Content = isVTOL ? "Q-Стаб" : "Ручной";
+
+                    System.Diagnostics.Debug.WriteLine($"[UpdateComboBoxes] Обновлено для {(isVTOL ? "VTOL" : "Copter")}");
                 });
             }
             catch (Exception ex)

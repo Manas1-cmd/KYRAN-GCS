@@ -343,9 +343,9 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Path Data="M12,2 L4.5,20.29 L5.21,20.59 L12,18 L18.79,20.59 L19.5,20.29 L12,2Z"
+                                    <Path x:Name="TakeoffIcon" Data="M12,2 L4.5,20.29 L5.21,20.59 L12,18 L18.79,20.59 L19.5,20.29 L12,2Z"
                                           Fill="#4ADE80" Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0"/>
-                                    <TextBlock Text="ВЗЛЁТ" Foreground="#4ADE80" FontWeight="Bold" FontSize="11"/>
+                                    <TextBlock x:Name="TakeoffLabel" Text="ВЗЛЁТ" Foreground="#4ADE80" FontWeight="Bold" FontSize="11"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -385,9 +385,9 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Path Data="M12,3 L2,12 L5,12 L5,20 L11,20 L11,14 L13,14 L13,20 L19,20 L19,12 L22,12 Z"
+                                    <Path x:Name="RtlIcon" Data="M12,3 L2,12 L5,12 L5,20 L11,20 L11,14 L13,14 L13,20 L19,20 L19,12 L22,12 Z"
                                             Fill="#F59E0B" Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0"/>
-                                    <TextBlock Text="ВОЗВРАТ (RTL)" Foreground="#F59E0B" FontWeight="Bold" FontSize="11"/>
+                                    <TextBlock x:Name="RtlLabel" Text="ВОЗВРАТ (RTL)" Foreground="#F59E0B" FontWeight="Bold" FontSize="11"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">

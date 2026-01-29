@@ -46,5 +46,53 @@ namespace SimpleDroneGCS.Properties {
                 this["ViewLinkPath"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CameraIP {
+            get {
+                return ((string)(this["CameraIP"]));
+            }
+            set {
+                this["CameraIP"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int CameraTcpPort {
+            get {
+                return ((int)(this["CameraTcpPort"]));
+            }
+            set {
+                this["CameraTcpPort"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int CameraRtspPort {
+            get {
+                return ((int)(this["CameraRtspPort"]));
+            }
+            set {
+                this["CameraRtspPort"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CameraPreset {
+            get {
+                return ((string)(this["CameraPreset"]));
+            }
+            set {
+                this["CameraPreset"] = value;
+            }
+        }
     }
 }
