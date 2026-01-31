@@ -9,8 +9,8 @@ using System.Windows.Shapes;
 namespace SimpleDroneGCS.Controls
 {
     /// <summary>
-    /// Кастомный Attitude Indicator (искусственный горизонт) с плавной интерполяцией
-    /// 450x250 прямоугольный формат
+    /// Кастомный Attitude Indicator (искусственный горизонт) с плавной интерполяцией lololo
+    /// 450x250 прямоугольный формат sgdsfdaasfdfddfgs
     /// </summary>
     public class AttitudeIndicator : UserControl
     {
