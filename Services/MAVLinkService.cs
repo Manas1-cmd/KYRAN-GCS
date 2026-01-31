@@ -1347,6 +1347,53 @@ namespace SimpleDroneGCS.Services
         {
             ReturnToLaunch();
         }
+
+        #region PARAMETER MANAGEMENT
+
+        /// <summary>
+        /// Установка параметра на дроне
+        /// </summary>
+        public void SetParameter(string paramName, float value)
+        {
+            if (!IsConnected)
+            {
+                ErrorOccurred?.Invoke(this, "Дрон не подключен");
+                return;
+            }
+
+            // Преобразуем имя в 16-байтовый массив
+            byte[] paramIdBytes = new byte[16];
+            byte[] nameBytes = System.Text.Encoding.ASCII.GetBytes(paramName);
+            Array.Copy(nameBytes, paramIdBytes, Math.Min(nameBytes.Length, 16));
+
+            var paramSet = new MAVLink.mavlink_param_set_t
+            {
+                target_system = (byte)DroneStatus.SystemId,
+                target_component = (byte)DroneStatus.ComponentId,
+                param_id = paramIdBytes,
+                param_value = value,
+                param_type = (byte)MAVLink.MAV_PARAM_TYPE.REAL32
+            };
+
+            SendMessage(paramSet, MAVLink.MAVLINK_MSG_ID.PARAM_SET);
+
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] PARAM_SET: {paramName} = {value}");
+        }
+
+        /// <summary>
+        /// Установка Q_OPTIONS для VTOL автоперехода
+        /// Бит 7 (128) = автопереход в самолёт после NAV_TAKEOFF
+        /// </summary>
+        public void SetVTOLAutoTransition(bool autoTransition)
+        {
+            float qOptions = autoTransition ? 128f : 0f;
+            SetParameter("Q_OPTIONS", qOptions);
+
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] VTOL AutoTransition: {(autoTransition ? "ON" : "OFF")}");
+        }
+
+        #endregion
+
         /// <summary>
         /// Установка HOME позиции
         /// </summary>

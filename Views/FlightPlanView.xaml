@@ -7,21 +7,20 @@
              SnapsToDevicePixels="True">
 
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition/>
-            <ColumnDefinition Width="420"/>
-        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-        <!-- ЛЕВАЯ ЧАСТЬ: КАРТА ДЛЯ ПЛАНИРОВАНИЯ -->
-        <Border Grid.Column="0"
+        <!-- КАРТА -->
+        <Border Grid.Row="0"
                 Background="{StaticResource DarkPanel}"
                 BorderBrush="{StaticResource BlueGray}"
                 BorderThickness="2"
-                CornerRadius="12"
+                CornerRadius="10"
                 ClipToBounds="True"
-                Margin="0,0,10,0">
+                Margin="0,0,0,6">
             <Grid>
-                <!-- Карта -->
                 <gmap:GMapControl x:Name="PlanMap"
                                   Background="Transparent"
                                   Panel.ZIndex="0"
@@ -32,483 +31,385 @@
                                   MouseWheelZoomType="MousePositionAndCenter"
                                   MouseDoubleClick="PlanMap_MouseDoubleClick"
                                   MouseWheel="PlanMap_MouseWheel"/>
-                <!-- OVERLAY: Дистанция (правый нижний угол карты) -->
-                <Border HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom"
-                        Margin="0,0,12,12"
-                        Background="#CC0D1733"
-                        BorderBrush="#2A4361"
+
+                <!-- Координаты (правый верх) -->
+                <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="0,12,12,0"
+                        Background="#E6060B1A"
+                        BorderBrush="#2298F019"
                         BorderThickness="1"
                         CornerRadius="6"
-                        Padding="8,5"
-                        Panel.ZIndex="100">
-                    <StackPanel>
-                        <TextBlock x:Name="TotalDistanceOverlay"
-                                   Text="Маршрут: 0 м"
-                                   Foreground="White"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,3"/>
-                        <Border Background="#1A2433" Height="1" Margin="0,0,0,3"/>
-                        <TextBlock x:Name="CursorDistanceFromLast"
-                                   Text="От WP: —"
-                                   Foreground="#4ADE80"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                        <TextBlock x:Name="CursorDistanceFromHome"
-                                   Text="От HOME: —"
-                                   Foreground="#F59E0B"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"
-                                   Margin="0,2,0,0"/>
-                    </StackPanel>
-                </Border>
-                <!-- OVERLAY: Координаты курсора (правый верхний угол) -->
-                <Border HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
-                        Margin="0,15,12,0"
-                        Background="#CC0D1733"
-                        BorderBrush="#2A4361"
-                        BorderThickness="1"
-                        CornerRadius="6"
-                        Padding="8,5"
+                        Padding="10,6"
                         Panel.ZIndex="100">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="LAT: "
-                                       Foreground="{StaticResource TextGray}"
-                                       FontSize="10"/>
-                            <TextBlock x:Name="CursorLatText"
-                                       Text="—"
-                                       Foreground="White"
-                                       FontSize="10"
-                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="ШИР" Foreground="#6B7280" FontSize="9" Width="28"/>
+                            <TextBlock x:Name="CursorLatText" Text="—" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <TextBlock Text="LNG: "
-                                       Foreground="{StaticResource TextGray}"
-                                       FontSize="10"/>
-                            <TextBlock x:Name="CursorLngText"
-                                       Text="—"
-                                       Foreground="White"
-                                       FontSize="10"
-                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="ДОЛ" Foreground="#6B7280" FontSize="9" Width="28"/>
+                            <TextBlock x:Name="CursorLngText" Text="—" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
                         </StackPanel>
-                        <Border Background="#1A2433" Height="1" Margin="0,3,0,3"/>
+                        <Border Background="#1598F019" Height="1" Margin="0,4"/>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="ALT: "
-                                       Foreground="{StaticResource TextGray}"
-                                       FontSize="10"/>
-                            <TextBlock x:Name="CursorAltText"
-                                       Text="— м"
-                                       Foreground="#4ADE80"
-                                       FontSize="10"
-                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="ВЫС" Foreground="#6B7280" FontSize="9" Width="28"/>
+                            <TextBlock x:Name="CursorAltText" Text="—" Foreground="{StaticResource AcidGreen}" FontSize="10" FontWeight="Bold"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- СЕЛЕКТОР ТИПА АППАРАТА (СВЕРХУ СЛЕВА, КАК В FlightDataView) -->
+                <!-- Статистика маршрута (правый низ) -->
+                <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Margin="0,0,12,12"
+                        Background="#E6060B1A"
+                        BorderBrush="#2298F019"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,6"
+                        Panel.ZIndex="100">
+                    <StackPanel>
+                        <TextBlock x:Name="TotalDistanceOverlay" Text="Маршрут: 0 м" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                        <Border Background="#1598F019" Height="1" Margin="0,4"/>
+                        <TextBlock x:Name="CursorDistanceFromLast" Text="От WP: —" Foreground="#4ADE80" FontSize="9"/>
+                        <TextBlock x:Name="CursorDistanceFromHome" Text="От HOME: —" Foreground="#F59E0B" FontSize="9" Margin="0,1,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Селектор типа ЛА (левый верх) -->
                 <Border x:Name="VehicleTypeSelector"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="15"
-                        Padding="8,6"
-                        CornerRadius="8"
-                        Background="#0D1733"
-                        BorderBrush="{StaticResource BlueGray}"
-                        BorderThickness="2"
+                        HorizontalAlignment="Left" VerticalAlignment="Top"
+                        Margin="12"
+                        Padding="8,5"
+                        CornerRadius="6"
+                        Background="#E6060B1A"
+                        BorderBrush="#2298F019"
+                        BorderThickness="1"
                         Panel.ZIndex="200"
                         Cursor="Hand"
                         MouseLeftButtonDown="VehicleTypeSelector_MouseLeftButtonDown">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Короткая метка -->
-                        <Border Grid.Column="0"
-                                Background="#122244"
-                                CornerRadius="5"
-                                Padding="5,2"
-                                Margin="0,0,6,0">
-                            <TextBlock x:Name="VehicleTypeShortText"
-                                       Text="MC"
-                                       Foreground="{StaticResource AcidGreen}"
-                                       FontWeight="Bold"
-                                       FontSize="10"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Background="#1A98F019" CornerRadius="3" Padding="5,2" Margin="0,0,6,0">
+                            <TextBlock x:Name="VehicleTypeShortText" Text="MC" Foreground="{StaticResource AcidGreen}" FontWeight="Bold" FontSize="10"/>
                         </Border>
-
-                        <!-- Полное название -->
-                        <TextBlock Grid.Column="1"
-                                   x:Name="VehicleTypeFullText"
-                                   Text="Мультикоптер"
-                                   Foreground="White"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,6,0"/>
-
-                        <!-- Стрелка -->
-                        <TextBlock Grid.Column="2"
-                                   Text="▼"
-                                   Foreground="{StaticResource AcidGreen}"
-                                   FontSize="10"
-                                   VerticalAlignment="Center"/>
-                    </Grid>
+                        <TextBlock x:Name="VehicleTypeFullText" Text="Мультикоптер" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text=" ▼" Foreground="{StaticResource AcidGreen}" FontSize="9" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Border>
 
-                <!-- ПОЛЗУНОК ЗУМА (справа) -->
-                <Border HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Background="#0D1733"
-                        BorderBrush="{StaticResource BlueGray}"
-                        BorderThickness="2"
-                        CornerRadius="8"
-                        Padding="0,8"
-                        Margin="15"
-                        Width="42"
+                <!-- Зум-слайдер (справа по центру) -->
+                <Border HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Background="#E6060B1A"
+                        BorderBrush="#2298F019"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="4,8"
+                        Margin="12"
                         Panel.ZIndex="100">
-                    <StackPanel Width="36">
-                        <TextBlock Text="ЗУМ"
-                                   Foreground="White"
-                                   FontSize="9"
-                                   FontWeight="Bold"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,0,0,4"/>
-
+                    <StackPanel>
+                        <TextBlock Text="+" Foreground="#6B7280" FontSize="12" HorizontalAlignment="Center"/>
                         <Slider x:Name="ZoomSlider"
                                 Orientation="Vertical"
-                                Minimum="2"
-                                Maximum="20"
-                                Value="15"
-                                Height="140"
+                                Minimum="2" Maximum="20" Value="17"
+                                Height="100"
                                 TickFrequency="1"
                                 IsSnapToTickEnabled="True"
                                 ValueChanged="ZoomSlider_ValueChanged"
                                 HorizontalAlignment="Center"/>
-
-                        <TextBlock Text="{Binding ElementName=ZoomSlider, Path=Value, StringFormat='{}{0:F0}'}"
-                                   Foreground="White"
-                                   FontSize="10"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,4,0,0"/>
+                        <TextBlock Text="−" Foreground="#6B7280" FontSize="12" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
-                <!-- ВЫБОР КАРТЫ + НАСТРОЙКИ (внизу слева) -->
+                <!-- Выбор карты (левый низ) -->
                 <StackPanel Orientation="Horizontal"
-                            VerticalAlignment="Bottom"
-                            HorizontalAlignment="Left"
-                            Margin="15"
-                            Panel.ZIndex="10">
-
+                            VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                            Margin="12"
+                            Panel.ZIndex="100">
                     <ComboBox x:Name="MapTypeCombo"
                               Style="{StaticResource CustomComboBoxStyle}"
                               ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                               SelectionChanged="MapTypeCombo_SelectionChanged"
-                              Height="36">
+                              Height="32" MinWidth="130" FontSize="11">
                         <ComboBoxItem Content="Google Спутник" Tag="GoogleSatellite" IsSelected="True"/>
                         <ComboBoxItem Content="Google Карта" Tag="GoogleMap"/>
                         <ComboBoxItem Content="OpenStreetMap" Tag="OpenStreetMap"/>
                         <ComboBoxItem Content="Bing Спутник" Tag="BingSatellite"/>
-                        <ComboBoxItem Content="Bing Карта" Tag="BingMap"/>
                     </ComboBox>
-
-                    <!-- Скачать карту офлайн -->
-                    <Button Content="📥" 
-                            ToolTip="Скачать карту офлайн"
-                            Width="36" Height="36"
-                            Margin="8,0,0,0"
-                            Background="#0D1733"
+                    <Button ToolTip="Скачать карту офлайн"
+                            Width="32" Height="32"
+                            Margin="6,0,0,0"
+                            Background="#E6060B1A"
                             Foreground="White"
-                            FontSize="16"
-                            BorderThickness="2"
-                            BorderBrush="#2A4361"
-                            Cursor="Hand"
-                            Click="DownloadMapButton_Click"/>
-
-                    <!-- Радиус меток -->
-                    <Border HorizontalAlignment="Center"
-                            Background="{DynamicResource MidBlue}"
-                            BorderThickness="2"
-                            CornerRadius="6"
-                            Padding="8"
-                            Margin="10,0,0,0"
-                            Panel.ZIndex="10">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Радиус:"
-                                       Foreground="{StaticResource White}"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,0"/>
-                            <Slider x:Name="RadiusSlider"
-                                    Minimum="10"
-                                    Maximum="100"
-                                    Value="30"
-                                    Width="80"
-                                    VerticalAlignment="Center"
-                                    ValueChanged="RadiusSlider_ValueChanged"/>
-                            <TextBlock Text="{Binding ElementName=RadiusSlider, Path=Value, StringFormat='{}{0:F0} м'}"
-                                       Foreground="{StaticResource AcidGreen}"
-                                       FontSize="10"
-                                       FontWeight="Bold"
-                                       VerticalAlignment="Center"
-                                       Margin="8,0,0,0"/>
-                        </StackPanel>
-                    </Border>
+                            BorderThickness="1"
+                            BorderBrush="#2298F019"
+                            Click="DownloadMapButton_Click">
+                        <TextBlock Text="📥" FontSize="14"/>
+                    </Button>
                 </StackPanel>
-
             </Grid>
         </Border>
 
-        <!-- ПРАВАЯ ЧАСТЬ: СПИСОК WAYPOINTS -->
-        <Border Grid.Column="1"
-                Background="{StaticResource DarkBlue}"
-                BorderBrush="{StaticResource MidBlue}"
+        <!-- НИЖНЯЯ ПАНЕЛЬ МИССИИ -->
+        <Border Grid.Row="1"
+                Background="#0A0E1A"
+                BorderBrush="{StaticResource BlueGray}"
                 BorderThickness="2"
-                CornerRadius="8">
+                CornerRadius="10"
+                MinHeight="130"
+                MaxHeight="150">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <!-- ЗАГОЛОВОК -->
-                <Border Grid.Row="0"
-                        CornerRadius="5,5,0,0"
-                        Background="{StaticResource MidBlue}"
-                        Padding="12,8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                <!-- Список waypoints -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Column="0"
-                                   Text="МАРШРУТНЫЕ ТОЧКИ"
-                                   Foreground="{StaticResource AcidGreen}"
-                                   FontSize="13"
-                                   FontWeight="Bold"
-                                   VerticalAlignment="Center"/>
+                    <!-- Заголовок -->
+                    <Border Grid.Row="0" Background="#0D1733" CornerRadius="8,0,0,0" Padding="12,6">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🛫" FontSize="12"/>
+                                <TextBlock Text=" МИССИЯ" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="WaypointsCountText" Text="0 точек" Foreground="#6B7280" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
 
-                        <TextBlock Grid.Column="1"
-                                   x:Name="WaypointsCountText"
-                                   Text="Точек: 0"
-                                   Foreground="{StaticResource TextGray}"
-                                   FontSize="10"
-                                   HorizontalAlignment="Right"
-                                   VerticalAlignment="Center"
-                                   Margin="8,0,0,0"/>
-                    </Grid>
-                </Border>
+                    <!-- Горизонтальный список со скроллом -->
+                    <ScrollViewer x:Name="MissionScrollViewer"
+                                  Grid.Row="1" 
+                                  HorizontalScrollBarVisibility="Hidden" 
+                                  VerticalScrollBarVisibility="Disabled"
+                                  PanningMode="HorizontalOnly"
+                                  PreviewMouseWheel="MissionScrollViewer_PreviewMouseWheel"
+                                  Padding="6,0">
+                        <StackPanel x:Name="WaypointsHorizontalPanel" Orientation="Horizontal" Margin="2,8,2,8">
 
-                <!-- ТАБЛИЦА WAYPOINTS -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="4">
-
-                        <!-- Заголовки колонок -->
-                        <Border Background="#1A2433" Padding="6,4" Margin="0,0,0,2">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="24"/>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="30"/>
-                                    <ColumnDefinition Width="100"/>
-                                </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Column="0" Text="#" Foreground="{StaticResource TextGray}" FontSize="9" FontWeight="Bold"/>
-                                <TextBlock Grid.Column="1" Text="Команда" Foreground="{StaticResource TextGray}" FontSize="9" FontWeight="Bold" Margin="4,0,40,0"/>
-                                <TextBlock Grid.Column="1" Text="Высота" Foreground="{StaticResource TextGray}" FontSize="9" FontWeight="Bold" Margin="130,0,30,0" Grid.ColumnSpan="2"/>
-                                <TextBlock Grid.Column="2" Text="Задерж" Foreground="{StaticResource TextGray}" FontSize="9" FontWeight="Bold" Margin="16,0,10,0" Grid.ColumnSpan="2"/>
-                                <TextBlock Grid.Column="4" Text="Действия" Foreground="{StaticResource TextGray}" FontSize="9" FontWeight="Bold" HorizontalAlignment="Left" Width="80" Margin="20,0,0,0"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- TAKEOFF блок (фиксированный) -->
-                        <Border Background="#0D1733" 
-                                BorderBrush="#2A4361" 
-                                BorderThickness="1" 
-                                CornerRadius="5" 
-                                Padding="8,6" 
-                                Margin="0,0,0,4">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Path x:Name="TakeoffIcon" Data="M12,2 L4.5,20.29 L5.21,20.59 L12,18 L18.79,20.59 L19.5,20.29 L12,2Z"
-                                          Fill="#4ADE80" Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0"/>
-                                    <TextBlock x:Name="TakeoffLabel" Text="ВЗЛЁТ" Foreground="#4ADE80" FontWeight="Bold" FontSize="11"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <TextBlock Text="Высота:" Foreground="{StaticResource TextGray}" 
-                                                FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBox x:Name="TakeoffAltitudeBox"
+                            <!-- ВЗЛЁТ -->
+                            <Border x:Name="TakeoffCard"
+                                    Background="#0D1733"
+                                    BorderBrush="#4ADE80"
+                                    BorderThickness="2"
+                                    CornerRadius="8"
+                                    Padding="12,8"
+                                    MinWidth="100">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path x:Name="TakeoffIcon" 
+                                              Data="M12,2 L4.5,20.29 L5.21,20.59 L12,18 L18.79,20.59 L19.5,20.29 L12,2Z"
+                                              Fill="#4ADE80" Width="14" Height="14" Stretch="Uniform"/>
+                                        <TextBlock x:Name="TakeoffLabel" Text="ВЗЛЁТ" Foreground="#4ADE80" FontWeight="Bold" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <TextBlock Text="В:" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="TakeoffAltitudeBox"
                                                  Text="10"
-                                                 Width="45" Height="24"
+                                                 Width="40" Height="22"
                                                  FontSize="10"
                                                  Background="#1A2433"
                                                  Foreground="White"
-                                                 BorderBrush="#2A4361"
+                                                 BorderBrush="#374151"
                                                  BorderThickness="1"
                                                  Padding="4,0"
-                                                 VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="м" Foreground="{StaticResource TextGray}" 
-                                                FontSize="10" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Динамический список waypoints -->
-                        <StackPanel x:Name="WaypointsListPanel"/>
-
-                        <!-- RTL блок (фиксированный) -->
-                        <Border Background="#0D1733" 
-                                BorderBrush="#2A4361" 
-                                BorderThickness="1" 
-                                CornerRadius="5" 
-                                Padding="8,6" 
-                                Margin="0,4,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Path x:Name="RtlIcon" Data="M12,3 L2,12 L5,12 L5,20 L11,20 L11,14 L13,14 L13,20 L19,20 L19,12 L22,12 Z"
-                                            Fill="#F59E0B" Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0"/>
-                                    <TextBlock x:Name="RtlLabel" Text="ВОЗВРАТ (RTL)" Foreground="#F59E0B" FontWeight="Bold" FontSize="11"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <TextBlock Text="Высота:" Foreground="{StaticResource TextGray}" 
-                                                FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBox x:Name="RtlAltitudeBox"
-                                                 Text="15"
-                                                 Width="45" Height="24"
-                                                 FontSize="10"
-                                                 Background="#1A2433"
-                                                 Foreground="White"
-                                                 BorderBrush="#2A4361"
-                                                 BorderThickness="1"
-                                                 Padding="4,0"
+                                                 Margin="4,0,0,0"
                                                  VerticalContentAlignment="Center"
-                                                 />
-                                    <TextBlock Text="м" Foreground="{StaticResource TextGray}" 
-                                                FontSize="10" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                                 HorizontalContentAlignment="Center"/>
+                                        <TextBlock Text="м" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
+                            </Border>
+
+                            <TextBlock Text="›" Foreground="#4ADE80" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0"/>
+
+                            <!-- Динамические waypoints -->
+                            <StackPanel x:Name="WaypointsListPanel" Orientation="Horizontal"/>
+
+                            <!-- Стрелка перед RTL -->
+                            <TextBlock x:Name="ArrowBeforeRtl" Text="›" Foreground="#F59E0B" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0" Visibility="Collapsed"/>
+
+                            <!-- ВОЗВРАТ (RTL) -->
+                            <Border x:Name="RtlCard"
+                                    Background="#0D1733"
+                                    BorderBrush="#F59E0B"
+                                    BorderThickness="2"
+                                    CornerRadius="8"
+                                    Padding="12,8"
+                                    MinWidth="100">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path x:Name="RtlIcon" 
+                                              Data="M12,3 L2,12 L5,12 L5,20 L11,20 L11,14 L13,14 L13,20 L19,20 L19,12 L22,12 Z"
+                                              Fill="#F59E0B" Width="14" Height="14" Stretch="Uniform"/>
+                                        <TextBlock x:Name="RtlLabel" Text="ВОЗВРАТ" Foreground="#F59E0B" FontWeight="Bold" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <TextBlock Text="В:" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="RtlAltitudeBox"
+                                                 Text="15"
+                                                 Width="40" Height="22"
+                                                 FontSize="10"
+                                                 Background="#1A2433"
+                                                 Foreground="White"
+                                                 BorderBrush="#374151"
+                                                 BorderThickness="1"
+                                                 Padding="4,0"
+                                                 Margin="4,0,0,0"
+                                                 VerticalContentAlignment="Center"
+                                                 HorizontalContentAlignment="Center"/>
+                                        <TextBlock Text="м" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
 
                 <!-- КНОПКИ УПРАВЛЕНИЯ -->
-                <StackPanel Grid.Row="2" Margin="8" Background="{StaticResource DarkBlue}">
+                <Border Grid.Column="1" 
+                        Background="#080C14"
+                        BorderBrush="#1F2937"
+                        BorderThickness="1,0,0,0"
+                        CornerRadius="0,8,8,0"
+                        Padding="10,8"
+                        MinWidth="180">
+                    <StackPanel VerticalAlignment="Center">
 
+                        <!-- Кнопка HOME -->
+                        <Button Height="36"
+                                Margin="0,0,0,8"
+                                Background="#DC2626"
+                                BorderBrush="#EF4444"
+                                BorderThickness="1"
+                                Cursor="Hand"
+                                Click="SetHomeButton_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" 
+                                            BorderBrush="{TemplateBinding BorderBrush}" 
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="6">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📍" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Установить HOME" Foreground="White" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
-                    <!-- Управление миссией -->
-                    <Border BorderBrush="{StaticResource BlueGray}"
-                            BorderThickness="0,1,0,0"
-                            Padding="0,8,0,0">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
+                        <!-- Записать / Читать -->
+                        <Grid Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- HOME -->
-                            <Button Grid.Row="0"
-                                    Grid.ColumnSpan="2"
-                                    Style="{StaticResource DroneButtonStyle}"
-                                    Background="#EF4464"
-                                    Height="32"
-                                    FontSize="11"
-                                    Margin="0,0,0,6"
-                                    Click="SetHomeButton_Click">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Image Source="/Images/home_icon.png" Width="14" Height="14" Margin="0,0,6,0"/>
-                                    <TextBlock Text="Установить HOME" VerticalAlignment="Center"/>
+                            <Button Grid.Column="0" Height="32" Margin="0,0,3,0"
+                                    Background="#166534" BorderBrush="#22C55E" BorderThickness="1"
+                                    Cursor="Hand" Click="UploadButton_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⬆" FontSize="11" Foreground="#4ADE80" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Записать" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Button>
 
-                            <!-- Записать / Читать -->
-                            <Button Grid.Row="1" Grid.Column="0"
-                                    Content="Записать"
-                                    Style="{StaticResource GreenButtonStyle}"
-                                    Height="32"
-                                    FontSize="11"
-                                    Margin="0,0,2,4"
-                                    Click="UploadButton_Click"/>
-
-                            <Button Grid.Row="1" Grid.Column="1"
-                                    Content="Читать"
-                                    Style="{StaticResource DroneButtonStyle}"
-                                    Height="32"
-                                    FontSize="11"
-                                    Margin="2,0,0,4"
-                                    Click="DownloadButton_Click"/>
-
-                            <!-- Сохранить / Загрузить -->
-                            <Button Grid.Row="2" Grid.Column="0"
-                                    Content="Сохранить"
-                                    Style="{StaticResource DroneButtonStyle}"
-                                    Height="30"
-                                    FontSize="10"
-                                    Margin="0,0,2,0"
-                                    Click="SaveButton_Click"/>
-
-                            <Button Grid.Row="2" Grid.Column="1"
-                                    Content="Загрузить"
-                                    Style="{StaticResource DroneButtonStyle}"
-                                    Height="30"
-                                    FontSize="10"
-                                    Margin="2,0,0,0"
-                                    Click="LoadButton_Click"/>
+                            <Button Grid.Column="1" Height="32" Margin="3,0,0,0"
+                                    Background="#1E3A5F" BorderBrush="#3B82F6" BorderThickness="1"
+                                    Cursor="Hand" Click="DownloadButton_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⬇" FontSize="11" Foreground="#60A5FA" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Читать" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Button>
                         </Grid>
-                    </Border>
 
-                    <!-- Очистить + SRTM в одну строку -->
-                    <Grid Margin="0,8,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                        <!-- Сохранить / Загрузить / Очистить -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0"
-                                Content="Очистить"
-                                Style="{StaticResource DroneButtonStyle}"
-                                Background="#EF4444"
-                                Height="30"
-                                FontSize="10"
-                                Margin="0,0,2,0"
-                                Click="ClearButton_Click"/>
+                            <Button Grid.Column="0" Height="30" Margin="0,0,2,0"
+                                    ToolTip="Сохранить миссию"
+                                    Background="#1F2937" BorderBrush="#374151" BorderThickness="1"
+                                    Cursor="Hand" Click="SaveButton_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <TextBlock Text="💾" FontSize="13"/>
+                            </Button>
 
-                        <Button Grid.Column="1"
-                                Content="⛰️ Рельеф"
-                                Style="{StaticResource DroneButtonStyle}"
-                                Background="#2A4361"
-                                Height="30"
-                                FontSize="10"
-                                Margin="2,0,0,0"
-                                Click="DownloadSRTM_Click"/>
-                    </Grid>
-                </StackPanel>
+                            <Button Grid.Column="1" Height="30" Margin="2,0,2,0"
+                                    ToolTip="Загрузить миссию"
+                                    Background="#1F2937" BorderBrush="#374151" BorderThickness="1"
+                                    Cursor="Hand" Click="LoadButton_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <TextBlock Text="📂" FontSize="13"/>
+                            </Button>
+
+                            <Button Grid.Column="2" Height="30" Margin="2,0,0,0"
+                                    ToolTip="Очистить миссию"
+                                    Background="#7F1D1D" BorderBrush="#DC2626" BorderThickness="1"
+                                    Cursor="Hand" Click="ClearButton_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <TextBlock Text="🗑" FontSize="13"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
     </Grid>
