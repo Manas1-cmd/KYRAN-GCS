@@ -9,7 +9,7 @@
         Confirm
     }
 
-    // Новый enum для YesNoCanceldfgjhkjl
+    // Новый enum для YesNoCancel
     public enum AppMessageBoxResult
     {
         Yes,

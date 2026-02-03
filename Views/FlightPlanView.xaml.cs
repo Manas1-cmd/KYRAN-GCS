@@ -401,6 +401,9 @@ namespace SimpleDroneGCS.Views
 
             MissionStore.SetHome((int)_currentVehicleType, _homePosition);
 
+            PlanHomeLatText.Text = _homePosition.Latitude.ToString("F6");
+            PlanHomeLonText.Text = _homePosition.Longitude.ToString("F6");
+
             System.Diagnostics.Debug.WriteLine($"[HOME] Установлен вручную: {lat:F6}, {lon:F6}");
         }
         private void PlanMap_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -2543,6 +2546,9 @@ namespace SimpleDroneGCS.Views
 
             MissionStore.SetHome((int)_currentVehicleType, _homePosition);
 
+            PlanHomeLatText.Text = _homePosition.Latitude.ToString("F6");
+            PlanHomeLonText.Text = _homePosition.Longitude.ToString("F6");
+
             System.Diagnostics.Debug.WriteLine($" HOME установлена: {telemetry.Latitude:F6}, {telemetry.Longitude:F6}");
         }
 
@@ -3793,6 +3799,56 @@ namespace SimpleDroneGCS.Views
                 _droneMarker.Shape = null;
                 PlanMap.Markers.Remove(_droneMarker);
                 _droneMarker = null;
+            }
+            UpdateDroneInfoPanel(telemetry);
+        }
+
+        /// <summary>
+        /// Обновление панели информации о дроне и HOME
+        /// </summary>
+        /// <summary>
+        /// Обновление панели информации о дроне и HOME
+        /// </summary>
+        private void UpdateDroneInfoPanel(Telemetry telemetry)
+        {
+            // Координаты дрона
+            if (telemetry.Latitude != 0 || telemetry.Longitude != 0)
+            {
+                PlanDroneLatText.Text = telemetry.Latitude.ToString("F6");
+                PlanDroneLonText.Text = telemetry.Longitude.ToString("F6");
+            }
+
+            // Heading + компас
+            PlanHeadingRotation.Angle = telemetry.Heading;
+            PlanHeadingText.Text = $"{telemetry.Heading:F0}°";
+
+            // HOME: приоритет — реальный от дрона, иначе — из плана
+            if (_mavlinkService.HasHomePosition)
+            {
+                // Реальный HOME после армирования
+                PlanHomeLatText.Text = _mavlinkService.HomeLat.Value.ToString("F6");
+                PlanHomeLonText.Text = _mavlinkService.HomeLon.Value.ToString("F6");
+            }
+            else if (_homePosition != null)
+            {
+                // Кастомный HOME установленный на карте
+                PlanHomeLatText.Text = _homePosition.Latitude.ToString("F6");
+                PlanHomeLonText.Text = _homePosition.Longitude.ToString("F6");
+            }
+            else
+            {
+                // Пробуем из MissionStore
+                var home = MissionStore.GetHome((int)_currentVehicleType);
+                if (home != null)
+                {
+                    PlanHomeLatText.Text = home.Latitude.ToString("F6");
+                    PlanHomeLonText.Text = home.Longitude.ToString("F6");
+                }
+                else
+                {
+                    PlanHomeLatText.Text = "---.------";
+                    PlanHomeLonText.Text = "---.------";
+                }
             }
         }
 

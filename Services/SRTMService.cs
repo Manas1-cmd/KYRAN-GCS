@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SimpleDroneGCS.Services
@@ -66,7 +67,8 @@ namespace SimpleDroneGCS.Services
         /// Предзагрузка тайлов для региона
         /// </summary>
         public async Task PreloadRegionAsync(double minLat, double maxLat, double minLon, double maxLon,
-            IProgress<(int current, int total, string status)> progress = null)
+            IProgress<(int current, int total, string status)> progress = null,
+            CancellationToken cancellationToken = default)
         {
             int startLat = (int)Math.Floor(minLat);
             int endLat = (int)Math.Floor(maxLat);
@@ -80,6 +82,8 @@ namespace SimpleDroneGCS.Services
             {
                 for (int lon = startLon; lon <= endLon; lon++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     current++;
                     string fileName = GetTileFileName(lat, lon);
                     string filePath = Path.Combine(_cacheFolder, fileName);
@@ -87,7 +91,7 @@ namespace SimpleDroneGCS.Services
                     if (!File.Exists(filePath))
                     {
                         progress?.Report((current, total, $"Загрузка {fileName}..."));
-                        await DownloadTileAsync(lat, lon, filePath);
+                        await DownloadTileAsync(lat, lon, filePath, cancellationToken);
                     }
                     else
                     {
@@ -110,7 +114,7 @@ namespace SimpleDroneGCS.Services
             return $"{ns}{Math.Abs(latInt):D2}{ew}{Math.Abs(lonInt):D3}.hgt";
         }
 
-        private async Task<bool> DownloadTileAsync(double lat, double lon, string filePath)
+        private async Task<bool> DownloadTileAsync(double lat, double lon, string filePath, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -127,7 +131,7 @@ namespace SimpleDroneGCS.Services
 
                 System.Diagnostics.Debug.WriteLine($"📥 Downloading: {url}");
 
-                var response = await _httpClient.GetAsync(url);
+                var response = await _httpClient.GetAsync(url, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -136,13 +140,18 @@ namespace SimpleDroneGCS.Services
                 }
 
                 // Распаковываем gzip
-                using var compressedStream = await response.Content.ReadAsStreamAsync();
+                using var compressedStream = await response.Content.ReadAsStreamAsync(cancellationToken);
                 using var gzipStream = new GZipStream(compressedStream, CompressionMode.Decompress);
                 using var fileStream = File.Create(filePath);
-                await gzipStream.CopyToAsync(fileStream);
+                await gzipStream.CopyToAsync(fileStream, cancellationToken);
 
                 System.Diagnostics.Debug.WriteLine($"✅ Downloaded: {tileName}");
                 return true;
+            }
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine($"⏹️ Download cancelled");
+                throw;
             }
             catch (Exception ex)
             {

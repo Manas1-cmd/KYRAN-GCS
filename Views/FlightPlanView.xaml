@@ -124,6 +124,78 @@
                     </StackPanel>
                 </Border>
 
+                <!-- КОМПАКТНАЯ ПАНЕЛЬ: ДРОН + HOME + КОМПАС -->
+                <Border HorizontalAlignment="Right"
+        VerticalAlignment="Bottom"
+        Background="#E6060B1A"
+        BorderBrush="#2298F019"
+        BorderThickness="1"
+        CornerRadius="6"
+        Padding="10,8"
+        Margin="0,0,125,12"
+        Panel.ZIndex="100">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- ЛЕВАЯ ЧАСТЬ: Данные -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
+                            <!-- ДРОН -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="✈" Foreground="#98F019" FontSize="11" Margin="0,0,4,0"/>
+                                <TextBlock Text="ДРОН" Foreground="#98F019" FontSize="10" FontWeight="SemiBold" Width="38"/>
+                                <TextBlock x:Name="PlanDroneLatText" Text="---.------" Foreground="White" FontSize="10" FontFamily="Consolas"/>
+                                <TextBlock Text=" | " Foreground="#444" FontSize="10"/>
+                                <TextBlock x:Name="PlanDroneLonText" Text="---.------" Foreground="White" FontSize="10" FontFamily="Consolas"/>
+                            </StackPanel>
+
+                            <!-- HOME -->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⌂" Foreground="#FF6B35" FontSize="11" Margin="0,0,4,0"/>
+                                <TextBlock Text="HOME" Foreground="#FF6B35" FontSize="10" FontWeight="SemiBold" Width="38"/>
+                                <TextBlock x:Name="PlanHomeLatText" Text="---.------" Foreground="White" FontSize="10" FontFamily="Consolas"/>
+                                <TextBlock Text=" | " Foreground="#444" FontSize="10"/>
+                                <TextBlock x:Name="PlanHomeLonText" Text="---.------" Foreground="White" FontSize="10" FontFamily="Consolas"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- ПРАВАЯ ЧАСТЬ: Компас -->
+                        <Grid Grid.Column="1" Width="56" Height="56">
+                            <Ellipse Width="56" Height="56" Stroke="#2A4361" StrokeThickness="2"/>
+                            <Ellipse Width="50" Height="50" Fill="#0A1015"/>
+
+                            <TextBlock Text="N" Foreground="#98F019" FontSize="9" FontWeight="Bold"
+                       HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
+                            <TextBlock Text="E" Foreground="#555" FontSize="7"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="W" Foreground="#555" FontSize="7"
+                       HorizontalAlignment="Left" VerticalAlignment="Center" Margin="6,0,0,0"/>
+
+                            <Image x:Name="PlanDroneCompassIcon"
+                   Source="/Images/pl.png"
+                   Width="20" Height="20"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Margin="0,-4,0,0"
+                   RenderTransformOrigin="0.5,0.5"
+                   RenderOptions.BitmapScalingMode="HighQuality">
+                                <Image.RenderTransform>
+                                    <RotateTransform x:Name="PlanHeadingRotation" Angle="0"/>
+                                </Image.RenderTransform>
+                            </Image>
+
+                            <!-- Heading внутри круга снизу -->
+                            <Border Background="#DD060B1A" CornerRadius="3" Padding="4,1"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,3">
+                                <TextBlock x:Name="PlanHeadingText" Text="---°"
+                           Foreground="#98F019" FontSize="9" FontWeight="Bold"/>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+
                 <!-- Выбор карты (левый низ) -->
                 <StackPanel Orientation="Horizontal"
                             VerticalAlignment="Bottom" HorizontalAlignment="Left"
@@ -148,6 +220,16 @@
                             BorderBrush="#2298F019"
                             Click="DownloadMapButton_Click">
                         <TextBlock Text="📥" FontSize="14"/>
+                    </Button>
+                    <Button ToolTip="Скачать данные высот SRTM"
+        Width="32" Height="32"
+        Margin="4,0,0,0"
+        Background="#E6060B1A"
+        Foreground="White"
+        BorderThickness="1" 
+        BorderBrush="#2298F019"
+        Click="DownloadSRTM_Click">
+                        <TextBlock Text="🏔️" FontSize="14"/>
                     </Button>
                 </StackPanel>
 
@@ -201,7 +283,6 @@
             </Grid>
         </Border>
 
-        <!-- ==================== ПРАВАЯ ПАНЕЛЬ ТЕЛЕМЕТРИИ ==================== -->
         <!-- ==================== ПРАВАЯ ПАНЕЛЬ ТЕЛЕМЕТРИИ ==================== -->
         <Border Grid.Row="0" Grid.Column="1"
                 Background="{StaticResource DarkPanel}"
