@@ -95,7 +95,7 @@ namespace SimpleDroneGCS
 
                 var udpItem = new ComboBoxItem
                 {
-                    Content = "📡 UDP (14550)",
+                    Content = "📡 UDP",
                     Tag = "UDP"
                 };
                 ComPortComboBox.Items.Add(udpItem);
