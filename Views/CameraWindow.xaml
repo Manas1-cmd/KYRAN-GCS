@@ -1,0 +1,275 @@
+<Window x:Class="SimpleDroneGCS.Views.CameraWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        Title="Управление камерой — LOONG VT480R-35" 
+        Height="720" Width="1280"
+        Background="#0D1733"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <Style x:Key="CameraButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Background" Value="#1A2744"/>
+            <Setter Property="Foreground" Value="#98F019"/>
+            <Setter Property="BorderBrush" Value="#2A4361"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2A4361"/>
+                                <Setter Property="BorderBrush" Value="#98F019"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#98F019"/>
+                                <Setter Property="Foreground" Value="#0D1733"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HoldButton" TargetType="Button" BasedOn="{StaticResource CameraButton}">
+            <Setter Property="Background" Value="#1A3344"/>
+        </Style>
+
+        <Style x:Key="GroupHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#98F019"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+
+        <Style x:Key="InfoText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#8899AA"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="280"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Видео панель -->
+        <Grid Grid.Column="0" Background="#060B1A">
+            <vlc:VideoView x:Name="VideoView" 
+                           MouseLeftButtonDown="VideoView_MouseDown"/>
+
+            <!-- Углы подвеса -->
+            <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10">
+                <Border Background="#80000000" CornerRadius="4" Padding="8">
+                    <StackPanel>
+                        <TextBlock x:Name="YawText" Text="Курс: --" Foreground="#98F019" FontSize="12"/>
+                        <TextBlock x:Name="PitchText" Text="Тангаж: --" Foreground="#98F019" FontSize="12"/>
+                        <TextBlock x:Name="RollText" Text="Крен: --" Foreground="#98F019" FontSize="12"/>
+                        <TextBlock x:Name="DistanceText" Text="Дист: --" Foreground="#FF6633" FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Статус -->
+            <Border VerticalAlignment="Bottom" HorizontalAlignment="Left" 
+                    Background="#80000000" CornerRadius="4" Padding="8" Margin="10">
+                <TextBlock x:Name="StatusText" Text="Готов" Foreground="#AABBCC" FontSize="11"/>
+            </Border>
+
+            <!-- Перекрестие -->
+            <Grid IsHitTestVisible="False">
+                <Line X1="0" Y1="0.5" X2="1" Y2="0.5" 
+                      Stretch="Fill" Stroke="#4098F019" StrokeThickness="1"
+                      VerticalAlignment="Center"/>
+                <Line X1="0.5" Y1="0" X2="0.5" Y2="1" 
+                      Stretch="Fill" Stroke="#4098F019" StrokeThickness="1"
+                      HorizontalAlignment="Center"/>
+            </Grid>
+        </Grid>
+
+        <!-- Панель управления -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="10">
+
+                <!-- Подключение -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="ПОДКЛЮЧЕНИЕ" Style="{StaticResource GroupHeader}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="IpTextBox" Text="192.168.1.108" 
+                                     Background="#0D1733" Foreground="White" 
+                                     BorderBrush="#2A4361" Padding="8,6"
+                                     VerticalContentAlignment="Center"/>
+                            <Button x:Name="ConnectButton" Content="Подключить" 
+                                    Grid.Column="1" Style="{StaticResource CameraButton}"
+                                    Click="ConnectButton_Click" Width="95"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Управление подвесом -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="УПРАВЛЕНИЕ ПОДВЕСОМ" Style="{StaticResource GroupHeader}"/>
+                        <TextBlock Text="WASD или джойстик ниже" Style="{StaticResource InfoText}"/>
+
+                        <Canvas x:Name="JoystickArea" Width="150" Height="150" 
+                                Background="#0D1733" Margin="0,10"
+                                MouseLeftButtonDown="JoystickArea_MouseDown"
+                                MouseMove="JoystickArea_MouseMove"
+                                MouseLeftButtonUp="JoystickArea_MouseUp">
+                            <Ellipse Width="150" Height="150" 
+                                     Stroke="#2A4361" StrokeThickness="2" Fill="Transparent"/>
+                            <Ellipse Width="100" Height="100" Canvas.Left="25" Canvas.Top="25"
+                                     Stroke="#1A3344" StrokeThickness="1" Fill="Transparent"/>
+                            <Ellipse x:Name="JoystickThumb" Width="30" Height="30" 
+                                     Canvas.Left="60" Canvas.Top="60"
+                                     Fill="#98F019" Opacity="0.8"/>
+                        </Canvas>
+
+                        <UniformGrid Columns="2" Margin="0,5">
+                            <Button Content="⌂ Центр" Style="{StaticResource CameraButton}" 
+                                    Click="HomeButton_Click"/>
+                            <Button Content="↓ Вниз" Style="{StaticResource CameraButton}"
+                                    Click="LookDownButton_Click"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Зум и фокус -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="ЗУМ И ФОКУС" Style="{StaticResource GroupHeader}"/>
+                        <TextBlock Text="Удерживайте кнопки или +/−" Style="{StaticResource InfoText}"/>
+
+                        <UniformGrid Columns="3" Margin="0,5">
+                            <Button Content="➖" Style="{StaticResource HoldButton}"
+                                    PreviewMouseLeftButtonDown="ZoomOut_Down"
+                                    PreviewMouseLeftButtonUp="Zoom_Up"/>
+                            <Button Content="⬜ Стоп" Style="{StaticResource CameraButton}"
+                                    Click="ZoomStop_Click"/>
+                            <Button Content="➕" Style="{StaticResource HoldButton}"
+                                    PreviewMouseLeftButtonDown="ZoomIn_Down"
+                                    PreviewMouseLeftButtonUp="Zoom_Up"/>
+                        </UniformGrid>
+
+                        <Button Content="Автофокус" Style="{StaticResource CameraButton}"
+                                Click="AutoFocus_Click" Margin="0,5"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Фото и видео -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="СЪЁМКА" Style="{StaticResource GroupHeader}"/>
+                        <UniformGrid Columns="2" Margin="0,5">
+                            <Button Content="📷 Фото" Style="{StaticResource CameraButton}"
+                                    Click="Photo_Click"/>
+                            <Button x:Name="RecordButton" Content="⏺ Запись" 
+                                    Style="{StaticResource CameraButton}"
+                                    Click="Record_Click"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Источник видео -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="ИСТОЧНИК ВИДЕО" Style="{StaticResource GroupHeader}"/>
+                        <UniformGrid Columns="2" Margin="0,5">
+                            <Button Content="EO" Style="{StaticResource CameraButton}" Click="SensorEO_Click"/>
+                            <Button Content="ИК" Style="{StaticResource CameraButton}" Click="SensorIR_Click"/>
+                            <Button Content="EO+ИК PIP" Style="{StaticResource CameraButton}" Click="SensorPIP1_Click"/>
+                            <Button Content="ИК+EO PIP" Style="{StaticResource CameraButton}" Click="SensorPIP2_Click"/>
+                        </UniformGrid>
+                        <Button Content="Фьюжн" Style="{StaticResource CameraButton}" Click="SensorFusion_Click" Margin="0,2"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ИК палитра -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="ИК ПАЛИТРА" Style="{StaticResource GroupHeader}"/>
+                        <UniformGrid Columns="3" Margin="0,5">
+                            <Button Content="Белый" Style="{StaticResource CameraButton}" Click="IRWhite_Click"/>
+                            <Button Content="Чёрный" Style="{StaticResource CameraButton}" Click="IRBlack_Click"/>
+                            <Button Content="Радуга" Style="{StaticResource CameraButton}" Click="IRRainbow_Click"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Дальномер -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="ДАЛЬНОМЕР (LRF)" Style="{StaticResource GroupHeader}"/>
+                        <UniformGrid Columns="3" Margin="0,5">
+                            <Button Content="📍 Разово" Style="{StaticResource CameraButton}" Click="LRFSingle_Click"/>
+                            <Button Content="📡 Непрер." Style="{StaticResource CameraButton}" Click="LRFContinuous_Click"/>
+                            <Button Content="⬜ Стоп" Style="{StaticResource CameraButton}" Click="LRFStop_Click"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Трекинг -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="ТРЕКИНГ" Style="{StaticResource GroupHeader}"/>
+                        <TextBlock Text="Ctrl+Клик на видео для захвата" Style="{StaticResource InfoText}"/>
+                        <UniformGrid Columns="2" Margin="0,5">
+                            <Button Content="🎯 Поиск" Style="{StaticResource CameraButton}" Click="SearchMode_Click"/>
+                            <Button Content="⬜ Стоп" Style="{StaticResource CameraButton}" Click="StopTracking_Click"/>
+                        </UniformGrid>
+                        <Button Content="Вкл/Выкл AI" Style="{StaticResource CameraButton}" Click="ToggleAI_Click" Margin="0,2"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Горячие клавиши -->
+                <Border Background="#1A2744" CornerRadius="6" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="ГОРЯЧИЕ КЛАВИШИ" Style="{StaticResource GroupHeader}"/>
+                        <TextBlock Style="{StaticResource InfoText}">
+                            <Run Text="W/A/S/D" Foreground="#98F019"/> — управление подвесом
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource InfoText}">
+                            <Run Text="+/−" Foreground="#98F019"/> — зум
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource InfoText}">
+                            <Run Text="Пробел" Foreground="#98F019"/> — фото
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource InfoText}">
+                            <Run Text="R" Foreground="#98F019"/> — запись
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource InfoText}">
+                            <Run Text="H" Foreground="#98F019"/> — центр подвеса
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource InfoText}">
+                            <Run Text="L" Foreground="#98F019"/> — дальномер
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource InfoText}">
+                            <Run Text="Ctrl+Клик" Foreground="#98F019"/> — трекинг
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

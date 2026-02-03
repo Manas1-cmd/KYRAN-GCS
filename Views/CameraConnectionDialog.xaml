@@ -1,0 +1,250 @@
+<Window x:Class="SimpleDroneGCS.Views.CameraConnectionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Подключение камеры" 
+        Height="480" Width="450"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+        <!-- Тёмный стиль для ComboBox -->
+        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1A2744"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2A4361"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition/>
+                                                    <ColumnDefinition Width="20"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Grid.Column="0"/>
+                                                <Path Grid.Column="1" Data="M0,0 L4,4 L8,0" 
+                                                      Fill="White" 
+                                                      HorizontalAlignment="Center" 
+                                                      VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Margin="10,6,25,6"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"
+                                              IsHitTestVisible="False"/>
+                            <Popup x:Name="Popup"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   PopupAnimation="Slide"
+                                   Placement="Bottom">
+                                <Border x:Name="DropDownBorder"
+                                        Background="#1A2744"
+                                        BorderBrush="#2A4361"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        MinWidth="{TemplateBinding ActualWidth}"
+                                        MaxHeight="250">
+                                    <ScrollViewer>
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для элементов ComboBox -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#1A2744"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#2A4361"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#98F019"/>
+                                <Setter Property="Foreground" Value="#060B1A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#0D1733" CornerRadius="12" BorderThickness="2" BorderBrush="#2A4361">
+        <Grid Margin="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="60"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title Bar -->
+            <Border Grid.Row="0" Background="#0A1628" CornerRadius="12,12,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="15,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="📹" FontSize="16" Margin="0,0,10,0"/>
+                        <TextBlock Text="Подключение камеры" 
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Content="✕" HorizontalAlignment="Right" 
+                            Width="30" Height="30" 
+                            Background="Transparent" Foreground="#EF4444" 
+                            BorderThickness="0" FontSize="14"
+                            Click="CloseButton_Click" Cursor="Hand"/>
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <StackPanel Grid.Row="1" Margin="25,20">
+
+                <!-- Preset Selection -->
+                <TextBlock Text="Модель камеры:" Foreground="#9CA3AF" FontSize="12" Margin="0,0,0,6"/>
+                <ComboBox x:Name="PresetComboBox" Height="36" 
+                          Style="{StaticResource DarkComboBoxStyle}"
+                          FontSize="13"
+                          SelectionChanged="PresetComboBox_SelectionChanged">
+                    <ComboBoxItem Content="🔥 ViewPro A40TR-35 (AI + IR + LRF)" IsSelected="True" Tag="A40TR"/>
+                    <ComboBoxItem Content="ViewPro A40TR Pro" Tag="A40TRPro"/>
+                    <ComboBoxItem Content="ViewPro Q30TIR" Tag="Q30TIR"/>
+                    <ComboBoxItem Content="ViewPro U30TIR" Tag="U30TIR"/>
+                    <ComboBoxItem Content="Z30T" Tag="Z30T"/>
+                    <ComboBoxItem Content="Z30D" Tag="Z30D"/>
+                    <ComboBoxItem Content="Z40DT" Tag="Z40DT"/>
+                    <ComboBoxItem Content="Другая (ручной ввод)" Tag="Custom"/>
+                </ComboBox>
+
+                <!-- IP Address -->
+                <TextBlock Text="IP адрес камеры:" Foreground="#9CA3AF" FontSize="12" Margin="0,15,0,6"/>
+                <TextBox x:Name="IpAddressTextBox" Height="36" 
+                         Text="192.168.1.108"
+                         Background="#1A2744" Foreground="White" 
+                         BorderBrush="#2A4361" FontSize="14"
+                         Padding="10,8" VerticalContentAlignment="Center"
+                         TextChanged="IpAddress_TextChanged"/>
+
+                <!-- TCP Port -->
+                <Grid Margin="0,15,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="15"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="TCP порт (управление):" Foreground="#9CA3AF" FontSize="12" Margin="0,0,0,6"/>
+                        <TextBox x:Name="TcpPortTextBox" Height="36" 
+                                 Text="2000"
+                                 Background="#1A2744" Foreground="White" 
+                                 BorderBrush="#2A4361" FontSize="14"
+                                 Padding="10,8" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="RTSP порт (видео):" Foreground="#9CA3AF" FontSize="12" Margin="0,0,0,6"/>
+                        <TextBox x:Name="RtspPortTextBox" Height="36" 
+                                 Text=""
+                                 Background="#1A2744" Foreground="White" 
+                                 BorderBrush="#2A4361" FontSize="14"
+                                 Padding="10,8" VerticalContentAlignment="Center"
+                                 TextChanged="RtspPort_TextChanged"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- RTSP URL -->
+                <TextBlock Text="RTSP URL видеопотока:" Foreground="#9CA3AF" FontSize="12" Margin="0,15,0,6"/>
+                <TextBox x:Name="RtspUrlTextBox" Height="36" 
+                         Text="rtsp://192.168.1.108"
+                         Background="#1A2744" Foreground="White" 
+                         BorderBrush="#2A4361" FontSize="12"
+                         Padding="10,8" VerticalContentAlignment="Center"/>
+
+                <!-- Camera Info -->
+                <Border x:Name="CameraInfoBorder" Background="#0A1628" CornerRadius="8" 
+                        Padding="12" Margin="0,15,0,0">
+                    <StackPanel>
+                        <TextBlock x:Name="CameraInfoText" 
+                                   Text="📷 40x Zoom | 🔥 640×512 IR | 🎯 AI Tracking | 📏 LRF 3000m"
+                                   Foreground="#98F019" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+
+            <!-- Buttons -->
+            <Border Grid.Row="2" Background="#0A1628" CornerRadius="0,0,12,12">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="20,0">
+                    <Button x:Name="CancelButton" Content="Отмена" 
+                            Width="100" Height="36"
+                            Background="#374151" Foreground="White"
+                            BorderThickness="0" FontSize="13"
+                            Click="CancelButton_Click" Cursor="Hand" Margin="0,0,10,0">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="ConnectButton" Content="🔌 Подключить" 
+                            Width="130" Height="36"
+                            Background="#98F019" Foreground="#060B1A"
+                            BorderThickness="0" FontSize="13" FontWeight="SemiBold"
+                            Click="ConnectButton_Click" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#7ACC0E"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

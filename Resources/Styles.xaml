@@ -1,0 +1,380 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ==================== ЦВЕТОВАЯ ПАЛИТРА ==================== -->
+    <SolidColorBrush x:Key="SpaceBlack" Color="#060B1A"/>
+    <SolidColorBrush x:Key="DarkBlue" Color="#0D1733"/>
+    <SolidColorBrush x:Key="MidBlue" Color="#2A4361"/>
+    <SolidColorBrush x:Key="AcidGreen" Color="#98F019"/>
+    <SolidColorBrush x:Key="TextGray" Color="#9CA3AF"/>
+    <SolidColorBrush x:Key="White" Color="#FFFFFF"/>
+    
+    <!-- Алиасы -->
+    <SolidColorBrush x:Key="DarkBackground" Color="#060B1A"/>
+    <SolidColorBrush x:Key="DarkPanel" Color="#0D1733"/>
+    <SolidColorBrush x:Key="BlueGray" Color="#2A4361"/>
+    <SolidColorBrush x:Key="WhiteText" Color="#FFFFFF"/>
+
+    <!-- ==================== НАВИГАЦИОННЫЕ КНОПКИ ==================== -->
+    <Style x:Key="NavButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource BlueGray}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource DarkPanel}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="Width" Value="55"/>
+        <Setter Property="Height" Value="55"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="30">
+                        <ContentPresenter HorizontalAlignment="Center" 
+                                        VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BlueGray}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AcidGreen}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Активная навигационная кнопка -->
+    <Style x:Key="ActiveNavButtonStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+        <Setter Property="Background" Value="{StaticResource BlueGray}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AcidGreen}"/>
+    </Style>
+
+    <!-- ==================== COMBOBOX ==================== -->
+    
+    <!-- ToggleButton для ComboBox -->
+    <Style x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="35"/>
+                        </Grid.ColumnDefinitions>
+                        <!-- Стрелка -->
+                        <Path Grid.Column="1"
+                              x:Name="Arrow"
+                              Data="M 0 0 L 6 8 L 12 0 Z"
+                              Fill="{StaticResource AcidGreen}"
+                              Stretch="Uniform"
+                              Width="12" Height="8"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Стиль ComboBox -->
+    <Style x:Key="CustomComboBoxStyle" TargetType="ComboBox">
+        <Setter Property="Background" Value="{StaticResource BlueGray}"/>
+        <Setter Property="Foreground" Value="{StaticResource WhiteText}"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="MinWidth" Value="140"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="35"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Отображение выбранного элемента -->
+                                <ContentPresenter Grid.Column="0"
+                                                x:Name="ContentSite"
+                                                Content="{TemplateBinding SelectionBoxItem}"
+                                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                Margin="{TemplateBinding Padding}"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                IsHitTestVisible="False"/>
+                                
+                                <!-- ToggleButton для открытия -->
+                                <ToggleButton Grid.Column="0" Grid.ColumnSpan="2"
+                                            x:Name="ToggleButton"
+                                            Style="{StaticResource ComboBoxToggleButton}"
+                                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                            Focusable="False"
+                                            ClickMode="Press"/>
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Popup -->
+                        <Popup x:Name="PART_Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Slide"
+                               StaysOpen="False">
+                            <Border Background="{StaticResource DarkPanel}"
+                                    BorderBrush="{StaticResource AcidGreen}"
+                                    BorderThickness="2"
+                                    CornerRadius="8"
+                                    Margin="0,5,0,0"
+                                    MinWidth="{TemplateBinding ActualWidth}">
+                                <ScrollViewer MaxHeight="200"
+                                            VerticalScrollBarVisibility="Auto"
+                                            HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Компактный ComboBox для списка waypoints -->
+    <Style x:Key="CompactComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource CustomComboBoxStyle}">
+        <Setter Property="MinWidth" Value="80"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style x:Key="CustomComboBoxItemStyle" TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="{StaticResource DarkPanel}"/>
+        <Setter Property="Foreground" Value="{StaticResource WhiteText}"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BlueGray}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ==================== БЛОКИ ==================== -->
+    <Style x:Key="TelemetryBoxStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource MidBlue}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="12"/>
+    </Style>
+
+
+    <Style x:Key="TelemetryBoxSecondStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource DarkBlue}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="12"/>
+    </Style>
+
+
+    <Style x:Key="PanelStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource DarkBlue}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource MidBlue}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="10"/>
+    </Style>
+
+    <!-- ==================== КНОПКИ ==================== -->
+    <Style x:Key="ActivationButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource AcidGreen}"/>
+        <Setter Property="Foreground" Value="#000000"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Padding" Value="18"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ControlButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource AcidGreen}"/>
+        <Setter Property="Foreground" Value="{StaticResource DarkBlue}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BlueGray}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AcidGreen}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- КНОПКИ РЕЖИМОВ ПОЛЕТА (синие) -->
+    <Style x:Key="FlightModeButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="#1E3A5F"/>
+        <Setter Property="Foreground" Value="{StaticResource AcidGreen}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="BorderBrush" Value="#2A5A8F"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="8"
+                        Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#2A5A8F"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AcidGreen}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+
+    <Style x:Key="MissionButtonStyle" TargetType="Button" BasedOn="{StaticResource ControlButtonStyle}">
+        <Setter Property="Background" Value="{StaticResource AcidGreen}"/>
+        <Setter Property="Foreground" Value="#000000"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <Style x:Key="DroneButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource MidBlue}"/>
+        <Setter Property="Foreground" Value="{StaticResource White}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="15,8"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#3A5672"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GreenButtonStyle" TargetType="Button" BasedOn="{StaticResource DroneButtonStyle}">
+        <Setter Property="Background" Value="{StaticResource AcidGreen}"/>
+        <Setter Property="Foreground" Value="#000000"/>
+    </Style>
+
+    <!-- ==================== ТЕКСТ ==================== -->
+    <Style x:Key="LabelTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="ValueTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource White}"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="BigValueTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource AcidGreen}"/>
+        <Setter Property="FontSize" Value="28"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <!-- ==================== КНОПКИ ТАБЛИЦЫ МЕТОК ==================== -->
+    
+    <!-- Стиль для кнопок действий в таблице (вверх/вниз) -->
+    <Style x:Key="WaypointActionButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="#3E4553"/>
+        <Setter Property="BorderBrush" Value="#323741"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Width" Value="30"/>
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6">
+                        <ContentPresenter HorizontalAlignment="Center" 
+                                        VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#4A5264"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Стиль для кнопки удалить -->
+    <Style x:Key="WaypointDeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource WaypointActionButtonStyle}">
+        <Setter Property="Background" Value="#EF4444"/>
+        <Setter Property="BorderBrush" Value="#DC2626"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#F87171"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>
