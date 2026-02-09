@@ -28,6 +28,7 @@ namespace SimpleDroneGCS.Services
         private bool _isUdpMode;
         private CancellationTokenSource _udpCts;
         private bool _udpWaitingForFirstPacket; // Флаг ожидания первого пакета
+        private bool _heartbeatReceived = false; // Флаг получения первого HEARTBEAT
         // ===========================
         private CancellationTokenSource _cts;
         private MavlinkParse _parser;
@@ -137,7 +138,6 @@ namespace SimpleDroneGCS.Services
                 StartConnectionTimeoutCheck();
 
                 ConnectionStatusChanged?.Invoke(this, "UDP: Ожидание дрона...");
-                ConnectionStatusChanged_Bool?.Invoke(this, true);
 
                 Debug.WriteLine($"[UDP] ✅ Server mode: listening on {localIp}:{localPort}");
                 return true;
@@ -179,7 +179,6 @@ namespace SimpleDroneGCS.Services
                 StartConnectionTimeoutCheck();
 
                 ConnectionStatusChanged?.Invoke(this, "Подключено (UDP)");
-                ConnectionStatusChanged_Bool?.Invoke(this, true);
 
                 Debug.WriteLine($"[UDP] ✅ Client mode: {hostIp}:{hostPort}, local: {localIp}:{localPort}");
                 return true;
@@ -364,6 +363,7 @@ namespace SimpleDroneGCS.Services
             IsConnected = false;
             _isUdpMode = false;
             _udpWaitingForFirstPacket = false;
+            _heartbeatReceived = false;
             _connectionStartTime = DateTime.MinValue;
             DroneStatus.IsConnected = false;
             DroneStatus.LastHeartbeat = DateTime.MinValue;
@@ -773,6 +773,15 @@ namespace SimpleDroneGCS.Services
             DroneStatus.Autopilot = heartbeat.autopilot;
             DroneStatus.Type = heartbeat.type;
             DroneStatus.LastHeartbeat = DateTime.Now;
+
+            // Первый HEARTBEAT = реальное подключение к дрону
+            if (!_heartbeatReceived)
+            {
+                _heartbeatReceived = true;
+                ConnectionStatusChanged?.Invoke(this, "Подключено");
+                ConnectionStatusChanged_Bool?.Invoke(this, true);
+                Debug.WriteLine("[MAVLink] ✅ Первый HEARTBEAT получен - дрон подключен!");
+            }
 
             CurrentTelemetry.FlightMode = GetFlightModeName(heartbeat.custom_mode);
         }

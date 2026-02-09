@@ -1116,29 +1116,28 @@ namespace SimpleDroneGCS.Views
                 if (_landingCircle == null) InitializeLandingCircle();
             }
 
+            // СТАЛО:
             // === Вход в первую точку ===
             if (isVTOL && _startCircle != null)
             {
-                // VTOL: вход от StartCircle (S — это и есть "первая точка" маршрута)
                 var firstWp = _waypoints[0];
-                var tangentPoints = GetExternalTangentPoints(
+                var tangent = GetExternalTangentPoints(
                     _startCircle.Latitude, _startCircle.Longitude, _startCircle.Radius, _startCircle.Clockwise,
                     firstWp.Latitude, firstWp.Longitude, firstWp.Radius, firstWp.Clockwise);
-                entryPoints[0] = tangentPoints.Item2;
+                entryPoints[0] = tangent.Item2;  // Точка входа = куда приходит касательная от S
             }
             else if (_homePosition != null)
             {
-                // Обычный режим: HOME → WP1
                 var homePoint = new PointLatLng(_homePosition.Latitude, _homePosition.Longitude);
                 var firstWp = _waypoints[0];
 
-                var tangentPoints = GetExternalTangentPoints(
-                    _homePosition.Latitude, _homePosition.Longitude, 0, true,
-                    firstWp.Latitude, firstWp.Longitude, firstWp.Radius, firstWp.Clockwise);
+                var edgeWp = GetNearEdgePoint(
+                    firstWp.Latitude, firstWp.Longitude, firstWp.Radius,
+                    _homePosition.Latitude, _homePosition.Longitude);
 
-                entryPoints[0] = tangentPoints.Item2;
+                entryPoints[0] = edgeWp;
 
-                var homeRoute = new GMapRoute(new List<PointLatLng> { homePoint, tangentPoints.Item2 });
+                var homeRoute = new GMapRoute(new List<PointLatLng> { homePoint, edgeWp });
                 homeRoute.Shape = new Path
                 {
                     Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
@@ -1174,31 +1173,30 @@ namespace SimpleDroneGCS.Views
                 PlanMap.Markers.Add(segmentRoute);
             }
 
+            // СТАЛО:
             // === Выход из последней точки ===
             if (isVTOL && _landingCircle != null && _waypoints.Count > 0)
             {
-                // VTOL: выход к LandingCircle (L — это и есть "последняя точка" маршрута)
                 int lastIdx = _waypoints.Count - 1;
                 var lastWp = _waypoints[lastIdx];
-                var tangentPoints = GetExternalTangentPoints(
+                var tangent = GetExternalTangentPoints(
                     lastWp.Latitude, lastWp.Longitude, lastWp.Radius, lastWp.Clockwise,
                     _landingCircle.Latitude, _landingCircle.Longitude, _landingCircle.Radius, _landingCircle.Clockwise);
-                exitPoints[lastIdx] = tangentPoints.Item1;
+                exitPoints[lastIdx] = tangent.Item1;  // Точка выхода = откуда уходит касательная к L
             }
             else if (_homePosition != null && _waypoints.Count > 0)
             {
-                // Обычный режим: WPN → HOME
                 int lastIdx = _waypoints.Count - 1;
                 var lastWp = _waypoints[lastIdx];
                 var homePoint = new PointLatLng(_homePosition.Latitude, _homePosition.Longitude);
 
-                var tangentPoints = GetExternalTangentPoints(
-                    lastWp.Latitude, lastWp.Longitude, lastWp.Radius, lastWp.Clockwise,
-                    _homePosition.Latitude, _homePosition.Longitude, 0, true);
+                var edgeWp = GetNearEdgePoint(
+                    lastWp.Latitude, lastWp.Longitude, lastWp.Radius,
+                    _homePosition.Latitude, _homePosition.Longitude);
 
-                exitPoints[lastIdx] = tangentPoints.Item1;
+                exitPoints[lastIdx] = edgeWp;
 
-                var returnRoute = new GMapRoute(new List<PointLatLng> { tangentPoints.Item1, homePoint });
+                var returnRoute = new GMapRoute(new List<PointLatLng> { edgeWp, homePoint });
                 returnRoute.Shape = new Path
                 {
                     Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
@@ -1247,24 +1245,23 @@ namespace SimpleDroneGCS.Views
             if (_landingCircle == null) InitializeLandingCircle();
             if (_startCircle == null || _landingCircle == null) return;
 
-            var yellow = Color.FromRgb(250, 204, 21);
-            var orange = Color.FromRgb(249, 115, 22);
+            var cyan = Color.FromRgb(34, 211, 238);    // #22D3EE — Start
+            var pink = Color.FromRgb(244, 114, 182);   // #F472B6 — Landing  
             var green = Color.FromRgb(152, 240, 25);
 
             // === Маркеры S и L — создаём ТОЛЬКО если нет, иначе обновляем размер ===
             if (_startCircle.Marker == null || !PlanMap.Markers.Contains(_startCircle.Marker))
             {
-                AddSpecialCircleMarker(_startCircle, "S", yellow, Color.FromRgb(161, 98, 7));
+                AddSpecialCircleMarker(_startCircle, "S", cyan, Color.FromRgb(14, 116, 144));
             }
             else
             {
-                // Обновляем размер существующего маркера
                 UpdateSpecialCircleSize(_startCircle, "S");
             }
 
             if (_landingCircle.Marker == null || !PlanMap.Markers.Contains(_landingCircle.Marker))
             {
-                AddSpecialCircleMarker(_landingCircle, "L", orange, Color.FromRgb(194, 65, 12));
+                AddSpecialCircleMarker(_landingCircle, "L", pink, Color.FromRgb(190, 24, 93));
             }
             else
             {
@@ -1275,7 +1272,7 @@ namespace SimpleDroneGCS.Views
             PointLatLng? sEntry = null, sExit = null;
             PointLatLng? lEntry = null, lExit = null;
 
-            // === HOME → S (пунктирная жёлтая, по касательной к S) ===
+            // === HOME → S (касательная, HOME как точка с радиусом 0) ===
             if (_homePosition != null)
             {
                 var homePos = new PointLatLng(_homePosition.Latitude, _homePosition.Longitude);
@@ -1283,10 +1280,10 @@ namespace SimpleDroneGCS.Views
                     _homePosition.Latitude, _homePosition.Longitude, 0, true,
                     _startCircle.Latitude, _startCircle.Longitude, _startCircle.Radius, _startCircle.Clockwise);
                 sEntry = tangent.Item2;
-                DrawVtolLine(homePos, tangent.Item2, yellow, true);
+                DrawVtolLine(homePos, tangent.Item2, cyan, true);
             }
 
-            // === S → WP1 (зелёная, по касательной от S к WP1) ===
+            // === S → WP1 (касательная, как между WP↔WP) ===
             if (_waypoints.Count > 0)
             {
                 var wp1 = _waypoints[0];
@@ -1294,11 +1291,10 @@ namespace SimpleDroneGCS.Views
                     _startCircle.Latitude, _startCircle.Longitude, _startCircle.Radius, _startCircle.Clockwise,
                     wp1.Latitude, wp1.Longitude, wp1.Radius, wp1.Clockwise);
                 sExit = tangent.Item1;
-                // Обновляем entry первого WP если ещё не задан в основном маршруте
                 DrawVtolLine(tangent.Item1, tangent.Item2, green, false);
             }
 
-            // === WPN → L (оранжевая, по касательной от WPN к L) ===
+            // === WPN → L (касательная, как между WP↔WP) ===
             if (_waypoints.Count > 0)
             {
                 var wpN = _waypoints[^1];
@@ -1306,10 +1302,10 @@ namespace SimpleDroneGCS.Views
                     wpN.Latitude, wpN.Longitude, wpN.Radius, wpN.Clockwise,
                     _landingCircle.Latitude, _landingCircle.Longitude, _landingCircle.Radius, _landingCircle.Clockwise);
                 lEntry = tangent.Item2;
-                DrawVtolLine(tangent.Item1, tangent.Item2, orange, false);
+                DrawVtolLine(tangent.Item1, tangent.Item2, pink, false);
             }
 
-            // === L → HOME (пунктирная оранжевая, по касательной от L) ===
+            // === L → HOME (касательная, HOME как точка с радиусом 0) ===
             if (_homePosition != null)
             {
                 var homePos = new PointLatLng(_homePosition.Latitude, _homePosition.Longitude);
@@ -1317,7 +1313,7 @@ namespace SimpleDroneGCS.Views
                     _landingCircle.Latitude, _landingCircle.Longitude, _landingCircle.Radius, _landingCircle.Clockwise,
                     _homePosition.Latitude, _homePosition.Longitude, 0, true);
                 lExit = tangent.Item1;
-                DrawVtolLine(tangent.Item1, homePos, orange, true);
+                DrawVtolLine(tangent.Item1, homePos, pink, true);
             }
 
             // === Дуги на S и L ===
@@ -1640,8 +1636,8 @@ namespace SimpleDroneGCS.Views
                 }
 
                 // Внешняя: tangentAngle вычитается
-                double exitAngle = bearing + exitOffset - tangentAngle;
-                double entryAngle = bearing + entryOffset - tangentAngle;
+                double exitAngle = bearing + exitOffset + tangentAngle;
+                double entryAngle = bearing + entryOffset + tangentAngle;
 
                 return (
                     CalculatePointAtDistance(lat1, lon1, exitAngle, r1 / 1000.0),
@@ -1682,7 +1678,16 @@ namespace SimpleDroneGCS.Views
         }
 
 
-        
+        /// <summary>
+        /// Ближайшая точка на краю круга со стороны внешней точки
+        /// </summary>
+        private PointLatLng GetNearEdgePoint(double circleLat, double circleLon, double circleRadius,
+                                              double pointLat, double pointLon)
+        {
+            double bearing = CalculateBearing(circleLat, circleLon, pointLat, pointLon);
+            return CalculatePointAtDistance(circleLat, circleLon, bearing, circleRadius / 1000.0);
+        }
+
 
         /// <summary>
         /// Обновить маршрут БЕЗ автосоздания HOME
@@ -1711,26 +1716,26 @@ namespace SimpleDroneGCS.Views
             }
 
             // Вход в первую точку
+            // СТАЛО:
             if (isVTOL && _startCircle != null)
             {
                 var firstWp = _waypoints[0];
-                var tangentPoints = GetExternalTangentPoints(
-                    _startCircle.Latitude, _startCircle.Longitude, _startCircle.Radius, _startCircle.Clockwise,
-                    firstWp.Latitude, firstWp.Longitude, firstWp.Radius, firstWp.Clockwise);
-                entryPoints[0] = tangentPoints.Item2;
+                entryPoints[0] = GetNearEdgePoint(
+                    firstWp.Latitude, firstWp.Longitude, firstWp.Radius,
+                    _startCircle.Latitude, _startCircle.Longitude);
             }
             else if (_homePosition != null)
             {
                 var homePoint = new PointLatLng(_homePosition.Latitude, _homePosition.Longitude);
                 var firstWp = _waypoints[0];
 
-                var tangentPoints = GetExternalTangentPoints(
-                    _homePosition.Latitude, _homePosition.Longitude, 0, true,
-                    firstWp.Latitude, firstWp.Longitude, firstWp.Radius, firstWp.Clockwise);
+                var edgeWp = GetNearEdgePoint(
+                    firstWp.Latitude, firstWp.Longitude, firstWp.Radius,
+                    _homePosition.Latitude, _homePosition.Longitude);
 
-                entryPoints[0] = tangentPoints.Item2;
+                entryPoints[0] = edgeWp;
 
-                var homeRoute = new GMapRoute(new List<PointLatLng> { homePoint, tangentPoints.Item2 });
+                var homeRoute = new GMapRoute(new List<PointLatLng> { homePoint, edgeWp });
                 homeRoute.Shape = new Path
                 {
                     Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
@@ -1782,13 +1787,13 @@ namespace SimpleDroneGCS.Views
                 var lastWp = _waypoints[lastIdx];
                 var homePoint = new PointLatLng(_homePosition.Latitude, _homePosition.Longitude);
 
-                var tangentPoints = GetExternalTangentPoints(
-                    lastWp.Latitude, lastWp.Longitude, lastWp.Radius, lastWp.Clockwise,
-                    _homePosition.Latitude, _homePosition.Longitude, 0, true);
+                var edgeWp = GetNearEdgePoint(
+                    lastWp.Latitude, lastWp.Longitude, lastWp.Radius,
+                    _homePosition.Latitude, _homePosition.Longitude);
 
-                exitPoints[lastIdx] = tangentPoints.Item1;
+                exitPoints[lastIdx] = edgeWp;
 
-                var returnRoute = new GMapRoute(new List<PointLatLng> { tangentPoints.Item1, homePoint });
+                var returnRoute = new GMapRoute(new List<PointLatLng> { edgeWp, homePoint });
                 returnRoute.Shape = new Path
                 {
                     Stroke = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
@@ -1966,11 +1971,17 @@ namespace SimpleDroneGCS.Views
             UpdateMissionStrip();
         }
 
+
+
         #region MISSION STRIP — S/L карточки в нижней панели
 
         /// <summary>
         /// Обновить видимость карточек S и L в нижней панели
         /// </summary>
+        /// 
+
+        
+
         private void UpdateMissionStrip()
         {
             bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
@@ -1979,7 +1990,8 @@ namespace SimpleDroneGCS.Views
             var vis = isVtol ? Visibility.Visible : Visibility.Collapsed;
 
             if (StartCircleCard != null) StartCircleCard.Visibility = vis;
-            if (LandingCircleCard != null) LandingCircleCard.Visibility = vis;
+            if (LandingCircleCard != null) LandingCircleCard.Visibility = vis; 
+            if (ArrowAfterTakeoff != null) ArrowAfterTakeoff.Visibility = isVtol ? Visibility.Collapsed : Visibility.Visible;
             if (ArrowAfterTakeoffVtol != null) ArrowAfterTakeoffVtol.Visibility = vis;
             if (ArrowAfterStart != null) ArrowAfterStart.Visibility = vis;
             if (ArrowBeforeLand != null) ArrowBeforeLand.Visibility = vis;
@@ -1989,14 +2001,12 @@ namespace SimpleDroneGCS.Views
             {
                 if (StartCircleInfo != null && _startCircle != null)
                 {
-                    string sLoiter = _startCircle.AutoNext ? "авто" : "⟳ ждёт";
-                    StartCircleInfo.Text = $"{_startCircle.Radius:F0}м · {sLoiter}";
+                    StartCircleInfo.Text = $"· {_startCircle.Radius:F0}м";
                 }
 
                 if (LandingCircleInfo != null && _landingCircle != null)
                 {
-                    string lLoiter = _landingCircle.AutoNext ? "авто" : "⟳ ждёт";
-                    LandingCircleInfo.Text = $"{_landingCircle.Radius:F0}м · {lLoiter}";
+                    LandingCircleInfo.Text = $"· {_landingCircle.Radius:F0}м";
                 }
             }
 
@@ -2103,257 +2113,83 @@ namespace SimpleDroneGCS.Views
         /// <summary>
         /// Создание карточки waypoint
         /// </summary>
+        /// <summary>
+        /// Создание КОМПАКТНОЙ карточки waypoint (минималистичный дизайн)
+        /// </summary>
         private Border CreateWaypointCard(WaypointItem wp)
         {
             var card = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(13, 23, 51)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                BorderThickness = new Thickness(2),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(42, 67, 97)),
+                BorderThickness = new Thickness(1.5),
                 CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(10, 8, 10, 8),
-                MinWidth = 160,
-                Cursor = Cursors.Hand
+                Padding = new Thickness(3, 3, 8, 3),
+                Margin = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Tag = wp.Number
             };
 
-            var mainStack = new StackPanel { Orientation = Orientation.Vertical };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-            // === Верхняя строка: Номер + Команда + Удалить ===
-            var topRow = new StackPanel { Orientation = Orientation.Horizontal };
-
-            // Номер в кружке
+            // Номер
             var numBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                CornerRadius = new CornerRadius(11),
-                Width = 22,
-                Height = 22,
+                CornerRadius = new CornerRadius(12),
+                Width = 24,
+                Height = 24,
                 Margin = new Thickness(0, 0, 6, 0)
             };
             numBorder.Child = new TextBlock
             {
                 Text = wp.Number.ToString(),
-                Foreground = Brushes.Black,
+                Foreground = new SolidColorBrush(Color.FromRgb(6, 11, 26)),
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            topRow.Children.Add(numBorder);
+            row.Children.Add(numBorder);
 
-            // Команда ComboBox
-            var cmdCombo = new ComboBox
+            // Координаты
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            row.Children.Add(new TextBlock
             {
-                Height = 22,
-                FontSize = 10,
-                MinWidth = 75,
-                Margin = new Thickness(0, 0, 6, 0),
-                Tag = wp
-            };
-            if (Application.Current.TryFindResource("CompactComboBoxStyle") is Style s)
-                cmdCombo.Style = s;
+                Text = $"Ш: {wp.Latitude.ToString("F2", inv)} ► {wp.Longitude.ToString("F2", inv)}",
+                Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center
+            });
 
-            var commands = GetCommandsForVehicleType();
-            int selIdx = 0;
-            for (int i = 0; i < commands.Length; i++)
-            {
-                cmdCombo.Items.Add(new ComboBoxItem { Content = commands[i].Name, Tag = commands[i].Value });
-                if (commands[i].Value == wp.CommandType) selIdx = i;
-            }
-            cmdCombo.SelectedIndex = selIdx;
-            cmdCombo.SelectionChanged += (sender, e) =>
-            {
-                if (cmdCombo.SelectedItem is ComboBoxItem item)
-                    wp.CommandType = item.Tag?.ToString() ?? "WAYPOINT";
-            };
-            topRow.Children.Add(cmdCombo);
-
-            // Кнопка удаления
+            // Крестик удаления
             var delBtn = new TextBlock
             {
                 Text = "✕",
-                FontSize = 14,
-                Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                 Cursor = Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 0, 0, 0)
+                Margin = new Thickness(6, 0, 0, 0),
+                ToolTip = "Удалить точку"
             };
-            delBtn.MouseLeftButtonDown += (sender, e) =>
+            delBtn.MouseEnter += (s, e) => delBtn.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+            delBtn.MouseLeave += (s, e) => delBtn.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+            delBtn.MouseLeftButtonDown += (s, e) =>
             {
                 e.Handled = true;
                 RemoveWaypoint(wp);
             };
-            topRow.Children.Add(delBtn);
+            row.Children.Add(delBtn);
 
-            mainStack.Children.Add(topRow);
+            card.Child = row;
 
-            // === Строка координат: ШИР + ДОЛ ===
-            var coordRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 6, 0, 0)
-            };
-
-            // Широта
-            coordRow.Children.Add(new TextBlock
-            {
-                Text = "ШИР:",
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            coordRow.Children.Add(new TextBlock
-            {
-                Text = wp.Latitude.ToString("F5"),
-                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
-                FontSize = 9,
-                Margin = new Thickness(2, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            // Долгота
-            coordRow.Children.Add(new TextBlock
-            {
-                Text = "ДОЛ:",
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            coordRow.Children.Add(new TextBlock
-            {
-                Text = wp.Longitude.ToString("F5"),
-                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
-                FontSize = 9,
-                Margin = new Thickness(2, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            mainStack.Children.Add(coordRow);
-
-            // === Строка параметров: В + Р ===
-            var paramsRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 4, 0, 0)
-            };
-
-            // Высота
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = "В:",
-                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
-                FontSize = 10,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = wp.Altitude.ToString("F0") + "м",
-                Foreground = Brushes.White,
-                FontSize = 10,
-                Margin = new Thickness(2, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            // Радиус
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = "Р:",
-                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
-                FontSize = 10,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = wp.Radius.ToString("F0") + "м",
-                Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                FontSize = 10,
-                Margin = new Thickness(2, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            // Задержка
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = "⏱:",
-                Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)),
-                FontSize = 10,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = wp.Delay.ToString("F0") + "с",
-                Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)),
-                FontSize = 10,
-                Margin = new Thickness(2, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            // Круги (если > 0)
-            if (wp.LoiterTurns > 0)
-            {
-                paramsRow.Children.Add(new TextBlock
-                {
-                    Text = "↻:",
-                    Foreground = new SolidColorBrush(Color.FromRgb(96, 165, 250)),
-                    FontSize = 10,
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-                paramsRow.Children.Add(new TextBlock
-                {
-                    Text = wp.LoiterTurns.ToString(),
-                    Foreground = new SolidColorBrush(Color.FromRgb(96, 165, 250)),
-                    FontSize = 10,
-                    Margin = new Thickness(2, 0, 8, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-            }
-
-            // === ИНДИКАТОР AUTONEXT ===
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = wp.AutoNext ? "▶" : "⟳",
-                Foreground = wp.AutoNext 
-                    ? new SolidColorBrush(Color.FromRgb(74, 222, 128))   // Зелёный - лети дальше
-                    : new SolidColorBrush(Color.FromRgb(251, 191, 36)),  // Жёлтый - кружи
-                FontSize = 12,
-                FontWeight = FontWeights.Bold,
-                ToolTip = wp.AutoNext 
-                    ? "Авто-переход к следующей точке" 
-                    : "Кружит на месте (ожидание команды)",
-                Margin = new Thickness(4, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            // === ИНДИКАТОР НАПРАВЛЕНИЯ CW/CCW ===
-            paramsRow.Children.Add(new TextBlock
-            {
-                Text = wp.Clockwise ? "↻" : "↺",
-                Foreground = wp.Clockwise 
-                    ? new SolidColorBrush(Color.FromRgb(96, 165, 250))   // Синий - CW
-                    : new SolidColorBrush(Color.FromRgb(248, 113, 113)), // Красный - CCW
-                FontSize = 12,
-                FontWeight = FontWeights.Bold,
-                ToolTip = wp.Clockwise 
-                    ? "По часовой стрелке (CW)" 
-                    : "Против часовой стрелки (CCW)",
-                Margin = new Thickness(4, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            mainStack.Children.Add(paramsRow);
-
-            card.Child = mainStack;
-
-            // КЛИК - открыть диалог редактирования
-            card.MouseLeftButtonDown += (sender, e) =>
+            card.MouseLeftButtonDown += (s, e) =>
             {
                 if (e.OriginalSource is TextBlock tb && tb.Text == "✕") return;
                 e.Handled = true;
-                
-                // Показать радиус и центрировать на карте
                 SelectWaypoint(wp);
                 PlanMap.Position = new PointLatLng(wp.Latitude, wp.Longitude);
-                
                 OpenWaypointEditDialog(wp);
             };
 
@@ -4790,6 +4626,30 @@ namespace SimpleDroneGCS.Views
             // Высота и скорость
             if (AltitudeValue != null)
                 AltitudeValue.Text = $"{telemetry.Altitude:F1} м";
+            if (AltitudeMslValue != null)
+                AltitudeMslValue.Text = $"{telemetry.Altitude:F1} м";
+
+            // Универсальный показатель: Airspeed для VTOL, ClimbRate для коптера
+            if (SecondarySpeedValue != null && SecondarySpeedLabel != null)
+            {
+                if (_currentVehicleType == VehicleType.QuadPlane)
+                {
+                    SecondarySpeedLabel.Text = "Возд. ск.";
+                    SecondarySpeedValue.Text = $"{telemetry.Airspeed:F1} м/с";
+                    SecondarySpeedValue.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238)); // #22D3EE голубой
+                }
+                else
+                {
+                    SecondarySpeedLabel.Text = "Верт. ск.";
+                    string sign = telemetry.ClimbRate >= 0 ? "+" : "";
+                    SecondarySpeedValue.Text = $"{sign}{telemetry.ClimbRate:F1} м/с";
+                    SecondarySpeedValue.Foreground = new SolidColorBrush(
+                        telemetry.ClimbRate > 0.5 ? Color.FromRgb(74, 222, 128) :    // зелёный ↑
+                        telemetry.ClimbRate < -0.5 ? Color.FromRgb(251, 146, 60) :   // оранжевый ↓
+                        Color.FromRgb(156, 163, 175));                                // серый (висит)
+                }
+            }
+
             if (SpeedValue != null)
                 SpeedValue.Text = $"{telemetry.GroundSpeed:F1} м/с";
 
@@ -4853,10 +4713,12 @@ namespace SimpleDroneGCS.Views
 
         private void UpdateMotorValues(Telemetry telemetry)
         {
-            if (Motor1Value != null) Motor1Value.Text = $"{telemetry.Motor1Percent}%";
-            if (Motor2Value != null) Motor2Value.Text = $"{telemetry.Motor2Percent}%";
-            if (Motor3Value != null) Motor3Value.Text = $"{telemetry.Motor3Percent}%";
-            if (Motor4Value != null) Motor4Value.Text = $"{telemetry.Motor4Percent}%";
+            // Мультиротор (среднее от 4 моторов)
+            if (MultirotorValue != null)
+            {
+                int avgMotor = (telemetry.Motor1Percent + telemetry.Motor2Percent + telemetry.Motor3Percent + telemetry.Motor4Percent) / 4;
+                MultirotorValue.Text = $"{avgMotor}%";
+            }
             if (PusherMotorValue != null) PusherMotorValue.Text = $"{telemetry.PusherPercent}%";
         }
 

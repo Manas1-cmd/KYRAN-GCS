@@ -18,9 +18,6 @@ namespace SimpleDroneGCS
 {
     public partial class MainWindow : Window
     {
-        private DispatcherTimer _comPortRefreshTimer;
-        private string _selectedComPort = null;
-        private int _selectedBaudRate = 57600;
         private bool _isConnected = false;
         private Button _activeNavButton = null;
 
@@ -38,8 +35,6 @@ namespace SimpleDroneGCS
             System.Diagnostics.Debug.WriteLine("[MainWindow] InitializeComponent completed");
 
             InitializeMAVLink();
-            InitializeComPorts();
-            SetupComPortAutoRefresh();
             NavigateToPage(FlightPlanButton);
         }
 
@@ -64,193 +59,7 @@ namespace SimpleDroneGCS
             // Данные обновляются автоматически через MAVLink.CurrentTelemetry
         }
 
-        #region COM PORT
-
-        private Dictionary<string, string> _comPortDescriptions = new Dictionary<string, string>();
-        private DateTime _lastWmiScan = DateTime.MinValue;
-
-        private void InitializeComPorts()
-        {
-            RefreshComPortsList(false);
-        }
-
-        private void RefreshComPortsList(bool autoSelect)
-        {
-            try
-            {
-                var ports = SerialPort.GetPortNames().OrderBy(p => p).ToArray();
-                string currentSelection = _selectedComPort;
-
-                var selectedItem = ComPortComboBox.SelectedItem as ComboBoxItem;
-                string previousSelection = selectedItem?.Content?.ToString();
-
-                ComPortComboBox.Items.Clear();
-
-                var placeholderItem = new ComboBoxItem
-                {
-                    Content = "COM Порт",
-                    Tag = "placeholder"
-                };
-                ComPortComboBox.Items.Add(placeholderItem);
-
-                var udpItem = new ComboBoxItem
-                {
-                    Content = "📡 UDP",
-                    Tag = "UDP"
-                };
-                ComPortComboBox.Items.Add(udpItem);
-
-                ComboBoxItem itemToSelect = null;
-                foreach (var port in ports)
-                {
-                    string fullDescription = GetComPortDescription(port);
-
-                    var item = new ComboBoxItem
-                    {
-                        Content = fullDescription,
-                        Tag = port
-                    };
-                    ComPortComboBox.Items.Add(item);
-
-                    if (port == previousSelection || port == currentSelection)
-                    {
-                        itemToSelect = item;
-                    }
-                }
-
-                if (itemToSelect != null && ports.Contains(itemToSelect.Tag?.ToString()))
-                {
-                    ComPortComboBox.SelectedItem = itemToSelect;
-                }
-                else if (ports.Length > 0 && autoSelect)
-                {
-                    ComPortComboBox.SelectedIndex = 1;
-                }
-                else if (!ports.Contains(previousSelection) && previousSelection != "COM Порт")
-                {
-                    ComPortComboBox.SelectedIndex = 0;
-                    _selectedComPort = null;
-                }
-                else
-                {
-                    ComPortComboBox.SelectedIndex = 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Ошибка обновления COM портов: {ex.Message}");
-            }
-        }
-
-        private string GetComPortDescription(string portName)
-        {
-            if ((DateTime.Now - _lastWmiScan).TotalSeconds > 10 || _comPortDescriptions.Count == 0)
-            {
-                RefreshComPortDescriptions();
-            }
-
-            return _comPortDescriptions.ContainsKey(portName)
-                ? _comPortDescriptions[portName]
-                : portName;
-        }
-
-        private void RefreshComPortDescriptions()
-        {
-            _lastWmiScan = DateTime.Now;
-            _comPortDescriptions.Clear();
-
-            var allPorts = SerialPort.GetPortNames();
-            foreach (var port in allPorts)
-            {
-                _comPortDescriptions[port] = port;
-            }
-
-            Task.Run(() =>
-            {
-                try
-                {
-                    using (var searcher = new ManagementObjectSearcher(
-                        "SELECT * FROM Win32_PnPEntity WHERE Caption LIKE '%(COM%'"))
-                    {
-                        foreach (ManagementObject obj in searcher.Get())
-                        {
-                            string caption = obj["Caption"]?.ToString();
-                            if (caption != null && caption.Contains("COM"))
-                            {
-                                var match = System.Text.RegularExpressions.Regex.Match(caption, @"COM\d+");
-                                if (match.Success)
-                                {
-                                    string portName = match.Value;
-
-                                    Dispatcher.Invoke(() =>
-                                    {
-                                        if (_comPortDescriptions.ContainsKey(portName))
-                                        {
-                                            _comPortDescriptions[portName] = caption;
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ WMI ошибка: {ex.Message}");
-                }
-            });
-        }
-
-        private void ComPortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (ComPortComboBox.SelectedItem is ComboBoxItem item)
-            {
-                string portTag = item.Tag?.ToString();
-
-                if (string.IsNullOrEmpty(portTag) || portTag == "placeholder")
-                {
-                    _selectedComPort = null;
-                    return;
-                }
-
-                _selectedComPort = portTag;
-                System.Diagnostics.Debug.WriteLine($"📍 COM порт выбран: {_selectedComPort}");
-            }
-        }
-
-        private void ComPortComboBox_DropDownOpened(object sender, EventArgs e)
-        {
-            RefreshComPortsList(false);
-        }
-
-        private void SetupComPortAutoRefresh()
-        {
-            _comPortRefreshTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(5)
-            };
-            _comPortRefreshTimer.Tick += (s, e) =>
-            {
-                if (!ComPortComboBox.IsDropDownOpen &&
-                    !_isConnected &&
-                    (string.IsNullOrEmpty(_selectedComPort) || _selectedComPort == "COM Порт"))
-                {
-                    RefreshComPortsList(false);
-                }
-            };
-            _comPortRefreshTimer.Start();
-        }
-
-        private void BaudRateComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (BaudRateComboBox.SelectedItem is ComboBoxItem item)
-            {
-                if (int.TryParse(item.Content.ToString(), out int baud))
-                    _selectedBaudRate = baud;
-            }
-        }
-
-        #endregion
+        
 
         #region ПОДКЛЮЧЕНИЕ
 
@@ -268,46 +77,27 @@ namespace SimpleDroneGCS
 
         private void ConnectToDrone()
         {
-            if (ComPortComboBox.SelectedItem is ComboBoxItem item)
+            try
             {
-                string tag = item.Tag?.ToString();
+                var dialog = new UdpConnectionDialog();
+                dialog.Owner = this;
+                dialog.ShowDialog();
 
-                if (string.IsNullOrEmpty(tag) || tag == "placeholder")
+                if (dialog.IsConfirmed)
                 {
-                    AppMessageBox.ShowWarning("Выберите тип подключения", owner: this);
-                    return;
-                }
-
-                try
-                {
-                    if (tag == "UDP")
+                    if (!string.IsNullOrEmpty(dialog.HostIp) && dialog.HostPort.HasValue)
                     {
-                        var dialog = new UdpConnectionDialog();
-                        dialog.Owner = this;
-                        dialog.ShowDialog();
-
-                        if (dialog.IsConfirmed)
-                        {
-                            if (!string.IsNullOrEmpty(dialog.HostIp) && dialog.HostPort.HasValue)
-                            {
-                                MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort, dialog.HostIp, dialog.HostPort.Value);
-                            }
-                            else
-                            {
-                                MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort);
-                            }
-                        }
+                        MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort, dialog.HostIp, dialog.HostPort.Value);
                     }
                     else
                     {
-                        _selectedComPort = tag;
-                        MAVLink.Connect(_selectedComPort, _selectedBaudRate);
+                        MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort);
                     }
                 }
-                catch (Exception ex)
-                {
-                    AppMessageBox.ShowError($"Ошибка: {ex.Message}", owner: this);
-                }
+            }
+            catch (Exception ex)
+            {
+                AppMessageBox.ShowError($"Ошибка подключения: {ex.Message}", owner: this);
             }
         }
 
@@ -320,17 +110,13 @@ namespace SimpleDroneGCS
         {
             if (_isConnected)
             {
-                ConnectButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(152, 240, 25));
+                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Зелёный
                 ConnectionStatusText.Text = "Подключено";
-                _comPortRefreshTimer?.Stop();
             }
             else
             {
-                ConnectButton.Background = new SolidColorBrush(Color.FromRgb(42, 67, 97));
-                ConnectionIndicator.Fill = Brushes.Red;
+                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Красный
                 ConnectionStatusText.Text = "Не подключено";
-                _comPortRefreshTimer?.Start();
             }
         }
 
@@ -441,7 +227,7 @@ namespace SimpleDroneGCS
 
         protected override void OnClosed(EventArgs e)
         {
-            _comPortRefreshTimer?.Stop();
+           
             MAVLink?.Disconnect();
             base.OnClosed(e);
         }
