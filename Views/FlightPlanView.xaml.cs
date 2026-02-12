@@ -63,10 +63,12 @@ namespace SimpleDroneGCS.Views
         private double _vtolTakeoffAltitude = 30;     // Высота VTOL взлёта
         private double _vtolLandAltitude = 30;        // Высота VTOL посадки
         private bool _isMissionFrozen = false;        // Флаг: миссия заморожена
+        private bool _isDataTabActive = true;          // Текущий таб: true = Данные, false = Миссия
 
         public FlightPlanView(MAVLinkService mavlinkService = null)
         {
             InitializeComponent();
+            DrawCompassTicks();
             var testElev = new SrtmElevationProvider();
             var result = testElev.GetElevation(43.238, 76.945);
             System.Diagnostics.Debug.WriteLine($"[SRTM TEST] Результат: {result?.ToString() ?? "NULL"}");
@@ -598,7 +600,8 @@ namespace SimpleDroneGCS.Views
             var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
             header.Children.Add(new Ellipse
             {
-                Width = 24, Height = 24,
+                Width = 24,
+                Height = 24,
                 Fill = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
                 Margin = new Thickness(0, 0, 8, 0)
             });
@@ -625,7 +628,7 @@ namespace SimpleDroneGCS.Views
 
             // Параметры
             var paramStyle = new Style(typeof(TextBlock));
-            
+
             stack.Children.Add(CreateTooltipRow("📍 Координаты:", $"{wp.Latitude:F6}, {wp.Longitude:F6}"));
             stack.Children.Add(CreateTooltipRow("📏 Высота:", $"{wp.Altitude:F0} м"));
             stack.Children.Add(CreateTooltipRow("⭕ Радиус:", $"{wp.Radius:F0} м"));
@@ -685,10 +688,10 @@ namespace SimpleDroneGCS.Views
                 _currentDragMarker = marker;
                 shape.CaptureMouse();
                 PlanMap.CanDragMap = false;
-                
+
                 // Показать/скрыть радиус при клике
                 SelectWaypoint(waypoint);
-                
+
                 e.Handled = true;
             };
 
@@ -752,7 +755,7 @@ namespace SimpleDroneGCS.Views
             {
                 if (wp.RadiusCircle != null)
                 {
-                    var newVis = wp.RadiusCircle.Visibility == Visibility.Visible 
+                    var newVis = wp.RadiusCircle.Visibility == Visibility.Visible
                         ? Visibility.Collapsed : Visibility.Visible;
                     wp.RadiusCircle.Visibility = newVis;
                     if (_resizeHandles.ContainsKey(wp))
@@ -1245,14 +1248,14 @@ namespace SimpleDroneGCS.Views
             if (_landingCircle == null) InitializeLandingCircle();
             if (_startCircle == null || _landingCircle == null) return;
 
-            var cyan = Color.FromRgb(34, 211, 238);    // #22D3EE — Start
-            var pink = Color.FromRgb(244, 114, 182);   // #F472B6 — Landing  
+            var cyan = Color.FromRgb(0, 168, 143);     // #00A88F — Start (Deep Turquoise)
+            var orange = Color.FromRgb(255, 159, 26);  // #FF9F1A — Landing (Aviation Orange)
             var green = Color.FromRgb(152, 240, 25);
 
             // === Маркеры S и L — создаём ТОЛЬКО если нет, иначе обновляем размер ===
             if (_startCircle.Marker == null || !PlanMap.Markers.Contains(_startCircle.Marker))
             {
-                AddSpecialCircleMarker(_startCircle, "S", cyan, Color.FromRgb(14, 116, 144));
+                AddSpecialCircleMarker(_startCircle, "S", cyan, Color.FromRgb(0, 168, 143));
             }
             else
             {
@@ -1261,7 +1264,7 @@ namespace SimpleDroneGCS.Views
 
             if (_landingCircle.Marker == null || !PlanMap.Markers.Contains(_landingCircle.Marker))
             {
-                AddSpecialCircleMarker(_landingCircle, "L", pink, Color.FromRgb(190, 24, 93));
+                AddSpecialCircleMarker(_landingCircle, "L", orange, Color.FromRgb(255, 159, 26));
             }
             else
             {
@@ -1302,7 +1305,7 @@ namespace SimpleDroneGCS.Views
                     wpN.Latitude, wpN.Longitude, wpN.Radius, wpN.Clockwise,
                     _landingCircle.Latitude, _landingCircle.Longitude, _landingCircle.Radius, _landingCircle.Clockwise);
                 lEntry = tangent.Item2;
-                DrawVtolLine(tangent.Item1, tangent.Item2, pink, false);
+                DrawVtolLine(tangent.Item1, tangent.Item2, orange, false);
             }
 
             // === L → HOME (касательная, HOME как точка с радиусом 0) ===
@@ -1313,14 +1316,14 @@ namespace SimpleDroneGCS.Views
                     _landingCircle.Latitude, _landingCircle.Longitude, _landingCircle.Radius, _landingCircle.Clockwise,
                     _homePosition.Latitude, _homePosition.Longitude, 0, true);
                 lExit = tangent.Item1;
-                DrawVtolLine(tangent.Item1, homePos, pink, true);
+                DrawVtolLine(tangent.Item1, homePos, orange, true);
             }
 
             // === Дуги на S и L ===
             if (sEntry.HasValue && sExit.HasValue)
-                DrawArcOnSpecialCircle(_startCircle, sEntry.Value, sExit.Value, Color.FromRgb(161, 98, 7));
+                DrawArcOnSpecialCircle(_startCircle, sEntry.Value, sExit.Value, Color.FromRgb(0, 130, 110));
             if (lEntry.HasValue && lExit.HasValue)
-                DrawArcOnSpecialCircle(_landingCircle, lEntry.Value, lExit.Value, Color.FromRgb(194, 65, 12));
+                DrawArcOnSpecialCircle(_landingCircle, lEntry.Value, lExit.Value, Color.FromRgb(200, 125, 16));
         }
 
         /// <summary>
@@ -1421,13 +1424,28 @@ namespace SimpleDroneGCS.Views
             grid.Children.Add(radiusCircle);
             wp.RadiusCircle = radiusCircle;
 
+            // Гало (тень)
+            var halo = new Ellipse
+            {
+                Width = 34,
+                Height = 34,
+                Fill = new SolidColorBrush(Color.FromArgb(89, 0, 0, 0)), // rgba(0,0,0,0.35)
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            grid.Children.Add(halo);
+
             // Центральная точка
+            var strokeColor = (label == "S")
+                ? Color.FromRgb(255, 255, 255)   // S: белая обводка
+                : Color.FromRgb(42, 22, 0);      // L: тёмная обводка #2A1600
+
             var centerPoint = new Ellipse
             {
                 Width = 28,
                 Height = 28,
                 Fill = new SolidColorBrush(dotColor),
-                Stroke = new SolidColorBrush(Color.FromRgb(6, 11, 26)),
+                Stroke = new SolidColorBrush(strokeColor),
                 StrokeThickness = 3,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
@@ -1543,7 +1561,7 @@ namespace SimpleDroneGCS.Views
             var tooltip = new ToolTip
             {
                 Background = new SolidColorBrush(Color.FromRgb(13, 23, 51)),
-                BorderBrush = new SolidColorBrush(label == "S" 
+                BorderBrush = new SolidColorBrush(label == "S"
                     ? Color.FromRgb(250, 204, 21)  // Yellow
                     : Color.FromRgb(249, 115, 22)), // Orange
                 BorderThickness = new Thickness(2),
@@ -1883,7 +1901,7 @@ namespace SimpleDroneGCS.Views
             double exitAngle = CalculateBearing(wp.Latitude, wp.Longitude, exitPoint.Lat, exitPoint.Lng);
 
             double angleDiff;
-            
+
             // CW (по часовой): bearing увеличивается (N→E→S→W) → angleDiff POSITIVE
             // CCW (против часовой): bearing уменьшается (N→W→S→E) → angleDiff NEGATIVE
             if (wp.Clockwise)
@@ -1980,7 +1998,7 @@ namespace SimpleDroneGCS.Views
         /// </summary>
         /// 
 
-        
+
 
         private void UpdateMissionStrip()
         {
@@ -1990,7 +2008,7 @@ namespace SimpleDroneGCS.Views
             var vis = isVtol ? Visibility.Visible : Visibility.Collapsed;
 
             if (StartCircleCard != null) StartCircleCard.Visibility = vis;
-            if (LandingCircleCard != null) LandingCircleCard.Visibility = vis; 
+            if (LandingCircleCard != null) LandingCircleCard.Visibility = vis;
             if (ArrowAfterTakeoff != null) ArrowAfterTakeoff.Visibility = isVtol ? Visibility.Collapsed : Visibility.Visible;
             if (ArrowAfterTakeoffVtol != null) ArrowAfterTakeoffVtol.Visibility = vis;
             if (ArrowAfterStart != null) ArrowAfterStart.Visibility = vis;
@@ -2032,7 +2050,7 @@ namespace SimpleDroneGCS.Views
                     {
                         bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
                         int expectedSeq = isVtol ? wpNum + 3 : wpNum; // VTOL: WP1=seq4, Copter: WP1=seq1
-                        
+
                         if (expectedSeq == seq)
                         {
                             border.BorderBrush = new SolidColorBrush(Color.FromRgb(74, 222, 128)); // Зелёный
@@ -2092,17 +2110,16 @@ namespace SimpleDroneGCS.Views
 
             foreach (var wp in _waypoints)
             {
-                // Стрелка между waypoints
+                // Стрелка между waypoints (вертикальная)
                 if (wp.Number > 1)
                 {
                     WaypointsListPanel.Children.Add(new TextBlock
                     {
-                        Text = "›",
+                        Text = "▼",
                         Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                        FontSize = 20,
-                        FontWeight = FontWeights.Bold,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(6, 0, 6, 0)
+                        FontSize = 10,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, 1, 0, 1)
                     });
                 }
 
@@ -2113,33 +2130,34 @@ namespace SimpleDroneGCS.Views
         /// <summary>
         /// Создание карточки waypoint
         /// </summary>
-        /// <summary>
-        /// Создание КОМПАКТНОЙ карточки waypoint (минималистичный дизайн)
-        /// </summary>
         private Border CreateWaypointCard(WaypointItem wp)
         {
             var card = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(13, 23, 51)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(42, 67, 97)),
-                BorderThickness = new Thickness(1.5),
+                Background = new SolidColorBrush(Color.FromRgb(20, 30, 50)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(50, 70, 100)),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(3, 3, 8, 3),
-                Margin = new Thickness(0),
+                Padding = new Thickness(8, 5, 8, 5),
+                Margin = new Thickness(0, 0, 0, 2),
                 Cursor = Cursors.Hand,
                 Tag = wp.Number
             };
 
-            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             // Номер
             var numBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                CornerRadius = new CornerRadius(12),
-                Width = 24,
-                Height = 24,
-                Margin = new Thickness(0, 0, 6, 0)
+                CornerRadius = new CornerRadius(10),
+                Width = 20,
+                Height = 20,
+                Margin = new Thickness(0, 0, 5, 0)
             };
             numBorder.Child = new TextBlock
             {
@@ -2150,44 +2168,111 @@ namespace SimpleDroneGCS.Views
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            row.Children.Add(numBorder);
+            Grid.SetColumn(numBorder, 0);
+            mainGrid.Children.Add(numBorder);
 
-            // Координаты
-            var inv = System.Globalization.CultureInfo.InvariantCulture;
-            row.Children.Add(new TextBlock
+            // Бейдж типа
+            bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
+            var (badge, cmdName, badgeColor) = GetCommandBadgeInfo(wp.CommandType, isVtol);
+
+            var typeBadge = new Border
             {
-                Text = $"Ш: {wp.Latitude.ToString("F2", inv)} ► {wp.Longitude.ToString("F2", inv)}",
-                Foreground = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
-                FontSize = 11,
+                Background = new SolidColorBrush(badgeColor),
+                CornerRadius = new CornerRadius(6),
+                Width = 14,
+                Height = 14,
+                Margin = new Thickness(0, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center
-            });
-
-            // Крестик удаления
-            var delBtn = new TextBlock
+            };
+            typeBadge.Child = new TextBlock
             {
-                Text = "✕",
+                Text = badge,
+                Foreground = Brushes.White,
+                FontSize = 7,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(typeBadge, 1);
+            mainGrid.Children.Add(typeBadge);
+
+            // Инфо
+            var infoPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            infoPanel.Children.Add(new TextBlock
+            {
+                Text = cmdName,
+                Foreground = Brushes.White,
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                FontWeight = FontWeights.SemiBold
+            });
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            infoPanel.Children.Add(new TextBlock
+            {
+                Text = $"{wp.Latitude.ToString("F2", inv)} , {wp.Longitude.ToString("F2", inv)}",
+                Foreground = new SolidColorBrush(Color.FromRgb(140, 150, 170)),
+                FontSize = 9,
+                Margin = new Thickness(0, 1, 0, 0)
+            });
+            Grid.SetColumn(infoPanel, 2);
+            mainGrid.Children.Add(infoPanel);
+
+            // Кнопки
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+            var locBtn = new Border
+            {
+                Background = Brushes.Transparent,
+                CornerRadius = new CornerRadius(6),
+                Width = 18,
+                Height = 18,
                 Cursor = Cursors.Hand,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(6, 0, 0, 0),
+                ToolTip = "Перейти к точке"
+            };
+            locBtn.Child = new TextBlock { Text = "📍", FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            locBtn.MouseEnter += (s, e) => locBtn.Background = new SolidColorBrush(Color.FromArgb(50, 96, 165, 250));
+            locBtn.MouseLeave += (s, e) => locBtn.Background = Brushes.Transparent;
+            locBtn.MouseLeftButtonDown += (s, e) =>
+            {
+                e.Handled = true;
+                SelectWaypoint(wp);
+                PlanMap.Position = new PointLatLng(wp.Latitude, wp.Longitude);
+            };
+            btnPanel.Children.Add(locBtn);
+
+            var delBtn = new Border
+            {
+                Background = Brushes.Transparent,
+                CornerRadius = new CornerRadius(6),
+                Width = 18,
+                Height = 18,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(2, 0, 0, 0),
                 ToolTip = "Удалить точку"
             };
-            delBtn.MouseEnter += (s, e) => delBtn.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-            delBtn.MouseLeave += (s, e) => delBtn.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+            delBtn.Child = new TextBlock
+            {
+                Text = "✕",
+                FontSize = 9,
+                Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            delBtn.MouseEnter += (s, e) => delBtn.Background = new SolidColorBrush(Color.FromArgb(50, 239, 68, 68));
+            delBtn.MouseLeave += (s, e) => delBtn.Background = Brushes.Transparent;
             delBtn.MouseLeftButtonDown += (s, e) =>
             {
                 e.Handled = true;
                 RemoveWaypoint(wp);
             };
-            row.Children.Add(delBtn);
+            btnPanel.Children.Add(delBtn);
 
-            card.Child = row;
+            Grid.SetColumn(btnPanel, 3);
+            mainGrid.Children.Add(btnPanel);
 
+            card.Child = mainGrid;
             card.MouseLeftButtonDown += (s, e) =>
             {
-                if (e.OriginalSource is TextBlock tb && tb.Text == "✕") return;
-                e.Handled = true;
+                if (e.Handled) return;
                 SelectWaypoint(wp);
                 PlanMap.Position = new PointLatLng(wp.Latitude, wp.Longitude);
                 OpenWaypointEditDialog(wp);
@@ -2196,12 +2281,33 @@ namespace SimpleDroneGCS.Views
             return card;
         }
 
+        private (string badge, string name, Color color) GetCommandBadgeInfo(string commandType, bool isVtol = false)
+        {
+            string prefix = isVtol ? "Q_" : "";
+
+            return commandType switch
+            {
+                "WAYPOINT" => ("W", $"{prefix}ТОЧКА", Color.FromRgb(34, 197, 94)),
+                "LOITER_UNLIM" => ("L", $"{prefix}КРУГ", Color.FromRgb(59, 130, 246)),
+                "LOITER_TIME" => ("LT", $"{prefix}КРУГ(время)", Color.FromRgb(59, 130, 246)),
+                "LOITER_TURNS" => ("LR", $"{prefix}КРУГ(обор)", Color.FromRgb(59, 130, 246)),
+                "TAKEOFF" => ("T", "ВЗЛЁТ", Color.FromRgb(16, 185, 129)),
+                "LAND" => ("LD", $"{prefix}ПОСАДКА", Color.FromRgb(249, 115, 22)),
+                "DELAY" => ("D", $"{prefix}ЗАДЕРЖКА", Color.FromRgb(139, 92, 246)),
+                "CHANGE_SPEED" => ("S", $"{prefix}СКОРОСТЬ", Color.FromRgb(234, 179, 8)),
+                "RETURN_TO_LAUNCH" => ("R", "ВОЗВРАТ", Color.FromRgb(239, 68, 68)),
+                "SPLINE_WP" => ("SP", "СПЛАЙН", Color.FromRgb(20, 184, 166)),
+                _ => ("W", $"{prefix}ТОЧКА", Color.FromRgb(34, 197, 94))
+            };
+        }
 
         /// <summary>
         /// Открыть диалог редактирования waypoint
         /// </summary>
         private void OpenWaypointEditDialog(WaypointItem wp)
         {
+            bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
+
             var dialog = new WaypointEditDialog(
                 wp.Number,
                 wp.Latitude,
@@ -2211,17 +2317,17 @@ namespace SimpleDroneGCS.Views
                 wp.Delay,
                 wp.LoiterTurns,
                 wp.AutoNext,
-                wp.Clockwise
+                wp.Clockwise,
+                wp.CommandType,  // НОВОЕ
+                isVtol           // НОВОЕ
             );
 
             dialog.Owner = Window.GetWindow(this);
 
             if (dialog.ShowDialog() == true)
             {
-                // Проверяем изменились ли координаты
                 bool positionChanged = (wp.Latitude != dialog.Latitude || wp.Longitude != dialog.Longitude);
 
-                // Обновляем данные точки
                 wp.Latitude = dialog.Latitude;
                 wp.Longitude = dialog.Longitude;
                 wp.Altitude = dialog.Altitude;
@@ -2230,13 +2336,12 @@ namespace SimpleDroneGCS.Views
                 wp.LoiterTurns = dialog.LoiterTurns;
                 wp.AutoNext = dialog.AutoNext;
                 wp.Clockwise = dialog.Clockwise;
+                wp.CommandType = dialog.CommandType;  // НОВОЕ
 
-                // Обновляем маркер на карте если координаты изменились
                 if (positionChanged && wp.Marker != null)
                 {
                     wp.Marker.Position = new PointLatLng(wp.Latitude, wp.Longitude);
 
-                    // Обновляем ручку радиуса
                     if (_resizeHandles.ContainsKey(wp))
                     {
                         var handlePos = CalculatePointAtDistance(wp.Latitude, wp.Longitude, 90, wp.Radius / 1000.0);
@@ -2244,19 +2349,14 @@ namespace SimpleDroneGCS.Views
                     }
                 }
 
-                // Обновляем визуал радиуса
                 UpdateWaypointRadiusVisual(wp);
-
-                // Обновляем маршрут и список
                 UpdateRoute();
                 UpdateWaypointsList();
                 UpdateStatistics();
 
-                // === РЕАЛ-ТАЙМ ОБНОВЛЕНИЕ МИССИИ ===
-                // Если дрон летит (Armed + AUTO mode), переотправляем миссию на лету
                 TryRealTimeMissionUpdate(wp);
 
-                System.Diagnostics.Debug.WriteLine($"[WP EDIT] Точка {wp.Number} обновлена: {wp.Latitude:F6}, {wp.Longitude:F6}, Alt={wp.Altitude}м");
+                System.Diagnostics.Debug.WriteLine($"[WP EDIT] Точка {wp.Number} обновлена: {wp.Latitude:F6}, {wp.Longitude:F6}, Alt={wp.Altitude}м, Cmd={wp.CommandType}");
             }
         }
 
@@ -2417,6 +2517,83 @@ namespace SimpleDroneGCS.Views
         }
 
 
+        // ===== TAB SWITCHING =====
+        private void DataTabButton_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (_isDataTabActive) return;
+            _isDataTabActive = true;
+
+            DataTabBorder.Background = (Brush)FindResource("AcidGreen");
+            DataTabText.Foreground = new SolidColorBrush(Color.FromRgb(6, 11, 26));
+            MissionTabBorder.Background = Brushes.Transparent;
+            MissionTabText.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+
+            DataPanel.Visibility = Visibility.Visible;
+            MissionPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void MissionTabButton_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isDataTabActive) return;
+            _isDataTabActive = false;
+
+            MissionTabBorder.Background = (Brush)FindResource("AcidGreen");
+            MissionTabText.Foreground = new SolidColorBrush(Color.FromRgb(6, 11, 26));
+            DataTabBorder.Background = Brushes.Transparent;
+            DataTabText.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+
+            DataPanel.Visibility = Visibility.Collapsed;
+            MissionPanel.Visibility = Visibility.Visible;
+        }
+
+        // ===== COMPASS DRAWING =====
+        /// <summary>
+        /// Цветная дуга + риски компаса (200x200)
+        /// </summary>
+        private void DrawCompassTicks()
+        {
+            if (CompassTickCanvas == null) return;
+            CompassTickCanvas.Children.Clear();
+
+            double cx = 75, cy = 75;
+            double tickR = 70;
+
+            for (int deg = 0; deg < 360; deg += 10)
+            {
+                if (deg == 0 || deg == 90 || deg == 180 || deg == 270) continue;
+
+                bool isMajor = (deg % 30 == 0);
+                double len = isMajor ? 8 : 4;
+                double rad = deg * Math.PI / 180.0;
+
+                var line = new Line
+                {
+                    X1 = cx + tickR * Math.Sin(rad),
+                    Y1 = cy - tickR * Math.Cos(rad),
+                    X2 = cx + (tickR - len) * Math.Sin(rad),
+                    Y2 = cy - (tickR - len) * Math.Cos(rad),
+                    Stroke = isMajor
+                        ? new SolidColorBrush(Color.FromRgb(55, 75, 100))
+                        : new SolidColorBrush(Color.FromRgb(30, 42, 60)),
+                    StrokeThickness = isMajor ? 1.5 : 1
+                };
+                CompassTickCanvas.Children.Add(line);
+            }
+
+            // Зелёная метка севера
+            var north = new Line
+            {
+                X1 = cx,
+                Y1 = cy - tickR,
+                X2 = cx,
+                Y2 = cy - tickR + 9,
+                Stroke = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                StrokeThickness = 2
+            };
+            CompassTickCanvas.Children.Add(north);
+        }
+
+        
         /// <summary>
         /// Обработчик кнопки установки HOME
         /// </summary>
@@ -2616,16 +2793,7 @@ namespace SimpleDroneGCS.Views
         /// </summary>
         private void MissionScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (sender is ScrollViewer sv)
-            {
-                // Конвертируем вертикальный скролл в горизонтальный
-                if (e.Delta > 0)
-                    sv.LineLeft();
-                else
-                    sv.LineRight();
-
-                e.Handled = true;
-            }
+            // Вертикальный скролл работает нативно
         }
 
         /// <summary>
@@ -3258,7 +3426,9 @@ namespace SimpleDroneGCS.Views
                             var wp = new WaypointItem
                             {
                                 Number = _waypoints.Count + 1,
-                                Latitude = nav.lat, Longitude = nav.lon, Altitude = nav.alt,
+                                Latitude = nav.lat,
+                                Longitude = nav.lon,
+                                Altitude = nav.alt,
                                 Radius = Math.Abs(nav.p3) > 0 ? Math.Abs(nav.p3) : 80,
                                 Clockwise = nav.p3 >= 0,
                                 CommandType = ConvertMAVCmdToCommandType(nav.cmd),
@@ -3763,7 +3933,9 @@ namespace SimpleDroneGCS.Views
                 mission.Add(new WaypointItem
                 {
                     Number = mission.Count,
-                    Latitude = 0, Longitude = 0, Altitude = 0,
+                    Latitude = 0,
+                    Longitude = 0,
+                    Altitude = 0,
                     CommandType = "VTOL_TRANSITION_FW"
                 });
 
@@ -3824,7 +3996,8 @@ namespace SimpleDroneGCS.Views
                 mission.Add(new WaypointItem
                 {
                     Number = mission.Count,
-                    Latitude = 0, Longitude = 0,
+                    Latitude = 0,
+                    Longitude = 0,
                     Altitude = _vtolLandAltitude > 0 ? _vtolLandAltitude : 30,
                     CommandType = "VTOL_TRANSITION_MC"
                 });
@@ -4542,12 +4715,14 @@ namespace SimpleDroneGCS.Views
                 ShowNotConnectedMessage();
                 return;
             }
-            
+
             // Для VTOL: QLOITER, для Copter: LOITER
-            var mode = VehicleManager.Instance.CurrentVehicleType == Models.VehicleType.QuadPlane 
+            var mode = VehicleManager.Instance.CurrentVehicleType == Models.VehicleType.QuadPlane
                 ? "QLOITER" : "LOITER";
             _mavlinkService.SetFlightMode(mode);
         }
+
+        
 
         /// <summary>
         /// Resume - продолжить миссию
@@ -4559,7 +4734,7 @@ namespace SimpleDroneGCS.Views
                 ShowNotConnectedMessage();
                 return;
             }
-            
+
             _mavlinkService.SetFlightMode("AUTO");
         }
 
@@ -4573,7 +4748,7 @@ namespace SimpleDroneGCS.Views
                 ShowNotConnectedMessage();
                 return;
             }
-            
+
             _mavlinkService.SetCurrentWaypoint(0);
             _mavlinkService.SetFlightMode("AUTO");
             _mavlinkService.StartMission();
@@ -4589,9 +4764,9 @@ namespace SimpleDroneGCS.Views
                 ShowNotConnectedMessage();
                 return;
             }
-            
+
             // Для VTOL: QRTL
-            var mode = VehicleManager.Instance.CurrentVehicleType == Models.VehicleType.QuadPlane 
+            var mode = VehicleManager.Instance.CurrentVehicleType == Models.VehicleType.QuadPlane
                 ? "QRTL" : "RTL";
             _mavlinkService.SetFlightMode(mode);
         }
@@ -4839,7 +5014,7 @@ namespace SimpleDroneGCS.Views
         }
 
         /// <summary>
-        /// Калибровка
+        /// Калибровка — открывает диалоговое окно для выбранного типа
         /// </summary>
         private void CalibrateButton_Click(object sender, RoutedEventArgs e)
         {
@@ -4852,16 +5027,38 @@ namespace SimpleDroneGCS.Views
             if (CalibrationCombo?.SelectedItem is ComboBoxItem item)
             {
                 string calibType = item.Content?.ToString() ?? "";
+                var owner = Window.GetWindow(this);
+
                 switch (calibType)
                 {
-                    case "Акселерометр":
-                        _mavlinkService.SendPreflightCalibration(accelerometer: true);
-                        break;
-                    case "Компас":
-                        _mavlinkService.SendPreflightCalibration(compassMot: true);
-                        break;
                     case "Гироскоп":
-                        _mavlinkService.SendPreflightCalibration(gyro: true);
+                        {
+                            var dialog = new GyroCalibrationDialog(_mavlinkService);
+                            dialog.Owner = owner;
+                            dialog.ShowDialog();
+                            break;
+                        }
+
+                    case "Компас":
+                        {
+                            var dialog = new CompassCalibrationDialog(_mavlinkService);
+                            dialog.Owner = owner;
+                            dialog.ShowDialog();
+                            break;
+                        }
+
+                    case "Акселерометр":
+                        {
+                            var dialog = new AccelCalibrationDialog(_mavlinkService);
+                            dialog.Owner = owner;
+                            dialog.ShowDialog();
+                            break;
+                        }
+
+                    case "Калибровки":
+                        // Заголовок ComboBox — ничего не делаем
+                        MessageBox.Show("Выберите тип калибровки из списка.",
+                            "KYRAN GCS", MessageBoxButton.OK, MessageBoxImage.Information);
                         break;
                 }
             }
@@ -4945,7 +5142,7 @@ namespace SimpleDroneGCS.Views
 
         #endregion
 
-        
+
 
         private string FormatDistance(double meters)
         {
@@ -5200,7 +5397,7 @@ namespace SimpleDroneGCS.Views
                 int totalItems = GetFullMission().Count;
                 if (nextSeq >= totalItems)
                 {
-                    MessageBox.Show("Дрон уже на последней точке миссии", "Информация", 
+                    MessageBox.Show("Дрон уже на последней точке миссии", "Информация",
                         MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }

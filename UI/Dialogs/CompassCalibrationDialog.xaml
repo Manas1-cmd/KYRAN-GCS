@@ -1,0 +1,137 @@
+<Window x:Class="SimpleDroneGCS.UI.Dialogs.CompassCalibrationDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Калибровка компаса" 
+        Width="500" Height="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#060B1A"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        BorderBrush="#2A4361" BorderThickness="2">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,12">
+            <TextBlock Text="КАЛИБРОВКА КОМПАСА" 
+                       FontSize="16" FontWeight="Bold" FontFamily="Consolas"
+                       Foreground="#98F019" HorizontalAlignment="Center"/>
+            <TextBlock Text="COMPASS / MAGNETOMETER CALIBRATION" 
+                       FontSize="9" FontFamily="Consolas"
+                       Foreground="#4498F019" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <!-- Визуализация сферы -->
+        <Border Grid.Row="1" Background="#0D1733" CornerRadius="8"
+                BorderBrush="#1A2A4361" BorderThickness="1" Padding="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="140"/>
+                </Grid.ColumnDefinitions>
+
+                <Viewbox Grid.Column="0" Stretch="Uniform">
+                    <Canvas x:Name="SphereCanvas" Width="260" Height="260" ClipToBounds="True">
+                        <Ellipse Width="240" Height="240" Canvas.Left="10" Canvas.Top="10"
+                                 Fill="#08FFFFFF" Stroke="#1A2A4361" StrokeThickness="1"/>
+                        <Ellipse Width="240" Height="60" Canvas.Left="10" Canvas.Top="100"
+                                 Fill="Transparent" Stroke="#0D2A4361" StrokeThickness="0.8"
+                                 StrokeDashArray="4 3"/>
+                        <Ellipse Width="60" Height="240" Canvas.Left="100" Canvas.Top="10"
+                                 Fill="Transparent" Stroke="#0D2A4361" StrokeThickness="0.8"
+                                 StrokeDashArray="4 3"/>
+                        <Line X1="130" Y1="10" X2="130" Y2="250" Stroke="#0A98F019" StrokeThickness="0.5"/>
+                        <Line X1="10" Y1="130" X2="250" Y2="130" Stroke="#0A98F019" StrokeThickness="0.5"/>
+                        <TextBlock x:Name="CenterPercent" Text="0%"
+                                   Canvas.Left="100" Canvas.Top="115"
+                                   Width="60" TextAlignment="Center"
+                                   Foreground="#98F019" FontSize="22" FontWeight="Bold"
+                                   FontFamily="Consolas" Opacity="0.4"/>
+                    </Canvas>
+                </Viewbox>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock Text="ИНСТРУКЦИЯ" Foreground="#4498F019" 
+                               FontSize="9" FontFamily="Consolas" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="InstructionText"
+                               Text="Нажмите НАЧАТЬ&#x0a;и медленно&#x0a;вращайте дрон&#x0a;во всех&#x0a;направлениях"
+                               Foreground="#CCDDDD" FontSize="11" FontFamily="Segoe UI"
+                               TextWrapping="Wrap" LineHeight="18"/>
+                    <Border Background="#1AFF6B35" CornerRadius="4" Padding="6,4" Margin="0,12,0,0">
+                        <TextBlock Text="Крутите&#x0a;медленно!" 
+                                   Foreground="#FF6B35" FontSize="10" FontWeight="Bold"
+                                   FontFamily="Consolas" TextAlignment="Center"/>
+                    </Border>
+                    <StackPanel Margin="0,16,0,0">
+                        <TextBlock Text="ПОКРЫТИЕ" Foreground="#4498F019" FontSize="8" FontFamily="Consolas"/>
+                        <TextBlock x:Name="CoverageText" Text="0 / 80 секций" 
+                                   Foreground="#98F019" FontSize="10" FontFamily="Consolas"/>
+                        <TextBlock Text="КАЧЕСТВО" Foreground="#4498F019" FontSize="8" FontFamily="Consolas" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="FitnessText" Text="—" 
+                                   Foreground="#98F019" FontSize="10" FontFamily="Consolas"/>
+                        <TextBlock Text="КОМПАС" Foreground="#4498F019" FontSize="8" FontFamily="Consolas" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="CompassIdText" Text="MAG #1" 
+                                   Foreground="#98F019" FontSize="10" FontFamily="Consolas"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Прогресс -->
+        <Grid Grid.Row="2" Margin="0,10,0,0">
+            <ProgressBar x:Name="CalibProgress" Height="10" Minimum="0" Maximum="100" Value="0"
+                         Background="#1A2A4361" Foreground="#98F019" BorderThickness="0"/>
+        </Grid>
+
+        <!-- Статус -->
+        <TextBlock x:Name="StatusText" Grid.Row="3"
+                   Text="Готов к калибровке" FontSize="11" FontFamily="Consolas"
+                   Foreground="#6698F019" HorizontalAlignment="Center"
+                   TextAlignment="Center" Margin="0,8,0,0" TextWrapping="Wrap"/>
+
+        <TextBlock x:Name="DroneStatusText" Grid.Row="4"
+                   Text="" FontSize="9" FontFamily="Consolas"
+                   Foreground="#3398F019" HorizontalAlignment="Center"
+                   TextAlignment="Center" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="440"/>
+
+        <!-- Кнопки -->
+        <Grid Grid.Row="5" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="StartButton" Grid.Column="0" Content="НАЧАТЬ"
+                    Height="38" Margin="0,0,4,0"
+                    Background="#1A98F019" Foreground="#98F019"
+                    BorderBrush="#3398F019" BorderThickness="1"
+                    FontFamily="Consolas" FontWeight="Bold" FontSize="12"
+                    Click="StartButton_Click" Cursor="Hand"/>
+
+            <Button x:Name="AcceptButton" Grid.Column="1" Content="ПРИНЯТЬ"
+                    Height="38" Margin="4,0,4,0"
+                    Background="#1A00AAFF" Foreground="#00AAFF"
+                    BorderBrush="#3300AAFF" BorderThickness="1"
+                    FontFamily="Consolas" FontWeight="Bold" FontSize="12"
+                    Click="AcceptButton_Click" Cursor="Hand"
+                    IsEnabled="False" Opacity="0.4"/>
+
+            <Button x:Name="CancelButton" Grid.Column="2" Content="ЗАКРЫТЬ"
+                    Height="38" Margin="4,0,0,0"
+                    Background="#1AFF4444" Foreground="#FF6666"
+                    BorderBrush="#33FF4444" BorderThickness="1"
+                    FontFamily="Consolas" FontWeight="Bold" FontSize="12"
+                    Click="CancelButton_Click" Cursor="Hand"/>
+        </Grid>
+    </Grid>
+</Window>

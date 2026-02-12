@@ -6,9 +6,6 @@ using System.Windows.Media;
 
 namespace SimpleDroneGCS.UI.Dialogs
 {
-    /// <summary>
-    /// Диалог редактирования параметров waypoint
-    /// </summary>
     public class WaypointEditDialog : Window
     {
         // === РЕЗУЛЬТАТЫ ===
@@ -20,15 +17,19 @@ namespace SimpleDroneGCS.UI.Dialogs
         public int LoiterTurns { get; private set; }
         public bool AutoNext { get; private set; }
         public bool Clockwise { get; private set; }
+        public string CommandType { get; private set; }  // НОВОЕ
 
         // === ПОЛЯ ВВОДА ===
         private TextBox _latBox, _lngBox, _altBox, _radBox, _delayBox, _turnsBox;
         private CheckBox _autoNextBox;
         private Border _cwButton, _ccwButton;
+        private ComboBox _commandCombo;  // НОВОЕ
         private bool _isClockwise;
+        private bool _isVtol;  // НОВОЕ
 
-        public WaypointEditDialog(int waypointNumber, double lat, double lng, double alt, 
-                                  double radius, double delay, int turns, bool autoNext, bool clockwise)
+        public WaypointEditDialog(int waypointNumber, double lat, double lng, double alt,
+                                  double radius, double delay, int turns, bool autoNext, bool clockwise,
+                                  string commandType = "WAYPOINT", bool isVtol = false)  // НОВЫЕ ПАРАМЕТРЫ
         {
             Latitude = lat;
             Longitude = lng;
@@ -38,11 +39,13 @@ namespace SimpleDroneGCS.UI.Dialogs
             LoiterTurns = turns;
             AutoNext = autoNext;
             Clockwise = clockwise;
+            CommandType = commandType;  // НОВОЕ
             _isClockwise = clockwise;
+            _isVtol = isVtol;  // НОВОЕ
 
             Title = $"Точка #{waypointNumber}";
             Width = 450;
-            Height = 680;  // Увеличено для направления
+            Height = 720;  // Увеличено для команды
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
             Background = new SolidColorBrush(Color.FromRgb(10, 14, 26));
@@ -118,6 +121,62 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             mainStack.Children.Add(headerGrid);
 
+            // === ВЫБОР КОМАНДЫ ===
+            var cmdPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+            cmdPanel.Children.Add(new TextBlock
+            {
+                Text = "Команда:",
+                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                FontSize = 14,
+                Width = 115,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            _commandCombo = new ComboBox
+            {
+                Width = 255,
+                Height = 34,
+                FontSize = 13,
+                Background = new SolidColorBrush(Color.FromRgb(26, 36, 51)),
+                Foreground = Brushes.Black,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(55, 65, 81))
+            };
+
+            var commands = _isVtol ? new[]
+            {
+                ("📍 Q-ТОЧКА", "WAYPOINT"),
+                ("🔄 Q-КРУГ", "LOITER_UNLIM"),
+                ("⏱️ Q-КРУГ(время)", "LOITER_TIME"),
+                ("🔁 Q-КРУГ(обор)", "LOITER_TURNS"),
+                ("🛬 Q-ПОСАДКА", "LAND"),
+                ("⏸️ Q-ЗАДЕРЖКА", "DELAY"),
+                ("⚡ Q-СКОРОСТЬ", "CHANGE_SPEED")
+            } : new[]
+            {
+                ("📍 ТОЧКА", "WAYPOINT"),
+                ("🔄 КРУГ", "LOITER_UNLIM"),
+                ("⏱️ КРУГ(время)", "LOITER_TIME"),
+                ("🔁 КРУГ(обор)", "LOITER_TURNS"),
+                ("🛫 ВЗЛЁТ", "TAKEOFF"),
+                ("🛬 ПОСАДКА", "LAND"),
+                ("⏸️ ЗАДЕРЖКА", "DELAY"),
+                ("⚡ СКОРОСТЬ", "CHANGE_SPEED"),
+                ("🏠 ВОЗВРАТ", "RETURN_TO_LAUNCH"),
+                ("〰️ СПЛАЙН", "SPLINE_WP")
+            };
+
+            int selIdx = 0;
+            for (int i = 0; i < commands.Length; i++)
+            {
+                var item = new ComboBoxItem { Content = commands[i].Item1, Tag = commands[i].Item2, Foreground = Brushes.Black };
+                _commandCombo.Items.Add(item);
+                if (commands[i].Item2 == CommandType) selIdx = i;
+            }
+            _commandCombo.SelectedIndex = selIdx;
+
+            cmdPanel.Children.Add(_commandCombo);
+            mainStack.Children.Add(cmdPanel);
+
             // === Поля ввода ===
             _latBox = new TextBox();
             mainStack.Children.Add(CreateInputRow("Широта:", Latitude.ToString("F7"), _latBox));
@@ -138,10 +197,10 @@ namespace SimpleDroneGCS.UI.Dialogs
             mainStack.Children.Add(CreateInputRow("Кругов:", LoiterTurns.ToString(), _turnsBox));
 
             // === НАПРАВЛЕНИЕ КРУЖЕНИЯ ===
-            var directionPanel = new StackPanel 
-            { 
-                Orientation = Orientation.Horizontal, 
-                Margin = new Thickness(0, 12, 0, 0) 
+            var directionPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 12, 0, 0)
             };
 
             directionPanel.Children.Add(new TextBlock
@@ -153,12 +212,10 @@ namespace SimpleDroneGCS.UI.Dialogs
                 VerticalAlignment = VerticalAlignment.Center
             });
 
-            // Кнопка CW (по часовой)
             _cwButton = CreateDirectionButton("↻ CW", true);
             _cwButton.MouseLeftButtonDown += (s, e) => SetDirection(true);
             directionPanel.Children.Add(_cwButton);
 
-            // Кнопка CCW (против часовой)
             _ccwButton = CreateDirectionButton("↺ CCW", false);
             _ccwButton.MouseLeftButtonDown += (s, e) => SetDirection(false);
             _ccwButton.Margin = new Thickness(8, 0, 0, 0);
@@ -183,117 +240,53 @@ namespace SimpleDroneGCS.UI.Dialogs
             };
             mainStack.Children.Add(dirHintPanel);
 
-            // === AUTONEXT ЧЕКБОКС ===
-            var autoNextPanel = new StackPanel 
-            { 
-                Orientation = Orientation.Horizontal, 
-                Margin = new Thickness(0, 12, 0, 0) 
-            };
-
-            autoNextPanel.Children.Add(new TextBlock
+            // === АВТОПЕРЕХОД ===
+            var autoPanel = new StackPanel
             {
-                Text = "Авто-переход:",
-                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
-                FontSize = 14,
-                Width = 115,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 16, 0, 0)
+            };
             _autoNextBox = new CheckBox
             {
                 IsChecked = AutoNext,
+                Style = CreateCheckBoxStyle(),
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0)
+                Margin = new Thickness(0, 0, 10, 0)
             };
-            _autoNextBox.Style = CreateCheckBoxStyle();
-
-            var hintText = new TextBlock
+            autoPanel.Children.Add(_autoNextBox);
+            autoPanel.Children.Add(new TextBlock
             {
-                Text = "Лететь к следующей точке",
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
-            autoNextPanel.Children.Add(_autoNextBox);
-            autoNextPanel.Children.Add(hintText);
-            mainStack.Children.Add(autoNextPanel);
-
-            // Подсказка AutoNext
-            var hintPanel = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(10, 6, 10, 6),
-                Margin = new Thickness(0, 6, 0, 0)
-            };
-            hintPanel.Child = new TextBlock
-            {
-                Text = "⚡ Если выключено: дрон кружит бесконечно, ожидая команду",
-                Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                FontSize = 10,
-                TextWrapping = TextWrapping.Wrap
-            };
-            mainStack.Children.Add(hintPanel);
-
-            // === Кнопки ===
-            var btnGrid = new Grid { Margin = new Thickness(0, 20, 0, 0) };
-            btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            // Кнопка Отмена
-            var cancelBtn = new Border
-            {
-                Height = 44,
-                Cursor = Cursors.Hand,
-                Background = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Margin = new Thickness(0, 0, 8, 0)
-            };
-            cancelBtn.Child = new TextBlock
-            {
-                Text = "Отмена",
+                Text = "Автопереход к следующей точке",
                 Foreground = Brushes.White,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                HorizontalAlignment = HorizontalAlignment.Center,
+                FontSize = 13,
                 VerticalAlignment = VerticalAlignment.Center
-            };
-            cancelBtn.MouseLeftButtonDown += (s, e) => { DialogResult = false; Close(); };
-            cancelBtn.MouseEnter += (s, e) => cancelBtn.Opacity = 0.85;
-            cancelBtn.MouseLeave += (s, e) => cancelBtn.Opacity = 1.0;
-            Grid.SetColumn(cancelBtn, 0);
-            btnGrid.Children.Add(cancelBtn);
+            });
+            mainStack.Children.Add(autoPanel);
 
-            // Кнопка Сохранить
+            // === КНОПКА СОХРАНИТЬ ===
             var saveBtn = new Border
             {
-                Height = 44,
-                Cursor = Cursors.Hand,
                 Background = new SolidColorBrush(Color.FromRgb(22, 101, 52)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
-                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(74, 222, 128)),
+                BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(8),
-                Margin = new Thickness(8, 0, 0, 0)
+                Margin = new Thickness(0, 24, 0, 0),
+                Cursor = Cursors.Hand,
+                Height = 44
             };
             saveBtn.Child = new TextBlock
             {
-                Text = "Сохранить",
+                Text = "💾 СОХРАНИТЬ",
                 Foreground = Brushes.White,
                 FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             saveBtn.MouseLeftButtonDown += SaveButton_Click;
-            saveBtn.MouseEnter += (s, e) => saveBtn.Opacity = 0.85;
-            saveBtn.MouseLeave += (s, e) => saveBtn.Opacity = 1.0;
-            Grid.SetColumn(saveBtn, 1);
-            btnGrid.Children.Add(saveBtn);
-
-            mainStack.Children.Add(btnGrid);
+            saveBtn.MouseEnter += (s, e) => saveBtn.Background = new SolidColorBrush(Color.FromRgb(34, 139, 34));
+            saveBtn.MouseLeave += (s, e) => saveBtn.Background = new SolidColorBrush(Color.FromRgb(22, 101, 52));
+            mainStack.Children.Add(saveBtn);
 
             mainBorder.Child = mainStack;
             Content = mainBorder;
@@ -305,7 +298,6 @@ namespace SimpleDroneGCS.UI.Dialogs
                     DragMove();
             };
 
-            // Установить начальное состояние кнопок направления
             UpdateDirectionButtons();
         }
 
@@ -338,7 +330,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private void UpdateDirectionButtons()
         {
-            // CW кнопка
             if (_isClockwise)
             {
                 _cwButton.Background = new SolidColorBrush(Color.FromRgb(22, 101, 52));
@@ -354,7 +345,6 @@ namespace SimpleDroneGCS.UI.Dialogs
                 ((TextBlock)_cwButton.Child).Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175));
             }
 
-            // CCW кнопка
             if (!_isClockwise)
             {
                 _ccwButton.Background = new SolidColorBrush(Color.FromRgb(127, 29, 29));
@@ -434,7 +424,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             var trigger = new Trigger { Property = CheckBox.IsCheckedProperty, Value = true };
             trigger.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "checkMark"));
-            trigger.Setters.Add(new Setter(Border.BorderBrushProperty, 
+            trigger.Setters.Add(new Setter(Border.BorderBrushProperty,
                 new SolidColorBrush(Color.FromRgb(152, 240, 25)), "border"));
             template.Triggers.Add(trigger);
 
@@ -474,6 +464,10 @@ namespace SimpleDroneGCS.UI.Dialogs
             LoiterTurns = Math.Max(0, turns);
             AutoNext = _autoNextBox.IsChecked ?? true;
             Clockwise = _isClockwise;
+
+            // Сохраняем команду
+            if (_commandCombo.SelectedItem is ComboBoxItem cmdItem)
+                CommandType = cmdItem.Tag?.ToString() ?? "WAYPOINT";
 
             DialogResult = true;
             Close();

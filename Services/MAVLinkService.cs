@@ -85,7 +85,10 @@ namespace SimpleDroneGCS.Services
         public event EventHandler<string> MessageReceived; // Текстовые сообщения от дрона
         public event Action<string> OnStatusTextReceived;
         public event EventHandler<int> MissionProgressUpdated;
-
+        /// <summary>MAG_CAL_PROGRESS (#191) — прогресс калибровки компаса</summary>
+        public event Action<byte, byte, byte[], float, float, float> OnMagCalProgress;
+        /// <summary>MAG_CAL_REPORT (#192) — результат калибровки компаса</summary>
+        public event Action<byte, byte, float, float, float, float> OnMagCalReport;
         // Текущая точка миссии (из MISSION_CURRENT)
         public int CurrentMissionSeq { get; private set; } = 0;
 
@@ -748,6 +751,15 @@ namespace SimpleDroneGCS.Services
                     case MAVLink.MAVLINK_MSG_ID.MISSION_ITEM_INT:
                         ProcessMissionItemInt(msg);
                         break;
+
+                    // === Compass Calibration Protocol ===
+                    case (MAVLink.MAVLINK_MSG_ID)191: // MAG_CAL_PROGRESS
+                        ProcessMagCalProgress(msg);
+                        break;
+
+                    case (MAVLink.MAVLINK_MSG_ID)192: // MAG_CAL_REPORT
+                        ProcessMagCalReport(msg);
+                        break;
                 }
 
                 TelemetryUpdated?.Invoke(this, CurrentTelemetry);
@@ -844,6 +856,48 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.CurrentWaypoint = mission.seq;
             CurrentMissionSeq = mission.seq;
             MissionProgressUpdated?.Invoke(this, (int)mission.seq);
+        }
+
+        private void ProcessMagCalProgress(MAVLink.MAVLinkMessage msg)
+        {
+            try
+            {
+                var progress = (MAVLink.mavlink_mag_cal_progress_t)msg.data;
+                OnMagCalProgress?.Invoke(
+                    progress.compass_id,
+                    progress.completion_pct,
+                    progress.completion_mask,   // byte[10]
+                    progress.direction_x,
+                    progress.direction_y,
+                    progress.direction_z
+                );
+                Debug.WriteLine($"[MAG_CAL] Progress: {progress.completion_pct}% compass#{progress.compass_id}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MAG_CAL] Progress parse error: {ex.Message}");
+            }
+        }
+
+        private void ProcessMagCalReport(MAVLink.MAVLinkMessage msg)
+        {
+            try
+            {
+                var report = (MAVLink.mavlink_mag_cal_report_t)msg.data;
+                OnMagCalReport?.Invoke(
+                    report.compass_id,
+                    report.cal_status,   // 4=success, 5=failed
+                    report.fitness,
+                    report.ofs_x,
+                    report.ofs_y,
+                    report.ofs_z
+                );
+                Debug.WriteLine($"[MAG_CAL] Report: compass#{report.compass_id} status={report.cal_status} fitness={report.fitness:F1}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MAG_CAL] Report parse error: {ex.Message}");
+            }
         }
 
         private void ProcessStatusText(MAVLink.MAVLinkMessage msg)
@@ -1013,6 +1067,8 @@ namespace SimpleDroneGCS.Services
                 }
             }
         }
+
+
 
         #endregion
 
@@ -1331,6 +1387,42 @@ namespace SimpleDroneGCS.Services
             SetMode(customMode);
 
             System.Diagnostics.Debug.WriteLine($"[MAVLink] {vehicleType} режим {modeName} (custom_mode={customMode}) отправлен");
+        }
+
+        /// <summary>
+        /// Универсальная отправка MAV_CMD_COMMAND_LONG (для калибровки компаса и др.)
+        /// </summary>
+        public void SendCommandLong(ushort command,
+            float param1 = 0, float param2 = 0, float param3 = 0,
+            float param4 = 0, float param5 = 0, float param6 = 0, float param7 = 0)
+        {
+            if (!IsConnected) return;
+
+            try
+            {
+                var msg = new MAVLink.mavlink_command_long_t
+                {
+                    target_system = (byte)DroneStatus.SystemId,
+                    target_component = (byte)DroneStatus.ComponentId,
+                    command = command,
+                    confirmation = 0,
+                    param1 = param1,
+                    param2 = param2,
+                    param3 = param3,
+                    param4 = param4,
+                    param5 = param5,
+                    param6 = param6,
+                    param7 = param7
+                };
+
+                SendMessage(msg, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
+
+                Debug.WriteLine($"[MAVLink] CMD_LONG: {command} p1={param1} p2={param2} p3={param3}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MAVLink] SendCommandLong error: {ex.Message}");
+            }
         }
 
         /// <summary>
