@@ -2,6 +2,8 @@
 using System.Windows.Input;
 using System.Windows.Media;
 
+using static SimpleDroneGCS.Helpers.Loc;
+
 namespace SimpleDroneGCS.UI.Dialogs
 {
     public partial class AppMessageBox : Window
@@ -107,10 +109,10 @@ namespace SimpleDroneGCS.UI.Dialogs
         // ---------------- Public API ----------------
 
         public static bool Show(Window owner, string title, string message, AppMessageBoxType type,
-                                string okText = "OK", string cancelText = "Отмена", bool showCancel = false,
+                                string okText = "OK", string cancelText = null, bool showCancel = false,
                                 string subtitle = null, string hint = null)
         {
-            var dlg = new AppMessageBox(title, message, type, okText, cancelText, showCancel, subtitle, hint)
+            var dlg = new AppMessageBox(title, message, type, okText, cancelText ?? Get("MsgBox_Cancel"), showCancel, subtitle, hint)
             {
                 Owner = owner ?? Application.Current?.MainWindow
             };
@@ -119,38 +121,38 @@ namespace SimpleDroneGCS.UI.Dialogs
         }
 
         public static void ShowError(string message, Window owner = null, string subtitle = null, string hint = null)
-            => Show(owner, "Ошибка", message, AppMessageBoxType.Error, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
+            => Show(owner, Get("MsgBox_Error"), message, AppMessageBoxType.Error, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
 
         public static void ShowWarning(string message, Window owner = null, string subtitle = null, string hint = null)
-            => Show(owner, "Предупреждение", message, AppMessageBoxType.Warning, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
+            => Show(owner, Get("MsgBox_Warning"), message, AppMessageBoxType.Warning, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
 
         public static void ShowInfo(string message, Window owner = null, string subtitle = null, string hint = null)
-            => Show(owner, "Информация", message, AppMessageBoxType.Info, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
+            => Show(owner, Get("MsgBox_Info"), message, AppMessageBoxType.Info, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
 
         public static void ShowSuccess(string message, Window owner = null, string subtitle = null, string hint = null)
-            => Show(owner, "Готово", message, AppMessageBoxType.Success, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
+            => Show(owner, Get("MsgBox_Success"), message, AppMessageBoxType.Success, okText: "OK", showCancel: false, subtitle: subtitle, hint: hint);
 
         public static bool ShowConfirm(string message, Window owner = null, string subtitle = null, string hint = null)
-            => Show(owner, "Подтверждение", message, AppMessageBoxType.Confirm,
-                    okText: "Да", cancelText: "Нет", showCancel: true, subtitle: subtitle, hint: hint);
+            => Show(owner, Get("MsgBox_Confirm"), message, AppMessageBoxType.Confirm,
+                    okText: Get("MsgBox_Yes"), cancelText: Get("MsgBox_No"), showCancel: true, subtitle: subtitle, hint: hint);
         public static AppMessageBoxResult ShowYesNoCancel(string message, Window owner = null,
-            string subtitle = null, string yesText = "Да", string noText = "Нет", string cancelText = "Отмена")
+            string subtitle = null, string yesText = null, string noText = null, string cancelText = null)
         {
-            var dlg = new AppMessageBox("Выбор действия", message, AppMessageBoxType.Confirm,
-                yesText, cancelText, showCancel: true, subtitle: subtitle)
+            var dlg = new AppMessageBox(Get("MsgBox_Choose"), message, AppMessageBoxType.Confirm,
+                yesText ?? Get("MsgBox_Yes"), cancelText ?? Get("MsgBox_Cancel"), showCancel: true, subtitle: subtitle)
             {
                 Owner = owner ?? Application.Current?.MainWindow
             };
 
             // Меняем кнопки на Yes/No/Cancel
-            dlg.OkButton.Content = yesText;
+            dlg.OkButton.Content = yesText ?? Get("MsgBox_Yes");
             dlg.OkButton.Click -= dlg.Ok_Click;
             dlg.OkButton.Click += dlg.Yes_Click;
 
             // Добавляем кнопку No
             var noButton = new System.Windows.Controls.Button
             {
-                Content = noText,
+                Content = noText ?? Get("MsgBox_No"),
                 Style = dlg.CancelButton.Style,
                 Margin = new Thickness(8, 0, 0, 0),
                 MinWidth = 80

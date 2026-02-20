@@ -14,6 +14,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
+using static SimpleDroneGCS.Helpers.Loc;
+
 namespace SimpleDroneGCS
 {
     public partial class MainWindow : Window
@@ -59,7 +61,7 @@ namespace SimpleDroneGCS
             // Данные обновляются автоматически через MAVLink.CurrentTelemetry
         }
 
-        
+
 
         #region ПОДКЛЮЧЕНИЕ
 
@@ -111,12 +113,12 @@ namespace SimpleDroneGCS
             if (_isConnected)
             {
                 ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Зелёный
-                ConnectionStatusText.Text = "Подключено";
+                ConnectionStatusText.Text = Get("Connected");
             }
             else
             {
                 ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Красный
-                ConnectionStatusText.Text = "Не подключено";
+                ConnectionStatusText.Text = Get("NotConnected");
             }
         }
 
@@ -153,7 +155,7 @@ namespace SimpleDroneGCS
                 AppMessageBox.ShowError(
                     $"Ошибка навигации: {ex.Message}",
                     owner: this,
-                    subtitle: "Ошибка"
+                    subtitle: Get("Msg_ErrorSub")
                 );
             }
         }
@@ -190,14 +192,14 @@ namespace SimpleDroneGCS
             if (!_isConnected)
             {
                 AppMessageBox.ShowWarning(
-                    "Дрон не подключен",
+                    Get("Msg_DroneNotConnectedDot"),
                     owner: this,
-                    subtitle: "Ошибка"
+                    subtitle: Get("Msg_ErrorSub")
                 );
                 return;
             }
 
-            if (AppMessageBox.ShowConfirm("АВАРИЙНАЯ ПОСАДКА?", owner: this, subtitle: "ВНИМАНИЕ"))
+            if (AppMessageBox.ShowConfirm(Get("Msg_EmergencyLand"), owner: this, subtitle: Get("Msg_Warning")))
             {
                 MAVLink.SendLand();
             }
@@ -208,9 +210,9 @@ namespace SimpleDroneGCS
             if (!_isConnected)
             {
                 AppMessageBox.ShowWarning(
-                    "Дрон не подключен",
+                    Get("Msg_DroneNotConnectedDot"),
                     owner: this,
-                    subtitle: "Ошибка"
+                    subtitle: Get("Msg_ErrorSub")
                 );
                 return;
             }
@@ -227,7 +229,7 @@ namespace SimpleDroneGCS
 
         protected override void OnClosed(EventArgs e)
         {
-           
+
             MAVLink?.Disconnect();
             base.OnClosed(e);
         }

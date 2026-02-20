@@ -1,7 +1,7 @@
 <Window x:Class="SimpleDroneGCS.UI.Dialogs.CompassCalibrationDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Калибровка компаса" 
+        Title="{DynamicResource CompassCalib_Title}" 
         Width="500" Height="520"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
@@ -22,7 +22,7 @@
 
         <!-- Заголовок -->
         <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,12">
-            <TextBlock Text="КАЛИБРОВКА КОМПАСА" 
+            <TextBlock Text="{DynamicResource CompassCalib_Header}" 
                        FontSize="16" FontWeight="Bold" FontFamily="Consolas"
                        Foreground="#98F019" HorizontalAlignment="Center"/>
             <TextBlock Text="COMPASS / MAGNETOMETER CALIBRATION" 
@@ -60,25 +60,25 @@
                 </Viewbox>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <TextBlock Text="ИНСТРУКЦИЯ" Foreground="#4498F019" 
+                    <TextBlock Text="{DynamicResource CompassCalib_Instruction_Label}" Foreground="#4498F019" 
                                FontSize="9" FontFamily="Consolas" Margin="0,0,0,6"/>
                     <TextBlock x:Name="InstructionText"
-                               Text="Нажмите НАЧАТЬ&#x0a;и медленно&#x0a;вращайте дрон&#x0a;во всех&#x0a;направлениях"
+                               Text="{DynamicResource CompassCalib_Instruction}"
                                Foreground="#CCDDDD" FontSize="11" FontFamily="Segoe UI"
                                TextWrapping="Wrap" LineHeight="18"/>
                     <Border Background="#1AFF6B35" CornerRadius="4" Padding="6,4" Margin="0,12,0,0">
-                        <TextBlock Text="Крутите&#x0a;медленно!" 
+                        <TextBlock Text="{DynamicResource CompassCalib_SlowHint}" 
                                    Foreground="#FF6B35" FontSize="10" FontWeight="Bold"
                                    FontFamily="Consolas" TextAlignment="Center"/>
                     </Border>
                     <StackPanel Margin="0,16,0,0">
-                        <TextBlock Text="ПОКРЫТИЕ" Foreground="#4498F019" FontSize="8" FontFamily="Consolas"/>
-                        <TextBlock x:Name="CoverageText" Text="0 / 80 секций" 
+                        <TextBlock Text="{DynamicResource CompassCalib_Coverage}" Foreground="#4498F019" FontSize="8" FontFamily="Consolas"/>
+                        <TextBlock x:Name="CoverageText" Text="{DynamicResource CompassCalib_Sections}" 
                                    Foreground="#98F019" FontSize="10" FontFamily="Consolas"/>
-                        <TextBlock Text="КАЧЕСТВО" Foreground="#4498F019" FontSize="8" FontFamily="Consolas" Margin="0,8,0,0"/>
+                        <TextBlock Text="{DynamicResource CompassCalib_Quality}" Foreground="#4498F019" FontSize="8" FontFamily="Consolas" Margin="0,8,0,0"/>
                         <TextBlock x:Name="FitnessText" Text="—" 
                                    Foreground="#98F019" FontSize="10" FontFamily="Consolas"/>
-                        <TextBlock Text="КОМПАС" Foreground="#4498F019" FontSize="8" FontFamily="Consolas" Margin="0,8,0,0"/>
+                        <TextBlock Text="{DynamicResource CompassCalib_Compass}" Foreground="#4498F019" FontSize="8" FontFamily="Consolas" Margin="0,8,0,0"/>
                         <TextBlock x:Name="CompassIdText" Text="MAG #1" 
                                    Foreground="#98F019" FontSize="10" FontFamily="Consolas"/>
                     </StackPanel>
@@ -94,7 +94,7 @@
 
         <!-- Статус -->
         <TextBlock x:Name="StatusText" Grid.Row="3"
-                   Text="Готов к калибровке" FontSize="11" FontFamily="Consolas"
+                   Text="{DynamicResource CompassCalib_Ready}" FontSize="11" FontFamily="Consolas"
                    Foreground="#6698F019" HorizontalAlignment="Center"
                    TextAlignment="Center" Margin="0,8,0,0" TextWrapping="Wrap"/>
 
@@ -111,14 +111,14 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Button x:Name="StartButton" Grid.Column="0" Content="НАЧАТЬ"
+            <Button x:Name="StartButton" Grid.Column="0" Content="{DynamicResource Start}"
                     Height="38" Margin="0,0,4,0"
                     Background="#1A98F019" Foreground="#98F019"
                     BorderBrush="#3398F019" BorderThickness="1"
                     FontFamily="Consolas" FontWeight="Bold" FontSize="12"
                     Click="StartButton_Click" Cursor="Hand"/>
 
-            <Button x:Name="AcceptButton" Grid.Column="1" Content="ПРИНЯТЬ"
+            <Button x:Name="AcceptButton" Grid.Column="1" Content="{DynamicResource CompassCalib_Accept}"
                     Height="38" Margin="4,0,4,0"
                     Background="#1A00AAFF" Foreground="#00AAFF"
                     BorderBrush="#3300AAFF" BorderThickness="1"
@@ -126,7 +126,7 @@
                     Click="AcceptButton_Click" Cursor="Hand"
                     IsEnabled="False" Opacity="0.4"/>
 
-            <Button x:Name="CancelButton" Grid.Column="2" Content="ЗАКРЫТЬ"
+            <Button x:Name="CancelButton" Grid.Column="2" Content="{DynamicResource Close}"
                     Height="38" Margin="4,0,0,0"
                     Background="#1AFF4444" Foreground="#FF6666"
                     BorderBrush="#33FF4444" BorderThickness="1"

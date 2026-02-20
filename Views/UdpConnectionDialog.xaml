@@ -1,7 +1,7 @@
 ﻿<Window x:Class="SimpleDroneGCS.Views.UdpConnectionDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="UDP Подключение"
+        Title="{DynamicResource Udp_Title}"
         Width="420" Height="400"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -22,7 +22,7 @@
 
             <!-- ЗАГОЛОВОК -->
             <Grid Grid.Row="0" Margin="0,0,0,20">
-                <TextBlock Text="UDP Подключение" 
+                <TextBlock Text="{DynamicResource Udp_Title}" 
                            FontSize="18" 
                            FontWeight="Bold" 
                            Foreground="White"/>
@@ -40,35 +40,35 @@
             <StackPanel Grid.Row="1" VerticalAlignment="Top">
 
                 <!-- ЗАГОТОВКИ -->
-                <TextBlock Text="БЫСТРЫЕ НАСТРОЙКИ" 
+                <TextBlock Text="{DynamicResource Udp_QuickSettings}" 
                            Foreground="#98F019" 
                            FontSize="11"
                            FontWeight="Bold"
                            Margin="0,0,0,8"/>
-                
+
                 <WrapPanel Margin="0,0,0,15">
-                    <Button Content="🚁 Дрон (236)" 
+                    <Button Content="{DynamicResource Udp_Drone}" 
                             Click="PresetDrone_Click"
                             Background="#1E3A5F" Foreground="White"
                             BorderThickness="0" Padding="12,6" Margin="0,0,8,5"
                             FontSize="11" Cursor="Hand"
                             ToolTip="192.168.1.236:15000 → local:192.168.1.33:15000"/>
-                    <Button Content="🖥️ Симулятор" 
+                    <Button Content="{DynamicResource Udp_Simulator}" 
                             Click="PresetSimulator_Click"
                             Background="#1E3A5F" Foreground="White"
                             BorderThickness="0" Padding="12,6" Margin="0,0,8,5"
                             FontSize="11" Cursor="Hand"
                             ToolTip="localhost:14550"/>
-                    <Button Content="📡 Ожидание" 
+                    <Button Content="{DynamicResource Udp_Listen}" 
                             Click="PresetListen_Click"
                             Background="#1E3A5F" Foreground="White"
                             BorderThickness="0" Padding="12,6" Margin="0,0,0,5"
                             FontSize="11" Cursor="Hand"
-                            ToolTip="Ждать входящее подключение на 14550"/>
+                            ToolTip="{DynamicResource Udp_Hint_Listen}"/>
                 </WrapPanel>
 
                 <!-- Секция: Дрон/Симулятор -->
-                <TextBlock Text="АДРЕС ДРОНА (опционально)" 
+                <TextBlock Text="{DynamicResource Udp_DroneAddress}" 
                            Foreground="#98F019" 
                            FontSize="11"
                            FontWeight="Bold"
@@ -80,7 +80,7 @@
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="IP адрес дрона:" 
+                    <TextBlock Text="{DynamicResource Udp_DroneIp}" 
                                Foreground="White" 
                                VerticalAlignment="Center"/>
                     <TextBox x:Name="HostIpTextBox"
@@ -99,7 +99,7 @@
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Порт дрона:" 
+                    <TextBlock Text="{DynamicResource Udp_DronePort}" 
                                Foreground="White" 
                                VerticalAlignment="Center"/>
                     <TextBox x:Name="HostPortTextBox"
@@ -113,7 +113,7 @@
                 </Grid>
 
                 <!-- Секция: Локальные настройки -->
-                <TextBlock Text="ЛОКАЛЬНЫЕ НАСТРОЙКИ" 
+                <TextBlock Text="{DynamicResource Udp_LocalSettings}" 
                            Foreground="#98F019" 
                            FontSize="11"
                            FontWeight="Bold"
@@ -125,7 +125,7 @@
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Локальный IP:" 
+                    <TextBlock Text="{DynamicResource Udp_LocalIp}" 
                                Foreground="White" 
                                VerticalAlignment="Center"/>
                     <TextBox x:Name="LocalIpTextBox"
@@ -144,7 +144,7 @@
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Локальный порт:" 
+                    <TextBlock Text="{DynamicResource Udp_LocalPort}" 
                                Foreground="White" 
                                VerticalAlignment="Center"/>
                     <TextBox x:Name="LocalPortTextBox"
@@ -159,11 +159,11 @@
 
                 <!-- Подсказки -->
                 <StackPanel Margin="0,8,0,0">
-                    <TextBlock Text="💡 Оставьте адрес дрона пустым для режима ожидания" 
+                    <TextBlock Text="{DynamicResource Udp_Hint1}" 
                                Foreground="#6B7280" 
                                FontSize="11"
                                TextWrapping="Wrap"/>
-                    <TextBlock Text="💡 Локальный IP 0.0.0.0 = все сетевые интерфейсы" 
+                    <TextBlock Text="{DynamicResource Udp_Hint2}" 
                                Foreground="#6B7280" 
                                FontSize="11"
                                Margin="0,3,0,0"/>
@@ -175,7 +175,7 @@
                         Orientation="Horizontal" 
                         HorizontalAlignment="Right"
                         Margin="0,20,0,0">
-                <Button Content="Отмена" 
+                <Button Content="{DynamicResource Cancel}" 
                         Width="100" Height="35"
                         Background="#2A4361"
                         Foreground="White"
@@ -183,7 +183,7 @@
                         Margin="0,0,10,0"
                         Cursor="Hand"
                         Click="CancelButton_Click"/>
-                <Button Content="Подключить" 
+                <Button Content="{DynamicResource Connect}" 
                         Width="120" Height="35"
                         Background="#98F019"
                         Foreground="#060B1A"

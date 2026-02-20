@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using static SimpleDroneGCS.Helpers.Loc;
 
 namespace SimpleDroneGCS.UI.Dialogs
 {
@@ -43,7 +44,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             _isClockwise = clockwise;
             _isVtol = isVtol;  // НОВОЕ
 
-            Title = $"Точка #{waypointNumber}";
+            Title = Fmt("WpEdit_Title", waypointNumber);
             Width = 450;
             Height = 720;  // Увеличено для команды
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -95,7 +96,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             titleStack.Children.Add(numCircle);
             titleStack.Children.Add(new TextBlock
             {
-                Text = "Редактирование точки",
+                Text = Get("WpEdit_Header"),
                 Foreground = Brushes.White,
                 FontSize = 18,
                 FontWeight = FontWeights.SemiBold,
@@ -125,7 +126,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             var cmdPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
             cmdPanel.Children.Add(new TextBlock
             {
-                Text = "Команда:",
+                Text = Get("WpEdit_Command"),
                 Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
                 FontSize = 14,
                 Width = 115,
@@ -144,25 +145,25 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             var commands = _isVtol ? new[]
             {
-                ("📍 Q-ТОЧКА", "WAYPOINT"),
-                ("🔄 Q-КРУГ", "LOITER_UNLIM"),
-                ("⏱️ Q-КРУГ(время)", "LOITER_TIME"),
-                ("🔁 Q-КРУГ(обор)", "LOITER_TURNS"),
-                ("🛬 Q-ПОСАДКА", "LAND"),
-                ("⏸️ Q-ЗАДЕРЖКА", "DELAY"),
-                ("⚡ Q-СКОРОСТЬ", "CHANGE_SPEED")
+                (Get("Cmd_Q_Waypoint"), "WAYPOINT"),
+                (Get("Cmd_Q_Loiter"), "LOITER_UNLIM"),
+                (Get("Cmd_Q_LoiterTime"), "LOITER_TIME"),
+                (Get("Cmd_Q_LoiterTurns"), "LOITER_TURNS"),
+                (Get("Cmd_Q_Land"), "LAND"),
+                (Get("Cmd_Q_Delay"), "DELAY"),
+                (Get("Cmd_Q_Speed"), "CHANGE_SPEED")
             } : new[]
             {
-                ("📍 ТОЧКА", "WAYPOINT"),
-                ("🔄 КРУГ", "LOITER_UNLIM"),
-                ("⏱️ КРУГ(время)", "LOITER_TIME"),
-                ("🔁 КРУГ(обор)", "LOITER_TURNS"),
-                ("🛫 ВЗЛЁТ", "TAKEOFF"),
-                ("🛬 ПОСАДКА", "LAND"),
-                ("⏸️ ЗАДЕРЖКА", "DELAY"),
-                ("⚡ СКОРОСТЬ", "CHANGE_SPEED"),
-                ("🏠 ВОЗВРАТ", "RETURN_TO_LAUNCH"),
-                ("〰️ СПЛАЙН", "SPLINE_WP")
+                (Get("Cmd_Waypoint"), "WAYPOINT"),
+                (Get("Cmd_Loiter"), "LOITER_UNLIM"),
+                (Get("Cmd_LoiterTime"), "LOITER_TIME"),
+                (Get("Cmd_LoiterTurns"), "LOITER_TURNS"),
+                (Get("Cmd_Takeoff"), "TAKEOFF"),
+                (Get("Cmd_Land"), "LAND"),
+                (Get("Cmd_Delay"), "DELAY"),
+                (Get("Cmd_Speed"), "CHANGE_SPEED"),
+                (Get("Cmd_RTL"), "RETURN_TO_LAUNCH"),
+                (Get("Cmd_Spline"), "SPLINE_WP")
             };
 
             int selIdx = 0;
@@ -179,22 +180,22 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             // === Поля ввода ===
             _latBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow("Широта:", Latitude.ToString("F7"), _latBox));
+            mainStack.Children.Add(CreateInputRow(Get("WpEdit_Latitude"), Latitude.ToString("F7"), _latBox));
 
             _lngBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow("Долгота:", Longitude.ToString("F7"), _lngBox));
+            mainStack.Children.Add(CreateInputRow(Get("WpEdit_Longitude"), Longitude.ToString("F7"), _lngBox));
 
             _altBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow("Высота (м):", Altitude.ToString("F0"), _altBox));
+            mainStack.Children.Add(CreateInputRow(Get("WpEdit_AltitudeM"), Altitude.ToString("F0"), _altBox));
 
             _radBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow("Радиус (м):", Radius.ToString("F0"), _radBox));
+            mainStack.Children.Add(CreateInputRow(Get("WpEdit_RadiusM"), Radius.ToString("F0"), _radBox));
 
             _delayBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow("Задержка (с):", Delay.ToString("F0"), _delayBox));
+            mainStack.Children.Add(CreateInputRow(Get("WpEdit_DelayS"), Delay.ToString("F0"), _delayBox));
 
             _turnsBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow("Кругов:", LoiterTurns.ToString(), _turnsBox));
+            mainStack.Children.Add(CreateInputRow(Get("WpEdit_Turns"), LoiterTurns.ToString(), _turnsBox));
 
             // === НАПРАВЛЕНИЕ КРУЖЕНИЯ ===
             var directionPanel = new StackPanel
@@ -205,7 +206,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             directionPanel.Children.Add(new TextBlock
             {
-                Text = "Направление:",
+                Text = Get("WpEdit_Direction"),
                 Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
                 FontSize = 14,
                 Width = 115,
@@ -233,7 +234,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             };
             dirHintPanel.Child = new TextBlock
             {
-                Text = "🔄 CW = по часовой стрелке, CCW = против часовой",
+                Text = Get("WpEdit_DirHint"),
                 Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
                 FontSize = 10,
                 TextWrapping = TextWrapping.Wrap
@@ -256,7 +257,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             autoPanel.Children.Add(_autoNextBox);
             autoPanel.Children.Add(new TextBlock
             {
-                Text = "Автопереход к следующей точке",
+                Text = Get("WpEdit_AutoNext"),
                 Foreground = Brushes.White,
                 FontSize = 13,
                 VerticalAlignment = VerticalAlignment.Center
@@ -276,7 +277,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             };
             saveBtn.Child = new TextBlock
             {
-                Text = "💾 СОХРАНИТЬ",
+                Text = Get("WpEdit_Save"),
                 Foreground = Brushes.White,
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
@@ -441,18 +442,18 @@ namespace SimpleDroneGCS.UI.Dialogs
                 !double.TryParse(_delayBox.Text, out double delay) ||
                 !int.TryParse(_turnsBox.Text, out int turns))
             {
-                MessageBox.Show("Проверьте правильность введённых данных", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Get("WpEdit_ValidationError"), Get("Error"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (lat < -90 || lat > 90)
             {
-                MessageBox.Show("Широта должна быть от -90 до 90", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Get("WpEdit_LatError"), Get("Error"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (lng < -180 || lng > 180)
             {
-                MessageBox.Show("Долгота должна быть от -180 до 180", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Get("WpEdit_LonError"), Get("Error"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 

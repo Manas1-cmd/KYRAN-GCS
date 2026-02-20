@@ -60,7 +60,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Page Update="Resources\Lang,ru-RU.xaml">
+    <Page Update="Resources\Lang.ru-RU.xaml">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Page>
     <Page Update="Resources\Lang.kk-KZ.xaml">

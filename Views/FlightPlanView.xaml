@@ -44,16 +44,16 @@
                         Panel.ZIndex="100">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="ШИР" Foreground="#6B7280" FontSize="9" Width="28"/>
+                            <TextBlock Text="{DynamicResource Lat}" Foreground="#6B7280" FontSize="9" Width="28"/>
                             <TextBlock x:Name="CursorLatText" Text="—" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <TextBlock Text="ДОЛ" Foreground="#6B7280" FontSize="9" Width="28"/>
+                            <TextBlock Text="{DynamicResource Lon}" Foreground="#6B7280" FontSize="9" Width="28"/>
                             <TextBlock x:Name="CursorLngText" Text="—" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
                         </StackPanel>
                         <Border Background="#1598F019" Height="1" Margin="0,4"/>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="ВЫС" Foreground="#6B7280" FontSize="9" Width="28"/>
+                            <TextBlock Text="{DynamicResource Alt}" Foreground="#6B7280" FontSize="9" Width="28"/>
                             <TextBlock x:Name="CursorAltText" Text="—" Foreground="{StaticResource AcidGreen}" FontSize="10" FontWeight="Bold"/>
                         </StackPanel>
                     </StackPanel>
@@ -75,7 +75,7 @@
                         <Border Background="#1A98F019" CornerRadius="3" Padding="5,2" Margin="0,0,6,0">
                             <TextBlock x:Name="VehicleTypeShortText" Text="MC" Foreground="{StaticResource AcidGreen}" FontWeight="Bold" FontSize="10"/>
                         </Border>
-                        <TextBlock x:Name="VehicleTypeFullText" Text="Мультикоптер" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="VehicleTypeFullText" Text="{DynamicResource MulticopterLabel}" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
                         <TextBlock Text=" ▼" Foreground="{StaticResource AcidGreen}" FontSize="9" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
@@ -115,9 +115,9 @@
                         Panel.ZIndex="100">
                     <StackPanel>
                         <StackPanel Margin="0,0,0,6">
-                            <TextBlock x:Name="TotalDistanceOverlay" Text="Маршрут: 0 м" Foreground="White" FontSize="12" FontWeight="Bold"/>
-                            <TextBlock x:Name="CursorDistanceFromLast" Text="От WP: —" Foreground="#4ADE80" FontSize="10" Margin="0,2,0,0"/>
-                            <TextBlock x:Name="CursorDistanceFromHome" Text="От HOME: —" Foreground="#F59E0B" FontSize="10" Margin="0,1,0,0"/>
+                            <TextBlock x:Name="TotalDistanceOverlay" Text="{DynamicResource RouteLength}" Foreground="White" FontSize="12" FontWeight="Bold"/>
+                            <TextBlock x:Name="CursorDistanceFromLast" Text="{DynamicResource FromWP}" Foreground="#4ADE80" FontSize="10" Margin="0,2,0,0"/>
+                            <TextBlock x:Name="CursorDistanceFromHome" Text="{DynamicResource FromHome}" Foreground="#F59E0B" FontSize="10" Margin="0,1,0,0"/>
                         </StackPanel>
                         <Border Background="#1598F019" Height="1" Margin="0,0,0,6"/>
                         <StackPanel>
@@ -150,13 +150,13 @@
 
                         <Canvas x:Name="CompassTickCanvas" Width="150" Height="150"/>
 
-                        <TextBlock Text="С" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="Bold"
+                        <TextBlock Text="{DynamicResource Compass_N}" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="Bold"
            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0"/>
-                        <TextBlock Text="Ю" Foreground="#4B5563" FontSize="10"
+                        <TextBlock Text="{DynamicResource Compass_S}" Foreground="#4B5563" FontSize="10"
            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
-                        <TextBlock Text="В" Foreground="#4B5563" FontSize="10"
+                        <TextBlock Text="{DynamicResource Compass_E}" Foreground="#4B5563" FontSize="10"
            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Text="З" Foreground="#4B5563" FontSize="10"
+                        <TextBlock Text="{DynamicResource Compass_W}" Foreground="#4B5563" FontSize="10"
            HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0"/>
 
                         <Image x:Name="PlanDroneCompassIcon"
@@ -188,19 +188,19 @@
                               ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                               SelectionChanged="MapTypeCombo_SelectionChanged"
                               Height="32" MinWidth="130" FontSize="11">
-                        <ComboBoxItem Content="Google Спутник" Tag="GoogleSatellite" IsSelected="True"/>
-                        <ComboBoxItem Content="Google Карта" Tag="GoogleMap"/>
+                        <ComboBoxItem Content="{DynamicResource Map_GoogleSat}" Tag="GoogleSatellite" IsSelected="True"/>
+                        <ComboBoxItem Content="{DynamicResource Map_GoogleMap}" Tag="GoogleMap"/>
                         <ComboBoxItem Content="OpenStreetMap" Tag="OpenStreetMap"/>
-                        <ComboBoxItem Content="Bing Спутник" Tag="BingSatellite"/>
+                        <ComboBoxItem Content="{DynamicResource Map_BingSat}" Tag="BingSatellite"/>
                     </ComboBox>
-                    <Button ToolTip="Скачать карту офлайн"
+                    <Button ToolTip="{DynamicResource Tip_DownloadMap}"
                             Width="32" Height="32" Margin="6,0,0,0"
                             Background="#E6060B1A" Foreground="White"
                             BorderThickness="1" BorderBrush="#2298F019"
                             Click="DownloadMapButton_Click">
                         <TextBlock Text="📥" FontSize="14"/>
                     </Button>
-                    <Button ToolTip="Скачать данные высот SRTM"
+                    <Button ToolTip="{DynamicResource Tip_DownloadSRTM}"
                             Width="32" Height="32" Margin="4,0,0,0"
                             Background="#E6060B1A" Foreground="White"
                             BorderThickness="1" BorderBrush="#2298F019"
@@ -216,7 +216,7 @@
                             Margin="0,0,0,16"
                             Panel.ZIndex="200">
                     <Button x:Name="FreezeResumeBtn"
-                            Content="⏸ Заморозить миссию"
+                            Content="{DynamicResource FreezeMission}"
                             Click="FreezeResumeMission_Click"
                             Background="#CC2563EB" Foreground="White"
                             FontSize="13" FontWeight="SemiBold"
@@ -229,7 +229,7 @@
                         </Button.Resources>
                     </Button>
                     <Button x:Name="NextWaypointBtn"
-                            Content="⏭ Следующая точка"
+                            Content="{DynamicResource NextWaypoint}"
                             Click="ResumeMissionButton_Click"
                             Background="#CCB45309" Foreground="White"
                             FontSize="13" FontWeight="SemiBold"
@@ -270,7 +270,7 @@
                             <Border x:Name="DataTabBorder" Grid.Column="0"
                                     Background="{StaticResource AcidGreen}" CornerRadius="5"
                                     Cursor="Hand" MouseLeftButtonDown="DataTabButton_Click">
-                                <TextBlock x:Name="DataTabText" Text="Данные"
+                                <TextBlock x:Name="DataTabText" Text="{DynamicResource DataTab}"
                                            Foreground="#060B1A" FontSize="12" FontWeight="Bold"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0,5"/>
                             </Border>
@@ -278,7 +278,7 @@
                             <Border x:Name="MissionTabBorder" Grid.Column="1"
                                     Background="Transparent" CornerRadius="5"
                                     Cursor="Hand" MouseLeftButtonDown="MissionTabButton_Click">
-                                <TextBlock x:Name="MissionTabText" Text="Миссия"
+                                <TextBlock x:Name="MissionTabText" Text="{DynamicResource MissionTab}"
                                            Foreground="#6B7280" FontSize="12" FontWeight="Bold"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0,5"/>
                             </Border>
@@ -307,14 +307,14 @@
                             </Grid.ColumnDefinitions>
                             <Border Grid.Column="0" Style="{StaticResource TelemetryBoxSecondStyle}" Margin="0,0,4,0">
                                 <StackPanel>
-                                    <TextBlock Text="Высота:" Foreground="{StaticResource AcidGreen}" FontSize="10" Margin="0,0,0,3"/>
-                                    <TextBlock x:Name="AltitudeValue" Text="0.0 м" Foreground="{StaticResource WhiteText}" FontSize="18" FontWeight="Bold"/>
+                                    <TextBlock Text="{DynamicResource Altitude}" Foreground="{StaticResource AcidGreen}" FontSize="10" Margin="0,0,0,3"/>
+                                    <TextBlock x:Name="AltitudeValue" Text="{DynamicResource Default_Alt}" Foreground="{StaticResource WhiteText}" FontSize="18" FontWeight="Bold"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Style="{StaticResource TelemetryBoxSecondStyle}" Margin="4,0,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Скорость:" Foreground="{StaticResource AcidGreen}" FontSize="10" Margin="0,0,0,3"/>
-                                    <TextBlock x:Name="SpeedValue" Text="0.0 м/с" Foreground="{StaticResource WhiteText}" FontSize="18" FontWeight="Bold"/>
+                                    <TextBlock Text="{DynamicResource Speed}" Foreground="{StaticResource AcidGreen}" FontSize="10" Margin="0,0,0,3"/>
+                                    <TextBlock x:Name="SpeedValue" Text="{DynamicResource Default_Speed}" Foreground="{StaticResource WhiteText}" FontSize="18" FontWeight="Bold"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -337,7 +337,7 @@
                         </Border>
 
                         <!-- ARM/DISARM -->
-                        <Button x:Name="ArmButton" Content="АКТИВИРОВАТЬ" Height="42" Margin="0,0,0,6" Click="ArmButton_Click" Cursor="Hand">
+                        <Button x:Name="ArmButton" Content="{DynamicResource Arm}" Height="42" Margin="0,0,0,6" Click="ArmButton_Click" Cursor="Hand">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="border" Background="#166534" BorderBrush="#22C55E" BorderThickness="2" CornerRadius="8">
@@ -369,49 +369,49 @@
 
                                 <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource TelemetryBoxStyle}" Margin="12,12,6,4" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock Text="Спутники" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Satellites}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="SatellitesValue" Text="0" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                                 <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource TelemetryBoxStyle}" Margin="6,12,12,4" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock Text="Режим" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource FlightMode}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="FlightModeValue" Text="UNKNOWN" Foreground="{StaticResource AcidGreen}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                                 <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource TelemetryBoxStyle}" Margin="12,4,6,4" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock Text="Батарея" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Battery}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="BatteryVoltage" Text="0.0V" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                                 <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource TelemetryBoxStyle}" Margin="6,4,12,4" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock Text="Заряд" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Charge}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="BatteryPercent" Text="0%" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                                 <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource TelemetryBoxStyle}" Margin="12,4,6,4" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock Text="Выс. НУМ" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="AltitudeMslValue" Text="0 м" Foreground="#F59E0B" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource AltMSL}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="AltitudeMslValue" Text="{DynamicResource Default_AltZero}" Foreground="#F59E0B" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                                 <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource TelemetryBoxStyle}" Margin="6,4,12,4" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock x:Name="SecondarySpeedLabel" Text="Возд. ск." Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="SecondarySpeedValue" Text="0 м/с" Foreground="#22D3EE" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="SecondarySpeedLabel" Text="{DynamicResource Airspeed}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="SecondarySpeedValue" Text="{DynamicResource Default_SpeedZero}" Foreground="#22D3EE" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                                 <Border Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource TelemetryBoxStyle}" Margin="12,4,12,4" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock Text="Мультиротор" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Multirotor}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="MultirotorValue" Text="0%" Foreground="#4FC3F7" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                                 <Border Grid.Row="4" Grid.ColumnSpan="2" Style="{StaticResource TelemetryBoxStyle}" Margin="12,4,12,0" Height="32" Padding="8,4">
                                     <Grid Margin="0,-2,0,-2">
-                                        <TextBlock Text="Толкающий мотор" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource PusherMotor}" Foreground="{StaticResource WhiteText}" FontSize="11" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="PusherMotorValue" Text="0%" Foreground="#FF6B35" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
@@ -428,15 +428,15 @@
                                 <ComboBox x:Name="FlightModeCombo" Grid.Column="0" Height="32" Margin="0,0,4,0"
                                           Style="{StaticResource CustomComboBoxStyle}"
                                           ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}">
-                                    <ComboBoxItem Content="Режимы полётов" IsSelected="True"/>
+                                    <ComboBoxItem Content="{DynamicResource FlightModes}" IsSelected="True"/>
                                 </ComboBox>
                                 <ComboBox x:Name="CalibrationCombo" Grid.Column="1" Height="33" Margin="4,0,0,0"
                                           Style="{StaticResource CustomComboBoxStyle}"
                                           ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}">
-                                    <ComboBoxItem Content="Калибровки" IsSelected="True"/>
-                                    <ComboBoxItem Content="Акселерометр"/>
-                                    <ComboBoxItem Content="Компас"/>
-                                    <ComboBoxItem Content="Гироскоп"/>
+                                    <ComboBoxItem Content="{DynamicResource Calibrations}" IsSelected="True"/>
+                                    <ComboBoxItem Content="{DynamicResource Accelerometer}"/>
+                                    <ComboBoxItem Content="{DynamicResource Compass}"/>
+                                    <ComboBoxItem Content="{DynamicResource Gyroscope}"/>
                                 </ComboBox>
                             </Grid>
                         </Border>
@@ -455,19 +455,19 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Button x:Name="QuickModeBtn1" Grid.Row="0" Grid.Column="0" Content="Q-Удерж" Height="40" Margin="0,0,3,3"
+                                <Button x:Name="QuickModeBtn1" Grid.Row="0" Grid.Column="0" Content="{DynamicResource Mode_QHold}" Height="40" Margin="0,0,3,3"
                                         Click="QuickMode_Click" Tag="QLOITER" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
-                                <Button x:Name="QuickModeBtn2" Grid.Row="0" Grid.Column="1" Content="Q-Высота" Height="40" Margin="3,0,3,3"
+                                <Button x:Name="QuickModeBtn2" Grid.Row="0" Grid.Column="1" Content="{DynamicResource Mode_QAltHold}" Height="40" Margin="3,0,3,3"
                                         Click="QuickMode_Click" Tag="QHOVER" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
-                                <Button Grid.Row="0" Grid.Column="2" Content="Калибровать" Height="40" Margin="3,0,0,3"
+                                <Button Grid.Row="0" Grid.Column="2" Content="{DynamicResource Mode_Calibrate}" Height="40" Margin="3,0,0,3"
                                         Click="CalibrateButton_Click" Cursor="Hand" Style="{StaticResource ControlButtonStyle}"/>
-                                <Button x:Name="QuickModeBtn3" Grid.Row="1" Grid.Column="0" Content="Выполнить" Height="40" Margin="0,3,3,3"
+                                <Button x:Name="QuickModeBtn3" Grid.Row="1" Grid.Column="0" Content="{DynamicResource Execute}" Height="40" Margin="0,3,3,3"
                                         Click="QuickMode_Click" Tag="AUTO" Cursor="Hand" Style="{StaticResource ControlButtonStyle}"/>
-                                <Button x:Name="QuickModeBtn4" Grid.Row="1" Grid.Column="1" Content="Q-Стаб" Height="40" Margin="3,3,3,3"
+                                <Button x:Name="QuickModeBtn4" Grid.Row="1" Grid.Column="1" Content="{DynamicResource Mode_QStabilize}" Height="40" Margin="3,3,3,3"
                                         Click="QuickMode_Click" Tag="QSTABILIZE" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
-                                <Button x:Name="QuickModeBtn5" Grid.Row="1" Grid.Column="2" Content="Домой" Height="40" Margin="3,3,0,3"
+                                <Button x:Name="QuickModeBtn5" Grid.Row="1" Grid.Column="2" Content="{DynamicResource Mode_Home}" Height="40" Margin="3,3,0,3"
                                         Click="QuickMode_Click" Tag="QRTL" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
-                                <Button Grid.Row="2" Grid.ColumnSpan="3" Content="▶ Активировать миссию" Height="36"
+                                <Button Grid.Row="2" Grid.ColumnSpan="3" Content="{DynamicResource ActivateMissionFull}" Height="36"
                                         Click="ActivateMissionButton_Click" Cursor="Hand"
                                         Style="{StaticResource MissionButtonStyle}" Margin="0,3,0,0"/>
                             </Grid>
@@ -491,9 +491,9 @@
                             <Grid Margin="0,0,0,6">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="🛫" FontSize="12"/>
-                                    <TextBlock Text=" МИССИЯ" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource Mission}" Foreground="{StaticResource AcidGreen}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock x:Name="WaypointsCountText" Text="0 точек" Foreground="#6B7280" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="WaypointsCountText" Text="{DynamicResource PointsCount}" Foreground="#6B7280" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
 
                             <!-- ВЗЛЁТ -->
@@ -508,14 +508,14 @@
                                         <Path x:Name="TakeoffIcon"
                                               Data="M12,2 L4.5,20.29 L5.21,20.59 L12,18 L18.79,20.59 L19.5,20.29 L12,2Z"
                                               Fill="#4ADE80" Width="14" Height="14" Stretch="Uniform"/>
-                                        <TextBlock x:Name="TakeoffLabel" Text="ВЗЛЁТ" Foreground="#4ADE80" FontWeight="Bold" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TakeoffLabel" Text="{DynamicResource Takeoff}" Foreground="#4ADE80" FontWeight="Bold" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="В:" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource AltLabel}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
                                         <TextBox x:Name="TakeoffAltitudeBox" Text="10" Width="40" Height="22" FontSize="10"
                                                  Background="#1A2433" Foreground="White" BorderBrush="#374151" BorderThickness="1"
                                                  Padding="4,0" Margin="4,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-                                        <TextBlock Text="м" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                        <TextBlock Text="{DynamicResource Unit_m}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -527,11 +527,11 @@
                                     BorderThickness="1.5" CornerRadius="8" Padding="10,6" Margin="0,0,0,2" Visibility="Collapsed">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Border Background="#00A88F" CornerRadius="12" Width="22" Height="22" Margin="0,0,6,0">
-                                        <TextBlock Text="С" Foreground="#060B1A" FontSize="10" FontWeight="Bold"
+                                        <TextBlock Text="{DynamicResource Circle_S}" Foreground="#060B1A" FontSize="10" FontWeight="Bold"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
-                                    <TextBlock Text="СТАРТ" Foreground="#00A88F" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBlock x:Name="StartCircleInfo" Text="· 150м" Foreground="#00A88F" FontSize="11" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource StartCircle}" Foreground="#00A88F" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock x:Name="StartCircleInfo" Text="{DynamicResource Circle_Radius}" Foreground="#00A88F" FontSize="11" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
                             <TextBlock x:Name="ArrowAfterStart" Text="▼" Foreground="#00A88F" FontSize="10" HorizontalAlignment="Center" Margin="0,1" Visibility="Collapsed"/>
@@ -544,11 +544,11 @@
                                     BorderThickness="1.5" CornerRadius="8" Padding="10,6" Margin="0,0,0,2" Visibility="Collapsed">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Border Background="#FF9F1A" CornerRadius="12" Width="22" Height="22" Margin="0,0,6,0">
-                                        <TextBlock Text="П" Foreground="#060B1A" FontSize="10" FontWeight="Bold"
+                                        <TextBlock Text="{DynamicResource Circle_P}" Foreground="#060B1A" FontSize="10" FontWeight="Bold"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
-                                    <TextBlock Text="ПОСАДКА" Foreground="#FF9F1A" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBlock x:Name="LandingCircleInfo" Text="· 150м" Foreground="#FF9F1A" FontSize="11" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource LandingCircle}" Foreground="#FF9F1A" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock x:Name="LandingCircleInfo" Text="{DynamicResource Circle_Radius}" Foreground="#FF9F1A" FontSize="11" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
@@ -565,14 +565,14 @@
                                         <Path x:Name="RtlIcon"
                                               Data="M12,3 L2,12 L5,12 L5,20 L11,20 L11,14 L13,14 L13,20 L19,20 L19,12 L22,12 Z"
                                               Fill="#F59E0B" Width="14" Height="14" Stretch="Uniform"/>
-                                        <TextBlock x:Name="RtlLabel" Text="ВОЗВРАТ" Foreground="#F59E0B" FontWeight="Bold" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="RtlLabel" Text="{DynamicResource Return}" Foreground="#F59E0B" FontWeight="Bold" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="В:" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource AltLabel}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
                                         <TextBox x:Name="RtlAltitudeBox" Text="15" Width="40" Height="22" FontSize="10"
                                                  Background="#1A2433" Foreground="White" BorderBrush="#374151" BorderThickness="1"
                                                  Padding="4,0" Margin="4,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-                                        <TextBlock Text="м" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                        <TextBlock Text="{DynamicResource Unit_m}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -592,7 +592,7 @@
                                 </Button.Resources>
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="📍" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Установить HOME" Foreground="#060B1A" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource SetHome}" Foreground="#060B1A" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                             <Grid Margin="0,0,0,6">
@@ -610,7 +610,7 @@
                                     </Button.Resources>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="⬆" FontSize="11" Foreground="#060B1A" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Записать" Foreground="#060B1A" FontSize="10" FontWeight="Bold"/>
+                                        <TextBlock Text="{DynamicResource Write}" Foreground="#060B1A" FontSize="10" FontWeight="Bold"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Grid.Column="1" Height="32" Margin="3,0,0,0"
@@ -623,7 +623,7 @@
                                     </Button.Resources>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="⬇" FontSize="11" Foreground="#060B1A" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Читать" Foreground="#060B1A" FontSize="10" FontWeight="Bold"/>
+                                        <TextBlock Text="{DynamicResource Read}" Foreground="#060B1A" FontSize="10" FontWeight="Bold"/>
                                     </StackPanel>
                                 </Button>
                             </Grid>
@@ -633,7 +633,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Height="32" Margin="0,0,2,0" ToolTip="Сохранить миссию" Cursor="Hand"
+                                <Button Grid.Column="0" Height="32" Margin="0,0,2,0" ToolTip="{DynamicResource Tip_SaveMission}" Cursor="Hand"
                                         Click="SaveButton_Click" Background="#1F2937" BorderBrush="#374151" BorderThickness="1">
                                     <Button.Resources>
                                         <Style TargetType="Border">
@@ -642,7 +642,7 @@
                                     </Button.Resources>
                                     <TextBlock Text="💾" FontSize="13"/>
                                 </Button>
-                                <Button Grid.Column="1" Height="32" Margin="2,0,2,0" ToolTip="Загрузить миссию" Cursor="Hand"
+                                <Button Grid.Column="1" Height="32" Margin="2,0,2,0" ToolTip="{DynamicResource Tip_LoadMission}" Cursor="Hand"
                                         Click="LoadButton_Click" Background="#1F2937" BorderBrush="#374151" BorderThickness="1">
                                     <Button.Resources>
                                         <Style TargetType="Border">
@@ -651,7 +651,7 @@
                                     </Button.Resources>
                                     <TextBlock Text="📂" FontSize="13"/>
                                 </Button>
-                                <Button Grid.Column="2" Height="32" Margin="2,0,0,0" ToolTip="Очистить миссию" Cursor="Hand"
+                                <Button Grid.Column="2" Height="32" Margin="2,0,0,0" ToolTip="{DynamicResource Tip_ClearMission}" Cursor="Hand"
                                         Click="ClearButton_Click" Background="#7F1D1D" BorderBrush="#DC2626" BorderThickness="1">
                                     <Button.Resources>
                                         <Style TargetType="Border">

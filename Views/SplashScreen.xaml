@@ -42,8 +42,8 @@
                 </Image>
             </Grid>
 
-            <!-- НАЗВАНИЕ KYRAN GCS - МЕНЬШИЙ ШРИФТ + ОПУЩЕНО -->
-            <TextBlock Text="K Y R A N   G C S"
+            <!-- НАЗВАНИЕ SQK GCS -->
+            <TextBlock Text="S Q K   G C S"
                        FontSize="34"
                        FontWeight="Black"
                        Foreground="White"

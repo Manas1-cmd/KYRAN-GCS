@@ -2,7 +2,488 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
+    <!-- ==================== ЖАЛПЫ / COMMON ==================== -->
     <sys:String x:Key="Connect">Қосылу</sys:String>
     <sys:String x:Key="Disconnect">Ажырату</sys:String>
+    <sys:String x:Key="Cancel">Бас тарту</sys:String>
+    <sys:String x:Key="Close">Жабу</sys:String>
+    <sys:String x:Key="Save">Сақтау</sys:String>
+    <sys:String x:Key="Start">БАСТАУ</sys:String>
+    <sys:String x:Key="Next">КЕЛЕСІ ▶</sys:String>
+    <sys:String x:Key="Execute">Орындау</sys:String>
+    <sys:String x:Key="Download">Жүктеу</sys:String>
+    <sys:String x:Key="Error">Қате</sys:String>
+    <sys:String x:Key="Ready">Дайын</sys:String>
+    <sys:String x:Key="Loading">Жүктелуде...</sys:String>
+    <sys:String x:Key="Waiting">Күтілуде...</sys:String>
+    <sys:String x:Key="NotConnected">Қосылмаған</sys:String>
+    <sys:String x:Key="Region">Аймақ:</sys:String>
+    <sys:String x:Key="From">Бастап:</sys:String>
+    <sys:String x:Key="To">Дейін:</sys:String>
+    <sys:String x:Key="OnOff">Қосу/Өшіру</sys:String>
 
+    <!-- ==================== НЕГІЗГІ ТЕРЕЗЕ / MAIN WINDOW ==================== -->
+    <sys:String x:Key="AppTitle">SQK GCS - Professional</sys:String>
+    <sys:String x:Key="Nav_Mission">МИССИЯ</sys:String>
+    <sys:String x:Key="Nav_Camera">КАМЕРА</sys:String>
+    <sys:String x:Key="Nav_Land">ҚОНУ</sys:String>
+    <sys:String x:Key="Nav_Home">ҮЙГЕ</sys:String>
+    <sys:String x:Key="StartingViewLink">ViewLink іске қосылуда...</sys:String>
+
+    <!-- ==================== ДРОН ТАҢДАУ / VEHICLE SELECTION ==================== -->
+    <sys:String x:Key="VehicleSelection_Title">SQK GCS - Дрон таңдау</sys:String>
+    <sys:String x:Key="SelectDroneType">Дрон Түрін Таңдаңыз</sys:String>
+    <sys:String x:Key="Multicopter">МУЛЬТИКОПТЕР</sys:String>
+    <sys:String x:Key="Multicopter_Desc">Тік ұшақ схемасы бойынша жасалған, үш және одан көп көтеру винттері бар ұшу аппараты</sys:String>
+    <sys:String x:Key="VTOL">ТҰҚҰА</sys:String>
+    <sys:String x:Key="VTOL_Desc">Тік Ұшу және Қону Ұшақ Аппараты</sys:String>
+    <sys:String x:Key="VTOL_Feature">Қашықтық + Маневрлік</sys:String>
+    <sys:String x:Key="VehicleChangeHint">Көлік түрін кейін «Параметрлер» → «Көлік конфигурациясы» бөлімінде өзгертуге болады.</sys:String>
+
+    <!-- ==================== ТЕЛЕМЕТРИЯ / TELEMETRY ==================== -->
+    <sys:String x:Key="Drone">ДРОН</sys:String>
+    <sys:String x:Key="Altitude">Биіктік:</sys:String>
+    <sys:String x:Key="Speed">Жылдамдық:</sys:String>
+    <sys:String x:Key="Satellites">Жерсеріктер</sys:String>
+    <sys:String x:Key="FlightMode">Режим</sys:String>
+    <sys:String x:Key="Battery">Батарея</sys:String>
+    <sys:String x:Key="Charge">Заряд</sys:String>
+    <sys:String x:Key="Motor1">Мотор 1</sys:String>
+    <sys:String x:Key="Motor2">Мотор 2</sys:String>
+    <sys:String x:Key="Motor3">Мотор 3</sys:String>
+    <sys:String x:Key="Motor4">Мотор 4</sys:String>
+    <sys:String x:Key="PusherMotor">Итеруші мотор</sys:String>
+    <sys:String x:Key="Multirotor">Мультиротор</sys:String>
+    <sys:String x:Key="AltMSL">Биік. ТДБ</sys:String>
+    <sys:String x:Key="Airspeed">Ауа жылд.</sys:String>
+    <sys:String x:Key="ConnectionLost">Дронмен байланыс үзілді</sys:String>
+    <sys:String x:Key="Arm">БЕЛСЕНДІРУ</sys:String>
+    <sys:String x:Key="Disarm">СӨНДІРУ</sys:String>
+
+    <!-- ==================== ҰШУ РЕЖИМДЕРІ / FLIGHT MODES ==================== -->
+    <sys:String x:Key="Mode_Hold">Ұстау</sys:String>
+    <sys:String x:Key="Mode_AltHold">Биіктік</sys:String>
+    <sys:String x:Key="Mode_Calibrate">Калибрлеу</sys:String>
+    <sys:String x:Key="Mode_Manual">Қолмен</sys:String>
+    <sys:String x:Key="Mode_Home">Үйге</sys:String>
+    <sys:String x:Key="Mode_QStabilize">Q-Тұрақ</sys:String>
+    <sys:String x:Key="Mode_QHold">Q-Ұстау</sys:String>
+    <sys:String x:Key="Mode_QAltHold">Q-Биіктік</sys:String>
+    <sys:String x:Key="FlightModes">Ұшу режимдері</sys:String>
+
+    <!-- ==================== МИССИЯ / MISSION ==================== -->
+    <sys:String x:Key="Mission">МИССИЯ</sys:String>
+    <sys:String x:Key="MissionTab">Миссия</sys:String>
+    <sys:String x:Key="DataTab">Деректер</sys:String>
+    <sys:String x:Key="MissionNotLoaded">Миссия жүктелмеген</sys:String>
+    <sys:String x:Key="ActivateMission">Миссияны белсендіру</sys:String>
+    <sys:String x:Key="ActivateMissionFull">▶ Миссияны белсендіру</sys:String>
+    <sys:String x:Key="FreezeMission">⏸ Миссияны тоқтату</sys:String>
+    <sys:String x:Key="NextWaypoint">⏭ Келесі нүкте</sys:String>
+    <sys:String x:Key="SetHome">HOME орнату</sys:String>
+    <sys:String x:Key="Write">Жазу</sys:String>
+    <sys:String x:Key="Read">Оқу</sys:String>
+    <sys:String x:Key="PointsCount">0 нүкте</sys:String>
+    <sys:String x:Key="Takeoff">ҰШЫП ШЫҒУ</sys:String>
+    <sys:String x:Key="StartCircle">СТАРТ</sys:String>
+    <sys:String x:Key="LandingCircle">ҚОНУ</sys:String>
+    <sys:String x:Key="Return">ҚАЙТУ</sys:String>
+    <sys:String x:Key="RouteLength">Маршрут: 0 м</sys:String>
+    <sys:String x:Key="FromWP">WP-ден: —</sys:String>
+    <sys:String x:Key="FromHome">HOME-нан: —</sys:String>
+    <sys:String x:Key="AltLabel">Б:</sys:String>
+
+    <!-- ==================== КООРДИНАТТАР / COORDINATES ==================== -->
+    <sys:String x:Key="Lat">ЕНД</sys:String>
+    <sys:String x:Key="Lon">БОЙ</sys:String>
+    <sys:String x:Key="Alt">БИІ</sys:String>
+    <sys:String x:Key="MulticopterLabel">Мультикоптер</sys:String>
+
+    <!-- ==================== КАРТА ПРОВАЙДЕРЛЕРІ / MAP PROVIDERS ==================== -->
+    <sys:String x:Key="Map_GoogleSat">Google Жерсерік</sys:String>
+    <sys:String x:Key="Map_GoogleMap">Google Карта</sys:String>
+    <sys:String x:Key="Map_BingSat">Bing Жерсерік</sys:String>
+
+    <!-- ==================== КАЛИБРЛЕУ / CALIBRATION ==================== -->
+    <sys:String x:Key="Calibrations">Калибрлеу</sys:String>
+    <sys:String x:Key="Accelerometer">Акселерометр</sys:String>
+    <sys:String x:Key="Compass">Компас</sys:String>
+    <sys:String x:Key="Gyroscope">Гироскоп</sys:String>
+
+    <!-- Гироскоп калибрлеу -->
+    <sys:String x:Key="GyroCalib_Title">Гироскоп калибрлеу</sys:String>
+    <sys:String x:Key="GyroCalib_Header">ГИРОСКОП КАЛИБРЛЕУ</sys:String>
+    <sys:String x:Key="GyroCalib_Instruction">Дронды тегіс бетке қойыңыз&#x0a;және қозғалтпаңыз</sys:String>
+    <sys:String x:Key="GyroCalib_Warning">⚠ Дрон ҚОЗҒАЛМАУЫ керек</sys:String>
+
+    <!-- Компас калибрлеу -->
+    <sys:String x:Key="CompassCalib_Title">Компас калибрлеу</sys:String>
+    <sys:String x:Key="CompassCalib_Header">КОМПАС КАЛИБРЛЕУ</sys:String>
+    <sys:String x:Key="CompassCalib_Instruction">БАСТАУ басыңыз&#x0a;және дронды&#x0a;барлық бағытта&#x0a;баяу&#x0a;айналдырыңыз</sys:String>
+    <sys:String x:Key="CompassCalib_SlowHint">Баяу&#x0a;айналдырыңыз!</sys:String>
+    <sys:String x:Key="CompassCalib_Coverage">ҚАМТУ</sys:String>
+    <sys:String x:Key="CompassCalib_Quality">САПА</sys:String>
+    <sys:String x:Key="CompassCalib_Compass">КОМПАС</sys:String>
+    <sys:String x:Key="CompassCalib_Ready">Калибрлеуге дайын</sys:String>
+    <sys:String x:Key="CompassCalib_Accept">ҚАБЫЛДАУ</sys:String>
+    <sys:String x:Key="CompassCalib_Instruction_Label">НҰСҚАУЛЫҚ</sys:String>
+
+    <!-- Акселерометр калибрлеу -->
+    <sys:String x:Key="AccelCalib_Title">Акселерометр калибрлеу</sys:String>
+    <sys:String x:Key="AccelCalib_Header">АКСЕЛЕРОМЕТР КАЛИБРЛЕУ</sys:String>
+    <sys:String x:Key="AccelCalib_SubHeader">6-ПОЗИЦИЯЛЫ КАЛИБРЛЕУ</sys:String>
+    <sys:String x:Key="AccelCalib_Level">ТЕГІС</sys:String>
+    <sys:String x:Key="AccelCalib_Left">СОЛҒА</sys:String>
+    <sys:String x:Key="AccelCalib_Right">ОҢҒА</sys:String>
+    <sys:String x:Key="AccelCalib_NoseDown">МҰР↓</sys:String>
+    <sys:String x:Key="AccelCalib_NoseUp">МҰР↑</sys:String>
+    <sys:String x:Key="AccelCalib_UpsideDown">ТӨҢК↓</sys:String>
+    <sys:String x:Key="AccelCalib_Step">Қадам 1/6: LEVEL</sys:String>
+    <sys:String x:Key="AccelCalib_PlaceDrone">Дронды үстелге ТЕГІС қойыңыз</sys:String>
+    <sys:String x:Key="AccelCalib_PressNext">Дрон орнатылған кезде КЕЛЕСІ басыңыз</sys:String>
+    <sys:String x:Key="AccelCalib_PressStart">Калибрлеуді бастау үшін БАСТАУ басыңыз</sys:String>
+
+    <!-- ==================== НҮКТЕ ПАРАМЕТРЛЕРІ / CIRCLE EDIT ==================== -->
+    <sys:String x:Key="CircleEdit_Title">Нүкте параметрлері</sys:String>
+    <sys:String x:Key="CircleEdit_Radius">Радиус (м):</sys:String>
+    <sys:String x:Key="CircleEdit_Altitude">Биіктік (м):</sys:String>
+    <sys:String x:Key="CircleEdit_Direction">Бағыт:</sys:String>
+    <sys:String x:Key="CircleEdit_CW">Сағат тілімен ↻</sys:String>
+    <sys:String x:Key="CircleEdit_CCW">Сағат тіліне қарсы ↺</sys:String>
+    <sys:String x:Key="CircleEdit_AutoContinue">Авто-өту</sys:String>
+    <sys:String x:Key="CircleEdit_NoWait">(команданы күтпеу)</sys:String>
+
+    <!-- ==================== UDP ҚОСЫЛУ / UDP CONNECTION ==================== -->
+    <sys:String x:Key="Udp_Title">UDP Қосылу</sys:String>
+    <sys:String x:Key="Udp_QuickSettings">ЖЫЛДАМ ПАРАМЕТРЛЕР</sys:String>
+    <sys:String x:Key="Udp_Drone">🚁 Дрон (236)</sys:String>
+    <sys:String x:Key="Udp_Simulator">🖥️ Симулятор</sys:String>
+    <sys:String x:Key="Udp_Listen">📡 Күту</sys:String>
+    <sys:String x:Key="Udp_DroneAddress">ДРОН МЕКЕНЖАЙЫ (міндетті емес)</sys:String>
+    <sys:String x:Key="Udp_DroneIp">Дрон IP мекенжайы:</sys:String>
+    <sys:String x:Key="Udp_DronePort">Дрон порты:</sys:String>
+    <sys:String x:Key="Udp_LocalSettings">ЖЕРГІЛІКТІ ПАРАМЕТРЛЕР</sys:String>
+    <sys:String x:Key="Udp_LocalIp">Жергілікті IP:</sys:String>
+    <sys:String x:Key="Udp_LocalPort">Жергілікті порт:</sys:String>
+    <sys:String x:Key="Udp_Hint1">💡 Күту режимі үшін дрон мекенжайын бос қалдырыңыз</sys:String>
+    <sys:String x:Key="Udp_Hint2">💡 Жергілікті IP 0.0.0.0 = барлық желілік интерфейстер</sys:String>
+
+    <!-- ==================== КАМЕРА ТЕРЕЗЕСІ / CAMERA WINDOW ==================== -->
+    <sys:String x:Key="Cam_Title">Камера басқару — Z30T</sys:String>
+    <sys:String x:Key="Cam_Heading">Бағыт: --</sys:String>
+    <sys:String x:Key="Cam_Pitch">Тангаж: --</sys:String>
+    <sys:String x:Key="Cam_Roll">Крен: --</sys:String>
+    <sys:String x:Key="Cam_Distance">Қаш: --</sys:String>
+    <sys:String x:Key="Cam_Connection">ҚОСЫЛУ</sys:String>
+    <sys:String x:Key="Cam_GimbalControl">АСПА БАСҚАРУ</sys:String>
+    <sys:String x:Key="Cam_GimbalHint">WASD немесе төмендегі джойстик</sys:String>
+    <sys:String x:Key="Cam_Center">⌂ Центр</sys:String>
+    <sys:String x:Key="Cam_LookDown">↓ Төмен</sys:String>
+    <sys:String x:Key="Cam_ZoomFocus">ЗУМ ЖӘНЕ ФОКУС</sys:String>
+    <sys:String x:Key="Cam_ZoomHint">Батырмаларды ұстаңыз немесе +/−</sys:String>
+    <sys:String x:Key="Cam_Stop">⬜ Тоқта</sys:String>
+    <sys:String x:Key="Cam_Autofocus">Автофокус</sys:String>
+    <sys:String x:Key="Cam_Shooting">ТҮСІРУ</sys:String>
+    <sys:String x:Key="Cam_Photo">📷 Фото</sys:String>
+    <sys:String x:Key="Cam_Record">⏺ Жазу</sys:String>
+    <sys:String x:Key="Cam_VideoSource">ВИДЕО КӨЗІ</sys:String>
+    <sys:String x:Key="Cam_IR">ИҚ</sys:String>
+    <sys:String x:Key="Cam_EO_IR_PIP">EO+ИҚ PIP</sys:String>
+    <sys:String x:Key="Cam_IR_EO_PIP">ИҚ+EO PIP</sys:String>
+    <sys:String x:Key="Cam_Fusion">Фьюжн</sys:String>
+    <sys:String x:Key="Cam_IRPalette">ИҚ ПАЛИТРА (10 режим)</sys:String>
+    <sys:String x:Key="Cam_Pal_WhiteHot">Ақ ыстық</sys:String>
+    <sys:String x:Key="Cam_Pal_Lava">Лава</sys:String>
+    <sys:String x:Key="Cam_Pal_RedMetal">Қызыл метал</sys:String>
+    <sys:String x:Key="Cam_Pal_HotMetal">Ыстық метал</sys:String>
+    <sys:String x:Key="Cam_Pal_Medical">Медициналық</sys:String>
+    <sys:String x:Key="Cam_Pal_Arctic">Арктика</sys:String>
+    <sys:String x:Key="Cam_Pal_Rainbow1">Кемпірқосақ 1</sys:String>
+    <sys:String x:Key="Cam_Pal_Rainbow2">Кемпірқосақ 2</sys:String>
+    <sys:String x:Key="Cam_Pal_RedTrail">Қызыл із</sys:String>
+    <sys:String x:Key="Cam_Pal_BlackHot">Қара ыстық</sys:String>
+    <sys:String x:Key="Cam_Temperature">ТЕМПЕРАТУРА (3 Gear)</sys:String>
+    <sys:String x:Key="Cam_Rangefinder">ҚАШЫҚТЫҚ ӨЛШЕГІШ (LRF)</sys:String>
+    <sys:String x:Key="Cam_LaserToggle">🔴 Лазер Қосу/Өшіру</sys:String>
+    <sys:String x:Key="Cam_Additional">ҚОСЫМША</sys:String>
+    <sys:String x:Key="Cam_FillLight">💡 Жарық</sys:String>
+    <sys:String x:Key="Cam_OSDToggle">OSD Қосу/Өшіру</sys:String>
+    <sys:String x:Key="Cam_Tracking">БАҚЫЛАУ</sys:String>
+    <sys:String x:Key="Cam_TrackHint">Видеода Ctrl+Клик арқылы ұстау</sys:String>
+    <sys:String x:Key="Cam_Search">🎯 Іздеу</sys:String>
+    <sys:String x:Key="Cam_AIToggle">AI Қосу/Өшіру</sys:String>
+    <sys:String x:Key="Cam_Hotkeys">ЖЫЛДАМ ПЕРНЕЛЕР</sys:String>
+    <sys:String x:Key="Cam_SpaceKey">Бос орын</sys:String>
+    <sys:String x:Key="Cam_CtrlClick">Ctrl+Клик</sys:String>
+
+    <!-- Камера қосылу диалогы -->
+    <sys:String x:Key="CamConn_Title">Камера қосылу</sys:String>
+    <sys:String x:Key="CamConn_Header">Камера қосылу</sys:String>
+    <sys:String x:Key="CamConn_Model">Камера моделі:</sys:String>
+    <sys:String x:Key="CamConn_Other">Басқа (қолмен енгізу)</sys:String>
+    <sys:String x:Key="CamConn_IP">Камера IP мекенжайы:</sys:String>
+    <sys:String x:Key="CamConn_TCPPort">TCP порт (басқару):</sys:String>
+    <sys:String x:Key="CamConn_RTSPPort">RTSP порт (видео):</sys:String>
+    <sys:String x:Key="CamConn_RTSPUrl">RTSP URL видеоағын:</sys:String>
+    <sys:String x:Key="CamConn_Connect">🔌 Қосылу</sys:String>
+
+    <!-- Камера параметрлері диалогы -->
+    <sys:String x:Key="CamSet_Title">Камера параметрлері</sys:String>
+    <sys:String x:Key="CamSet_Header">⚙ Камера параметрлері</sys:String>
+    <sys:String x:Key="CamSet_Gimbal">АСПА</sys:String>
+    <sys:String x:Key="CamSet_Centralize">🎯 Центрлеу</sys:String>
+    <sys:String x:Key="CamSet_LookDown">⬇ Төмен қарау</sys:String>
+    <sys:String x:Key="CamSet_IRThermal">ИҚ ЖЫЛУ КАМЕРА</sys:String>
+
+    <!-- ==================== КАРТА ЖҮКТЕУ / MAP DOWNLOADER ==================== -->
+    <sys:String x:Key="MapDl_Title">Карта жүктеу</sys:String>
+    <sys:String x:Key="MapDl_Header">Қазақстан картасын жүктеу</sys:String>
+    <sys:String x:Key="MapDl_AllKZ">🇰🇿 Бүкіл Қазақстан</sys:String>
+    <sys:String x:Key="MapDl_Almaty">📍 Алматы және облыс</sys:String>
+    <sys:String x:Key="MapDl_Astana">📍 Астана және облыс</sys:String>
+    <sys:String x:Key="MapDl_CurrentPos">📍 Ағымдағы орын (50 км)</sys:String>
+    <sys:String x:Key="MapDl_ZoomLevels">Бөлшектеу деңгейлері:</sys:String>
+    <sys:String x:Key="MapDl_ZoomHint">Зум 6-10: шолу | 11-13: навигация | 14+: бөлшектер (көп деректер!)</sys:String>
+    <sys:String x:Key="MapDl_Tiles">Тайлдар:</sys:String>
+    <sys:String x:Key="MapDl_EstSize">Болжамды өлшем:</sys:String>
+    <sys:String x:Key="MapDl_EstTime">Уақыт (болжамды):</sys:String>
+    <sys:String x:Key="MapDl_ReadyToDownload">Жүктеуге дайын</sys:String>
+    <sys:String x:Key="MapDl_Download">▶ Жүктеу</sys:String>
+
+    <!-- ==================== SRTM ЖҮКТЕУ / SRTM DOWNLOADER ==================== -->
+    <sys:String x:Key="Srtm_Title">SRTM рельеф жүктеу</sys:String>
+    <sys:String x:Key="Srtm_Header">Рельеф деректерін жүктеу</sys:String>
+    <sys:String x:Key="Srtm_AllKZ">🇰🇿 Бүкіл Қазақстан (~670 тайл)</sys:String>
+    <sys:String x:Key="Srtm_Almaty">🏙️ Алматы және облыс</sys:String>
+    <sys:String x:Key="Srtm_Astana">🏙️ Астана және облыс</sys:String>
+    <sys:String x:Key="Srtm_Shymkent">🏙️ Шымкент және облыс</sys:String>
+    <sys:String x:Key="Srtm_CurrentPos">📍 Картадағы ағымдағы орын</sys:String>
+    <sys:String x:Key="Srtm_Custom">✏️ Қолмен көрсету</sys:String>
+
+    <!-- ==================== C# КОД ЖОЛДАРЫ / C# CODE STRINGS ==================== -->
+    <sys:String x:Key="Msg_DroneNotConnected">Дрон қосылмаған</sys:String>
+    <sys:String x:Key="Msg_MissionEmpty">Миссия бос. Нүктелер қосыңыз!</sys:String>
+    <sys:String x:Key="Msg_DroneNotConnectedFull">Дрон қосылмаған.</sys:String>
+    <sys:String x:Key="Msg_ConnectionSubtitle">Қосылу</sys:String>
+    <sys:String x:Key="Msg_Confirmation">Растау</sys:String>
+    <sys:String x:Key="Msg_ArmConfirm">Дронды белсендіру (ARM)?
+
+Мыналарды тексеріңіз:
+• Пропеллерлер бос
+• Аймақ қауіпсіз
+• GPS Fix алынды</sys:String>
+    <sys:String x:Key="Msg_DisarmConfirm">Дронды сөндіру (DISARM)?</sys:String>
+    <sys:String x:Key="Msg_InAirLand">Дрон әуеде!
+
+Қауіпсіз қону орындау (LAND)?</sys:String>
+    <sys:String x:Key="Msg_EmergencyDisarm">Апаттық DISARM орындау?
+
+⚠️ НАЗАР АУДАРЫҢЫЗ: Дрон құлайды!</sys:String>
+    <sys:String x:Key="Msg_Dangerous">Қауіпті!</sys:String>
+    <sys:String x:Key="Msg_Deactivation">Сөндіру</sys:String>
+
+
+    <!-- БІРЛІКТЕР ЖӘНЕ PLACEHOLDER -->
+    <sys:String x:Key="Unit_m">м</sys:String>
+    <sys:String x:Key="Unit_ms">м/с</sys:String>
+    <sys:String x:Key="Default_Alt">0.0 м</sys:String>
+    <sys:String x:Key="Default_Speed">0.0 м/с</sys:String>
+    <sys:String x:Key="Default_AltZero">0 м</sys:String>
+    <sys:String x:Key="Default_SpeedZero">0 м/с</sys:String>
+    <sys:String x:Key="Default_AltSpace">м</sys:String>
+    <sys:String x:Key="Compass_N">С</sys:String>
+    <sys:String x:Key="Compass_S">О</sys:String>
+    <sys:String x:Key="Compass_E">Ш</sys:String>
+    <sys:String x:Key="Compass_W">Б</sys:String>
+    <sys:String x:Key="Circle_S">С</sys:String>
+    <sys:String x:Key="Circle_P">Қ</sys:String>
+    <sys:String x:Key="Circle_Radius">· 150м</sys:String>
+    <sys:String x:Key="Srtm_Tiles">Тайлдар: ~4</sys:String>
+    <sys:String x:Key="Srtm_EstSize">Болжамды өлшем: ~11 MB</sys:String>
+    <sys:String x:Key="Srtm_Cache">Кэште: 0 MB</sys:String>
+    <sys:String x:Key="CompassCalib_Sections">0 / 80 секция</sys:String>
+    <sys:String x:Key="MapDl_EstTimeVal">~0 мин</sys:String>
+
+
+    <!-- ==================== C# КОД (ҚОСЫМША) ==================== -->
+    <sys:String x:Key="WpEdit_Title">Нүкте #{0}</sys:String>
+    <sys:String x:Key="WpEdit_Header">Нүктені өңдеу</sys:String>
+    <sys:String x:Key="WpEdit_Command">Команда:</sys:String>
+    <sys:String x:Key="WpEdit_Latitude">Ендік:</sys:String>
+    <sys:String x:Key="WpEdit_Longitude">Бойлық:</sys:String>
+    <sys:String x:Key="WpEdit_AltitudeM">Биіктік (м):</sys:String>
+    <sys:String x:Key="WpEdit_RadiusM">Радиус (м):</sys:String>
+    <sys:String x:Key="WpEdit_DelayS">Кідіріс (с):</sys:String>
+    <sys:String x:Key="WpEdit_Turns">Айналым:</sys:String>
+    <sys:String x:Key="WpEdit_Direction">Бағыт:</sys:String>
+    <sys:String x:Key="WpEdit_DirHint">🔄 CW = сағат тілімен, CCW = сағат тіліне қарсы</sys:String>
+    <sys:String x:Key="WpEdit_AutoNext">Келесі нүктеге автоөту</sys:String>
+    <sys:String x:Key="WpEdit_Save">💾 САҚТАУ</sys:String>
+    <sys:String x:Key="WpEdit_ValidationError">Енгізілген деректерді тексеріңіз</sys:String>
+    <sys:String x:Key="WpEdit_LatError">Ендік -90-нан 90-ға дейін болуы керек</sys:String>
+    <sys:String x:Key="WpEdit_LonError">Бойлық -180-нен 180-ге дейін болуы керек</sys:String>
+    <sys:String x:Key="Cmd_Q_Waypoint">📍 Q-НҮКТЕ</sys:String>
+    <sys:String x:Key="Cmd_Q_Loiter">🔄 Q-ШЕҢБЕР</sys:String>
+    <sys:String x:Key="Cmd_Q_LoiterTime">⏱️ Q-ШЕҢБЕР(уақыт)</sys:String>
+    <sys:String x:Key="Cmd_Q_LoiterTurns">🔁 Q-ШЕҢБЕР(айн)</sys:String>
+    <sys:String x:Key="Cmd_Q_Land">🛬 Q-ҚОНУ</sys:String>
+    <sys:String x:Key="Cmd_Q_Delay">⏸️ Q-КІДІРІС</sys:String>
+    <sys:String x:Key="Cmd_Q_Speed">⚡ Q-ЖЫЛДАМДЫҚ</sys:String>
+    <sys:String x:Key="Cmd_Waypoint">📍 НҮКТЕ</sys:String>
+    <sys:String x:Key="Cmd_Loiter">🔄 ШЕҢБЕР</sys:String>
+    <sys:String x:Key="Cmd_LoiterTime">⏱️ ШЕҢБЕР(уақыт)</sys:String>
+    <sys:String x:Key="Cmd_LoiterTurns">🔁 ШЕҢБЕР(айн)</sys:String>
+    <sys:String x:Key="Cmd_Takeoff">🛫 ҰШЫП ШЫҒУ</sys:String>
+    <sys:String x:Key="Cmd_Land">🛬 ҚОНУ</sys:String>
+    <sys:String x:Key="Cmd_Delay">⏸️ КІДІРІС</sys:String>
+    <sys:String x:Key="Cmd_Speed">⚡ ЖЫЛДАМДЫҚ</sys:String>
+    <sys:String x:Key="Cmd_RTL">🏠 ҚАЙТУ</sys:String>
+    <sys:String x:Key="Cmd_Spline">〰️ СПЛАЙН</sys:String>
+    <sys:String x:Key="CmdShort_Waypoint">НҮКТЕ</sys:String>
+    <sys:String x:Key="CmdShort_Loiter">ШЕҢБЕР</sys:String>
+    <sys:String x:Key="CmdShort_LoiterTime">ШЕҢБЕР(уақыт)</sys:String>
+    <sys:String x:Key="CmdShort_LoiterTurns">ШЕҢБЕР(айн)</sys:String>
+    <sys:String x:Key="CmdShort_Land">ҚОНУ</sys:String>
+    <sys:String x:Key="CmdShort_Delay">КІДІРІС</sys:String>
+    <sys:String x:Key="CmdShort_Speed">ЖЫЛДАМДЫҚ</sys:String>
+    <sys:String x:Key="CmdShort_Takeoff">ҰШЫП ШЫҒУ</sys:String>
+    <sys:String x:Key="CmdShort_RTL">ҚАЙТУ</sys:String>
+    <sys:String x:Key="CmdShort_Spline">СПЛАЙН</sys:String>
+    <sys:String x:Key="Vehicle_Multicopter">Мультикоптер</sys:String>
+    <sys:String x:Key="Vehicle_VTOL">ТҰҚҰА</sys:String>
+    <sys:String x:Key="Vehicle_VTOLFull">Тік Ұшатын және Қонатын Ұшақ</sys:String>
+    <sys:String x:Key="Tip_DownloadMap">Картаны офлайн жүктеу</sys:String>
+    <sys:String x:Key="Tip_DownloadSRTM">SRTM биіктік деректерін жүктеу</sys:String>
+    <sys:String x:Key="Tip_SaveMission">Миссияны сақтау</sys:String>
+    <sys:String x:Key="Tip_LoadMission">Миссияны жүктеу</sys:String>
+    <sys:String x:Key="Tip_ClearMission">Миссияны тазалау</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Coords">📍 Координаттар:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Alt">📏 Биіктік:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Radius">⭕ Радиус:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Dir">🔄 Бағыт:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Delay">⏱ Кідіріс:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Turns">🔁 Айналым:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Auto">▶ Автоөту:</sys:String>
+    <sys:String x:Key="Dir_CW">Сағат тілімен (CW)</sys:String>
+    <sys:String x:Key="Dir_CCW">Сағат тіліне қарсы (CCW)</sys:String>
+    <sys:String x:Key="Yes">Иә</sys:String>
+    <sys:String x:Key="No_Loiter">Жоқ (айналады)</sys:String>
+    <sys:String x:Key="Wp_Number">Нүкте #{0}</sys:String>
+    <sys:String x:Key="Wp_Count">{0} нүкте</sys:String>
+    <sys:String x:Key="Route_Format">Маршрут: {0}</sys:String>
+    <sys:String x:Key="FromWP_Format">WP{0}-ден: {1}</sys:String>
+    <sys:String x:Key="FromHome_Format">HOME-нан: {0}</sys:String>
+    <sys:String x:Key="Alt_Format">{0} м</sys:String>
+    <sys:String x:Key="Alt_NoData">— м</sys:String>
+    <sys:String x:Key="Speed_Format">{0} м/с</sys:String>
+    <sys:String x:Key="VTOL_Takeoff">VTOL ҰШЫП ШЫҒУ</sys:String>
+    <sys:String x:Key="VTOL_Landing">VTOL ҚОНУ</sys:String>
+    <sys:String x:Key="Copter_Takeoff">ҰШЫП ШЫҒУ</sys:String>
+    <sys:String x:Key="Copter_RTL">ҚАЙТУ (RTL)</sys:String>
+    <sys:String x:Key="Mode_Stabilize">Тұрақ</sys:String>
+    <sys:String x:Key="Msg_InDevelopment">Функция әзірленуде.</sys:String>
+    <sys:String x:Key="Msg_InDevelopmentSub">Әзірленуде</sys:String>
+    <sys:String x:Key="Msg_EmptyMission">Сақтайтын нүктелер жоқ.</sys:String>
+    <sys:String x:Key="Msg_EmptyMissionSub">Бос миссия</sys:String>
+    <sys:String x:Key="Msg_MissionSaved">Миссия сақталды: {0} нүкте.&#x0a;📁 {1}</sys:String>
+    <sys:String x:Key="Msg_MissionSavedShort">Миссия сақталды: {0} нүкте.</sys:String>
+    <sys:String x:Key="Msg_MissionSavedSub">Миссия</sys:String>
+    <sys:String x:Key="Msg_MissionLoaded">Жүктелді: {0} нүкте ({1}).&#x0a;📁 {2}</sys:String>
+    <sys:String x:Key="Msg_MissionLoadedSub">Миссия жүктелді</sys:String>
+    <sys:String x:Key="Msg_MissionReadDrone">Дроннан оқылды: {0} нүкте ({1}).</sys:String>
+    <sys:String x:Key="Msg_MissionEmptyDrone">Дрондағы миссия бос немесе оқу мүмкін болмады.</sys:String>
+    <sys:String x:Key="Msg_BadFormat">Файл форматы дұрыс емес. QGC WPL 110 күтілуде.</sys:String>
+    <sys:String x:Key="Msg_BadFormatSub">Формат қатесі</sys:String>
+    <sys:String x:Key="Msg_ErrorSub">Қате</sys:String>
+    <sys:String x:Key="Msg_ErrorSave">Сақтау қатесі: {0}</sys:String>
+    <sys:String x:Key="Msg_ErrorLoad">Жүктеу қатесі: {0}</sys:String>
+    <sys:String x:Key="Msg_ErrorRead">Миссия оқу қатесі: {0}</sys:String>
+    <sys:String x:Key="Msg_ConfirmReplace">Ағымдағы миссия ({0} нүкте) дрондағы миссиямен ({1} элемент) ауыстырылады.&#x0a;&#x0a;Жалғастыру?</sys:String>
+    <sys:String x:Key="Msg_ConfirmDelete">{0} нүктесін жою?</sys:String>
+    <sys:String x:Key="Msg_ConfirmDeleteSub">Растау</sys:String>
+    <sys:String x:Key="Dlg_SaveMission">Миссияны сақтау</sys:String>
+    <sys:String x:Key="Dlg_LoadMission">Миссияны жүктеу</sys:String>
+    <sys:String x:Key="Radius_Tooltip">{0}м</sys:String>
+    <sys:String x:Key="Radius_Tooltip_Min">{0}м (мин: {1}м)</sys:String>
+    <sys:String x:Key="Circle_Radius_Format">Радиус: {0} м&#x0a;</sys:String>
+    <sys:String x:Key="Circle_Alt_Format">Биіктік: {0} м</sys:String>
+
+    <sys:String x:Key="Udp_Hint_Listen">14550 портында кіріс қосылуын күту</sys:String>
+    <sys:String x:Key="Connected">Қосылған</sys:String>
+    <sys:String x:Key="Msg_ErrorConnection">Қосылу қатесі: {0}</sys:String>
+    <sys:String x:Key="Msg_ErrorNavigation">Навигация қатесі: {0}</sys:String>
+    <sys:String x:Key="Msg_DroneNotConnectedDot">Дрон қосылмаған.</sys:String>
+    <sys:String x:Key="Msg_EmergencyLand">АПАТТЫҚ ҚОНУ?</sys:String>
+    <sys:String x:Key="Msg_Warning">НАЗАР АУДАРЫҢЫЗ</sys:String>
+    <sys:String x:Key="Msg_MissionNotLoadedLong">Миссия жүктелмеген.&#x0a;&#x0a;'Ұшу жоспары' бетінде миссия жасап, 'Write' басыңыз.</sys:String>
+    <sys:String x:Key="Msg_MissionSub">Миссия</sys:String>
+    <sys:String x:Key="Msg_ActivateMissionArmed">{0} нүктелік миссияны іске қосу?&#x0a;&#x0a;Тізбек:&#x0a;1. Миссияны дронға жүктеу&#x0a;2. AUTO режимі (орындау)&#x0a;&#x0a;⚠️ Дрон миссияны орындай бастайды!</sys:String>
+    <sys:String x:Key="Msg_ActivateMissionDisarmed">{0} нүктелік миссияны жүктеу?&#x0a;&#x0a;⚠️ Дрон белсендірілмеген!&#x0a;</sys:String>
+    <sys:String x:Key="Cam_TitleFmt">Камера басқару — {0}</sys:String>
+    <sys:String x:Key="Cam_Init">Инициализация...</sys:String>
+    <sys:String x:Key="Cam_ErrorFmt">Қате: {0}</sys:String>
+    <sys:String x:Key="Cam_HeadingFmt">Бағыт: {0:F1}°</sys:String>
+    <sys:String x:Key="Cam_PitchFmt">Тангаж: {0:F1}°</sys:String>
+    <sys:String x:Key="Cam_RollFmt">Крен: {0:F1}°</sys:String>
+    <sys:String x:Key="Cam_DistFmt">Қаш: {0:F1} м</sys:String>
+    <sys:String x:Key="Cam_LoadingVideo">Видео ойнатқыш жүктелуде...</sys:String>
+    <sys:String x:Key="Cam_VideoError">Видео қол жетімсіз: {0}</sys:String>
+    <sys:String x:Key="MsgBox_Error">Қате</sys:String>
+    <sys:String x:Key="MsgBox_Warning">Ескерту</sys:String>
+    <sys:String x:Key="MsgBox_Info">Ақпарат</sys:String>
+    <sys:String x:Key="MsgBox_Success">Дайын</sys:String>
+    <sys:String x:Key="MsgBox_Confirm">Растау</sys:String>
+    <sys:String x:Key="MsgBox_Choose">Әрекетті таңдау</sys:String>
+    <sys:String x:Key="MsgBox_Yes">Иә</sys:String>
+    <sys:String x:Key="MsgBox_No">Жоқ</sys:String>
+    <sys:String x:Key="MsgBox_Cancel">Болдырмау</sys:String>
+    <sys:String x:Key="Msg_MissionReady">Миссия дайын: {0} нүкте</sys:String>
+    <sys:String x:Key="VertSpeed">Тік жылд.</sys:String>
+    <sys:String x:Key="Msg_SelectCalibration">Тізімнен калибрлеу түрін таңдаңыз.</sys:String>
+    <sys:String x:Key="Msg_MissionEmptyAddPoints">Миссия бос. Нүктелер қосыңыз!</sys:String>
+    <sys:String x:Key="Msg_SetHome">HOME орнатыңыз!</sys:String>
+    <sys:String x:Key="Msg_MissionUploadError">Миссияны жүктеу қатесі</sys:String>
+    <sys:String x:Key="Msg_ArmFailed">Дронды белсендіру мүмкін болмады</sys:String>
+    <sys:String x:Key="Msg_MissionActivated">Миссия белсендірілді!</sys:String>
+    <sys:String x:Key="Msg_DroneNotArmed">Дрон белсендірілмеген</sys:String>
+    <sys:String x:Key="Msg_DroneLastWaypoint">Дрон миссияның соңғы нүктесінде</sys:String>
+    <sys:String x:Key="Msg_ClickMapHome">HOME орнату үшін картаны басыңыз.</sys:String>
+    <sys:String x:Key="Msg_HomeSetupSub">HOME орнату</sys:String>
+    <sys:String x:Key="Msg_NoGpsSignal">Дрон қосылмаған немесе GPS сигналы жоқ.</sys:String>
+    <sys:String x:Key="Msg_CannotSetHomeSub">HOME орнату мүмкін емес</sys:String>
+    <sys:String x:Key="Msg_WaitGpsFix">Дронға қосылып, дұрыс GPS FIX күтіңіз.</sys:String>
+    <sys:String x:Key="Msg_ConnectToReadMission">Миссияны оқу үшін дронға қосылыңыз.</sys:String>
+    <sys:String x:Key="Msg_NoConnectionSub">Қосылу жоқ</sys:String>
+    <sys:String x:Key="Msg_ConnectViaSerialOrUdp">Сериялық порт немесе UDP арқылы қосылыңыз.</sys:String>
+    <sys:String x:Key="Msg_AddPointInDev">Батырмамен нүкте қосу әзірленуде.&#x0a;&#x0a;Картаны екі рет басу арқылы нүкте қосыңыз.</sys:String>
+    <sys:String x:Key="Msg_AddPointsHint">Картаны екі рет басу арқылы нүкте қосыңыз.</sys:String>
+    <sys:String x:Key="Msg_ConfirmClearSub">Тазалауды растау</sys:String>
+    <sys:String x:Key="Msg_ClearAllWaypoints">Барлық маршрут нүктелерін жою?</sys:String>
+    <sys:String x:Key="Msg_ActionIrreversible">Әрекет қайтарылмайды.</sys:String>
+    <sys:String x:Key="Msg_VtolSequence">Ұшу → ұшақ → нүктелер → коптер → қону</sys:String>
+    <sys:String x:Key="Msg_ActivateVtolMission">VTOL миссияны {0} нүктемен белсендіру?&#x0a;&#x0a;ҰШУ → СТАРТ → WPs → ҚОНУ&#x0a;&#x0a;⚠️ Дрон автоматты ұшады!</sys:String>
+    <sys:String x:Key="Msg_ActivateCopterMission">Миссияны {0} нүктемен белсендіру?&#x0a;&#x0a;⚠️ Дрон автоматты ұшады!</sys:String>
+    <sys:String x:Key="Route_Label">Маршрут</sys:String>
+    <sys:String x:Key="FromWP_Label">WP-ден</sys:String>
+    <sys:String x:Key="FromHOME_Label">HOME-нан</sys:String>
+    <sys:String x:Key="Unit_sec">сек</sys:String>
+    <sys:String x:Key="Msg_CantFreezeTakeoff">⚠️ Тоқтату мүмкін емес: дрон ұшып шығуда</sys:String>
+    <sys:String x:Key="Msg_CantFreezeLanding">⚠️ Тоқтату мүмкін емес: дрон қонуда</sys:String>
+    <sys:String x:Key="Msg_ResumeMission">▶ Миссияны жалғастыру</sys:String>
+    <sys:String x:Key="Msg_MissionFrozen">⏸ Миссия тоқтатылды — дрон айналуда</sys:String>
+    <sys:String x:Key="Msg_NoHomePos">HOME позициясы жоқ</sys:String>
+    <sys:String x:Key="Msg_UploadError">❌ Жүктеу қатесі</sys:String>
+    <sys:String x:Key="Msg_FreezeMission">⏸ Миссияны тоқтату</sys:String>
+    <sys:String x:Key="Msg_MissionResumed">▶ Миссия жалғасты → нүкте {0}</sys:String>
+    <sys:String x:Key="Tip_GoToWaypoint">Нүктеге өту</sys:String>
+    <sys:String x:Key="Tip_DeleteWaypoint">Нүктені жою</sys:String>
+    <sys:String x:Key="Msg_MissionWriteErrorSub">Миссия жазу қатесі</sys:String>
+    <sys:String x:Key="Msg_CheckFolderAccess">Қалтаға қатынау құқығын тексеріңіз.</sys:String>
+    <sys:String x:Key="Msg_ReplaceMissionSub">Миссияны ауыстыру?</sys:String>
+    <sys:String x:Key="Msg_FileSavedSub">Файл сақталды</sys:String>
+    <sys:String x:Key="Msg_VehicleChangeSub">Аппарат түрін ауыстыру</sys:String>
+    <sys:String x:Key="Msg_SwitchErrorSub">Ауыстыру қатесі</sys:String>
+    <sys:String x:Key="Msg_SwitchVehicleConfirm">Аппарат түрін ауыстыру?</sys:String>
+    <sys:String x:Key="Msg_RetryCheckLogs">Қайталап көріңіз. Қате қайталанса — логтарды тексеріңіз.</sys:String>
+    <sys:String x:Key="Msg_VehicleMenuError">Аппарат түрін таңдау ашылмады: {0}</sys:String>
 </ResourceDictionary>

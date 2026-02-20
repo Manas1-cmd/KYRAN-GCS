@@ -141,13 +141,13 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="MSL" Foreground="#4FC3F7" FontSize="11" FontWeight="Bold" Width="34"/>
                                 <TextBlock x:Name="AltMslText" Text="---" Foreground="White" FontSize="12" FontWeight="Bold" FontFamily="Consolas"/>
-                                <TextBlock Text=" м" Foreground="#666" FontSize="10" VerticalAlignment="Bottom"/>
+                                <TextBlock Text="{DynamicResource Default_AltSpace}" Foreground="#666" FontSize="10" VerticalAlignment="Bottom"/>
                             </StackPanel>
 
                             <!-- ДРОН -->
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
                                 <TextBlock Text="✈" Foreground="#98F019" FontSize="11" Margin="0,0,4,0"/>
-                                <TextBlock Text="ДРОН" Foreground="#98F019" FontSize="10" FontWeight="SemiBold" Width="38"/>
+                                <TextBlock Text="{DynamicResource Drone}" Foreground="#98F019" FontSize="10" FontWeight="SemiBold" Width="38"/>
                                 <TextBlock x:Name="DroneLatText" Text="0.0000" Foreground="White" FontSize="11" FontFamily="Consolas"/>
                                 <TextBlock Text=" | " Foreground="#444" FontSize="11"/>
                                 <TextBlock x:Name="DroneLonText" Text="0.0000" Foreground="White" FontSize="11" FontFamily="Consolas"/>
@@ -233,12 +233,12 @@
                                Style="{StaticResource TelemetryBoxSecondStyle}"
                                Margin="0,0,4,0">
                             <StackPanel>
-                                <TextBlock Text="Высота:"
+                                <TextBlock Text="{DynamicResource Altitude}"
                                           Foreground="{StaticResource AcidGreen}"
                                           FontSize="10"
                                           Margin="0,0,0,3"/>
                                 <TextBlock x:Name="AltitudeValue"
-                                          Text="0.0 м"
+                                          Text="{DynamicResource Default_Alt}"
                                           Foreground="{StaticResource WhiteText}"
                                           FontSize="18"
                                           FontWeight="Bold"/>
@@ -249,12 +249,12 @@
                                Style="{StaticResource TelemetryBoxSecondStyle}"
                                Margin="4,0,0,0">
                             <StackPanel>
-                                <TextBlock Text="Скорость:"
+                                <TextBlock Text="{DynamicResource Speed}"
                                           Foreground="{StaticResource AcidGreen}"
                                           FontSize="10"
                                           Margin="0,0,0,3"/>
                                 <TextBlock x:Name="SpeedValue"
-                                          Text="0.0 м/с"
+                                          Text="{DynamicResource Default_Speed}"
                                           Foreground="{StaticResource WhiteText}"
                                           FontSize="18"
                                           FontWeight="Bold"/>
@@ -307,7 +307,7 @@
 
                     <!-- Кнопка ARM/DISARM -->
                     <Button x:Name="ArmButton"
-                           Content="АКТИВИРОВАТЬ"
+                           Content="{DynamicResource Arm}"
                            Style="{StaticResource NavButtonStyle}"
                            Height="42"
                             Width="350"
@@ -357,7 +357,7 @@
                             Style="{StaticResource TelemetryBoxStyle}"
                             Margin="12,12,6,4" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Спутники"
+                                    <TextBlock Text="{DynamicResource Satellites}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="SatellitesValue"
@@ -375,7 +375,7 @@
                 Style="{StaticResource TelemetryBoxStyle}"
                 Margin="6,12,12,4" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Режим"
+                                    <TextBlock Text="{DynamicResource FlightMode}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -394,7 +394,7 @@
                 Style="{StaticResource TelemetryBoxStyle}"
                 Margin="12,4,6,12" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Батарея"
+                                    <TextBlock Text="{DynamicResource Battery}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -413,7 +413,7 @@
                 Style="{StaticResource TelemetryBoxStyle}"
                 Margin="6,4,12,12" Height="32" Padding="8,4">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Заряд"
+                                    <TextBlock Text="{DynamicResource Charge}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -435,7 +435,7 @@
                 Margin="12,0,6,4" Height="32" Padding="8,4" 
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Мотор 1"
+                                    <TextBlock Text="{DynamicResource Motor1}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -455,7 +455,7 @@
                 Margin="6,0,12,4" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Мотор 2"
+                                    <TextBlock Text="{DynamicResource Motor2}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -475,7 +475,7 @@
                 Margin="12,0,6,4" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Мотор 3"
+                                    <TextBlock Text="{DynamicResource Motor3}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -495,7 +495,7 @@
                 Margin="6,0,12,4" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Мотор 4"
+                                    <TextBlock Text="{DynamicResource Motor4}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -515,7 +515,7 @@
                 Margin="12,0,12,12" Height="32" Padding="8,4"
                 Visibility="Collapsed">
                                 <Grid Margin="0,-2,0,-2">
-                                    <TextBlock Text="Толкающий мотор"
+                                    <TextBlock Text="{DynamicResource PusherMotor}"
                            Foreground="{StaticResource WhiteText}"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -554,13 +554,13 @@
                                        Foreground="White"
                                       Margin="0,0,10,0"/>
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Ошибка"
+                                <TextBlock Text="{DynamicResource Error}"
                                           FontSize="12"
                                           FontWeight="Bold"
                                            Foreground="White"
                                           Margin="0,0,0,4"/>
                                 <TextBlock x:Name="ErrorText"
-                                          Text="Потеряна связь с дроном"
+                                          Text="{DynamicResource ConnectionLost}"
                                           FontSize="11"
                                            Foreground="White"
                                           TextWrapping="Wrap"
@@ -620,21 +620,21 @@
                             <!-- РЯД 1 -->
                             <Button Grid.Row="0" Grid.Column="0"
         x:Name="LoiterButton"
-        Content="Удержание"
+        Content="{DynamicResource Mode_Hold}"
         Style="{StaticResource FlightModeButtonStyle}"
         Click="LoiterButton_Click"
         Margin="0,0,3,3"/>
 
                             <Button Grid.Row="0" Grid.Column="1"
         x:Name="AltHoldButton"
-        Content="Высота"
+        Content="{DynamicResource Mode_AltHold}"
         Style="{StaticResource FlightModeButtonStyle}"
         Click="AltHoldButton_Click"
         Margin="3,0,3,3"/>
 
                             <Button Grid.Row="0" Grid.Column="2"
                 x:Name="CalibrateButton"
-                Content="Калибровать"
+                Content="{DynamicResource Mode_Calibrate}"
                 Style="{StaticResource ControlButtonStyle}"
                 Click="CalibrateButton_Click"
                 Margin="3,0,0,3"/>
@@ -642,21 +642,21 @@
                             <!-- РЯД 2 -->
                             <Button Grid.Row="1" Grid.Column="0"
                 x:Name="ExecuteModeButton"
-                Content="Выполнить"
+                Content="{DynamicResource Execute}"
                 Style="{StaticResource ControlButtonStyle}"
                 Click="ExecuteModeButton_Click"
                 Margin="0,3,3,3"/>
 
                             <Button Grid.Row="1" Grid.Column="1"
                 x:Name="ManualModeButton"
-                Content="Ручной"
+                Content="{DynamicResource Mode_Manual}"
                 Style="{StaticResource FlightModeButtonStyle}"
                 Click="ManualModeButton_Click"
                 Margin="3,3,3,3"/>
 
                             <Button Grid.Row="1" Grid.Column="2"
                 x:Name="RtlButton"
-                Content="Домой"
+                Content="{DynamicResource Mode_Home}"
                 Style="{StaticResource FlightModeButtonStyle}"
                 Click="RtlButton_Click"
                 Margin="3,3,0,3"/>
@@ -664,7 +664,7 @@
                             <!-- Статус миссии -->
                             <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
                    x:Name="MissionStatusText"
-                   Text="Миссия не загружена"
+                   Text="{DynamicResource MissionNotLoaded}"
                    Foreground="{StaticResource TextGray}"
                    FontSize="10"
                    HorizontalAlignment="Center"
@@ -674,7 +674,7 @@
                             <!-- Кнопка активации миссии -->
                             <Button Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
                 x:Name="ActivateMissionButton"
-                Content="Активировать миссию"
+                Content="{DynamicResource ActivateMission}"
                 Style="{StaticResource MissionButtonStyle}"
                 Margin="0,2,0,0"
                 Click="ActivateMissionButton_Click"/>

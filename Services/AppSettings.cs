@@ -9,10 +9,10 @@ namespace SimpleDroneGCS.Services
     {
         private static AppSettings _instance;
         public static AppSettings Instance => _instance ??= new AppSettings();
-        
+
         private readonly string _settingsPath;
         private Settings _settings;
-        
+
         public class Settings
         {
             public bool IsFirstRun { get; set; } = true; // НОВОЕ
@@ -34,18 +34,18 @@ namespace SimpleDroneGCS.Services
             public string PilotName { get; set; } = "";
             public string PilotLicense { get; set; } = "";
         }
-        
+
         private AppSettings()
         {
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var kyranFolder = Path.Combine(appDataPath, "KYRAN_GCS");
-            
-            if (!Directory.Exists(kyranFolder))
+            var sqkFolder = Path.Combine(appDataPath, "SQK_GCS");
+
+            if (!Directory.Exists(sqkFolder))
             {
-                Directory.CreateDirectory(kyranFolder);
+                Directory.CreateDirectory(sqkFolder);
             }
-            
-            _settingsPath = Path.Combine(kyranFolder, "settings.json");
+
+            _settingsPath = Path.Combine(sqkFolder, "settings.json");
             LoadSettings();
         }
 
@@ -61,7 +61,7 @@ namespace SimpleDroneGCS.Services
             }
         }
 
-        
+
 
 
         private void LoadSettings()
@@ -84,7 +84,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-        
+
         public void SaveSettings()
         {
             try
@@ -101,7 +101,7 @@ namespace SimpleDroneGCS.Services
                 System.Diagnostics.Debug.WriteLine($"Failed to save settings: {ex.Message}");
             }
         }
-        
+
         // Properties for easy access
         public VehicleType LastSelectedVehicleType
         {
@@ -112,7 +112,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-        
+
         public bool ShowVehicleSelectionOnStartup
         {
             get => _settings.ShowVehicleSelectionOnStartup;
@@ -122,7 +122,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-        
+
         public string LastConnectionString
         {
             get => _settings.LastConnectionString;
@@ -132,7 +132,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-        
+
         public bool DarkModeEnabled
         {
             get => _settings.DarkModeEnabled;
@@ -142,9 +142,9 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-        
+
         public Settings GetSettings() => _settings;
-        
+
         public void ResetToDefaults()
         {
             _settings = new Settings();

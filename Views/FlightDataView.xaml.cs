@@ -14,6 +14,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using static SimpleDroneGCS.Helpers.Loc;
+
 namespace SimpleDroneGCS.Views
 {
     public partial class FlightDataView : Page
@@ -186,7 +188,7 @@ namespace SimpleDroneGCS.Views
 
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                AppMessageBox.ShowWarning("Дрон не подключен.", owner, subtitle: "Подключение");
+                AppMessageBox.ShowWarning(Get("Msg_DroneNotConnectedDot"), owner, subtitle: Get("Msg_ConnectionSubtitle"));
                 return;
             }
 
@@ -195,14 +197,14 @@ namespace SimpleDroneGCS.Views
                 AppMessageBox.ShowWarning(
                     "Миссия не загружена.\n\nСоздайте миссию на странице 'План полёта' и нажмите 'Write'.",
                     owner,
-                    subtitle: "Миссия"
+                    subtitle: Get("Msg_MissionSub")
                 );
                 return;
             }
 
             // Проверяем ARM статус
             bool isArmed = _mavlinkService.CurrentTelemetry?.Armed ?? false;
-            
+
             string confirmMsg = isArmed
                 ? $"Запустить миссию из {_mavlinkService.PlannedMissionCount} точек?\n\n" +
                   "Последовательность:\n" +
@@ -984,7 +986,7 @@ namespace SimpleDroneGCS.Views
 
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                AppMessageBox.ShowWarning("Дрон не подключен.", owner, subtitle: "Подключение");
+                AppMessageBox.ShowWarning(Get("Msg_DroneNotConnectedDot"), owner, subtitle: Get("Msg_ConnectionSubtitle"));
                 return;
             }
 
@@ -1208,7 +1210,7 @@ namespace SimpleDroneGCS.Views
 
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                AppMessageBox.ShowWarning("Дрон не подключен.", owner, subtitle: "Подключение");
+                AppMessageBox.ShowWarning(Get("Msg_DroneNotConnectedDot"), owner, subtitle: Get("Msg_ConnectionSubtitle"));
                 return false;
             }
             return true;
@@ -1313,7 +1315,7 @@ namespace SimpleDroneGCS.Views
 
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
-                AppMessageBox.ShowWarning("Подключитесь к дрону!", owner, subtitle: "Подключение");
+                AppMessageBox.ShowWarning("Подключитесь к дрону!", owner, subtitle: Get("Msg_ConnectionSubtitle"));
                 return;
             }
 

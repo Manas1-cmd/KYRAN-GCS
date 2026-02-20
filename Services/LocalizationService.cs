@@ -26,7 +26,7 @@ namespace SimpleDroneGCS.Services
                     LanguageChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
-        }   
+        }
 
         private LocalizationService()
         {
@@ -63,11 +63,14 @@ namespace SimpleDroneGCS.Services
                         break;
                 }
 
-                var oldDict = Application.Current.Resources.MergedDictionaries
-                    .FirstOrDefault(d => d.Source?.OriginalString.Contains("Lang.") == true);
+                // Удаляем ВСЕ старые языковые словари (ищем "Lang" без точки — ловит и запятую и точку)
+                var oldDicts = Application.Current.Resources.MergedDictionaries
+                    .Where(d => d.Source?.OriginalString.Contains("Lang") == true
+                             && d.Source.OriginalString.Contains("Resources"))
+                    .ToList();
 
-                if (oldDict != null)
-                    Application.Current.Resources.MergedDictionaries.Remove(oldDict);
+                foreach (var old in oldDicts)
+                    Application.Current.Resources.MergedDictionaries.Remove(old);
 
                 Application.Current.Resources.MergedDictionaries.Add(dict);
 

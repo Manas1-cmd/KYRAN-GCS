@@ -1,0 +1,489 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- ==================== ОБЩИЕ / COMMON ==================== -->
+    <sys:String x:Key="Connect">Подключить</sys:String>
+    <sys:String x:Key="Disconnect">Отключить</sys:String>
+    <sys:String x:Key="Cancel">Отмена</sys:String>
+    <sys:String x:Key="Close">Закрыть</sys:String>
+    <sys:String x:Key="Save">Сохранить</sys:String>
+    <sys:String x:Key="Start">НАЧАТЬ</sys:String>
+    <sys:String x:Key="Next">ДАЛЕЕ ▶</sys:String>
+    <sys:String x:Key="Execute">Выполнить</sys:String>
+    <sys:String x:Key="Download">Скачать</sys:String>
+    <sys:String x:Key="Error">Ошибка</sys:String>
+    <sys:String x:Key="Ready">Готов</sys:String>
+    <sys:String x:Key="Loading">Загрузка...</sys:String>
+    <sys:String x:Key="Waiting">Ожидание...</sys:String>
+    <sys:String x:Key="NotConnected">Не подключено</sys:String>
+    <sys:String x:Key="Region">Регион:</sys:String>
+    <sys:String x:Key="From">От:</sys:String>
+    <sys:String x:Key="To">До:</sys:String>
+    <sys:String x:Key="OnOff">Вкл/Выкл</sys:String>
+
+    <!-- ==================== MAIN WINDOW ==================== -->
+    <sys:String x:Key="AppTitle">SQK GCS - Professional</sys:String>
+    <sys:String x:Key="Nav_Mission">МИССИЯ</sys:String>
+    <sys:String x:Key="Nav_Camera">КАМЕРА</sys:String>
+    <sys:String x:Key="Nav_Land">ПОСАДКА</sys:String>
+    <sys:String x:Key="Nav_Home">ДОМОЙ</sys:String>
+    <sys:String x:Key="StartingViewLink">Запуск ViewLink...</sys:String>
+
+    <!-- ==================== VEHICLE SELECTION ==================== -->
+    <sys:String x:Key="VehicleSelection_Title">SQK GCS - Vehicle Selection</sys:String>
+    <sys:String x:Key="SelectDroneType">Выберите Тип Дрона</sys:String>
+    <sys:String x:Key="Multicopter">МУЛЬТИКОПТЕР</sys:String>
+    <sys:String x:Key="Multicopter_Desc">Летательный аппарат, построенный по вертолётной схеме, с тремя и более несущими винтами</sys:String>
+    <sys:String x:Key="VTOL">СВВП</sys:String>
+    <sys:String x:Key="VTOL_Desc">Самолет Вертикального Взлета и Посадки</sys:String>
+    <sys:String x:Key="VTOL_Feature">Дальность + Манёвренность</sys:String>
+    <sys:String x:Key="VehicleChangeHint">Вы можете изменить тип транспортного средства позже в разделе «Настройки» → «Конфигурация транспортного средства».</sys:String>
+
+    <!-- ==================== TELEMETRY / FLIGHT DATA ==================== -->
+    <sys:String x:Key="Drone">ДРОН</sys:String>
+    <sys:String x:Key="Altitude">Высота:</sys:String>
+    <sys:String x:Key="Speed">Скорость:</sys:String>
+    <sys:String x:Key="Satellites">Спутники</sys:String>
+    <sys:String x:Key="FlightMode">Режим</sys:String>
+    <sys:String x:Key="Battery">Батарея</sys:String>
+    <sys:String x:Key="Charge">Заряд</sys:String>
+    <sys:String x:Key="Motor1">Мотор 1</sys:String>
+    <sys:String x:Key="Motor2">Мотор 2</sys:String>
+    <sys:String x:Key="Motor3">Мотор 3</sys:String>
+    <sys:String x:Key="Motor4">Мотор 4</sys:String>
+    <sys:String x:Key="PusherMotor">Толкающий мотор</sys:String>
+    <sys:String x:Key="Multirotor">Мультиротор</sys:String>
+    <sys:String x:Key="AltMSL">Выс. НУМ</sys:String>
+    <sys:String x:Key="Airspeed">Возд. ск.</sys:String>
+    <sys:String x:Key="ConnectionLost">Потеряна связь с дроном</sys:String>
+    <sys:String x:Key="Arm">АКТИВИРОВАТЬ</sys:String>
+    <sys:String x:Key="Disarm">ДЕАКТИВИРОВАТЬ</sys:String>
+
+    <!-- ==================== FLIGHT MODES ==================== -->
+    <sys:String x:Key="Mode_Hold">Удержание</sys:String>
+    <sys:String x:Key="Mode_AltHold">Высота</sys:String>
+    <sys:String x:Key="Mode_Calibrate">Калибровать</sys:String>
+    <sys:String x:Key="Mode_Manual">Ручной</sys:String>
+    <sys:String x:Key="Mode_Home">Домой</sys:String>
+    <sys:String x:Key="Mode_QStabilize">Q-Стаб</sys:String>
+    <sys:String x:Key="Mode_QHold">Q-Удерж</sys:String>
+    <sys:String x:Key="Mode_QAltHold">Q-Высота</sys:String>
+    <sys:String x:Key="FlightModes">Режимы полётов</sys:String>
+
+    <!-- ==================== MISSION ==================== -->
+    <sys:String x:Key="Mission">МИССИЯ</sys:String>
+    <sys:String x:Key="MissionTab">Миссия</sys:String>
+    <sys:String x:Key="DataTab">Данные</sys:String>
+    <sys:String x:Key="MissionNotLoaded">Миссия не загружена</sys:String>
+    <sys:String x:Key="ActivateMission">Активировать миссию</sys:String>
+    <sys:String x:Key="ActivateMissionFull">▶ Активировать миссию</sys:String>
+    <sys:String x:Key="FreezeMission">⏸ Заморозить миссию</sys:String>
+    <sys:String x:Key="NextWaypoint">⏭ Следующая точка</sys:String>
+    <sys:String x:Key="SetHome">Установить HOME</sys:String>
+    <sys:String x:Key="Write">Записать</sys:String>
+    <sys:String x:Key="Read">Читать</sys:String>
+    <sys:String x:Key="PointsCount">0 точек</sys:String>
+    <sys:String x:Key="Takeoff">ВЗЛЁТ</sys:String>
+    <sys:String x:Key="StartCircle">СТАРТ</sys:String>
+    <sys:String x:Key="LandingCircle">ПОСАДКА</sys:String>
+    <sys:String x:Key="Return">ВОЗВРАТ</sys:String>
+    <sys:String x:Key="RouteLength">Маршрут: 0 м</sys:String>
+    <sys:String x:Key="FromWP">От WP: —</sys:String>
+    <sys:String x:Key="FromHome">От HOME: —</sys:String>
+    <sys:String x:Key="AltLabel">В:</sys:String>
+
+    <!-- ==================== FLIGHT PLAN / COORDINATES ==================== -->
+    <sys:String x:Key="Lat">ШИР</sys:String>
+    <sys:String x:Key="Lon">ДОЛ</sys:String>
+    <sys:String x:Key="Alt">ВЫС</sys:String>
+    <sys:String x:Key="MulticopterLabel">Мультикоптер</sys:String>
+
+    <!-- ==================== MAP PROVIDERS ==================== -->
+    <sys:String x:Key="Map_GoogleSat">Google Спутник</sys:String>
+    <sys:String x:Key="Map_GoogleMap">Google Карта</sys:String>
+    <sys:String x:Key="Map_BingSat">Bing Спутник</sys:String>
+
+    <!-- ==================== CALIBRATION ==================== -->
+    <sys:String x:Key="Calibrations">Калибровки</sys:String>
+    <sys:String x:Key="Accelerometer">Акселерометр</sys:String>
+    <sys:String x:Key="Compass">Компас</sys:String>
+    <sys:String x:Key="Gyroscope">Гироскоп</sys:String>
+
+    <!-- Gyro Calibration -->
+    <sys:String x:Key="GyroCalib_Title">Калибровка гироскопа</sys:String>
+    <sys:String x:Key="GyroCalib_Header">КАЛИБРОВКА ГИРОСКОПА</sys:String>
+    <sys:String x:Key="GyroCalib_Instruction">Поставьте дрон на ровную поверхность&#x0a;и не трогайте его</sys:String>
+    <sys:String x:Key="GyroCalib_Warning">⚠ Дрон должен быть НЕПОДВИЖЕН</sys:String>
+
+    <!-- Compass Calibration -->
+    <sys:String x:Key="CompassCalib_Title">Калибровка компаса</sys:String>
+    <sys:String x:Key="CompassCalib_Header">КАЛИБРОВКА КОМПАСА</sys:String>
+    <sys:String x:Key="CompassCalib_Instruction">Нажмите НАЧАТЬ&#x0a;и медленно&#x0a;вращайте дрон&#x0a;во всех&#x0a;направлениях</sys:String>
+    <sys:String x:Key="CompassCalib_SlowHint">Крутите&#x0a;медленно!</sys:String>
+    <sys:String x:Key="CompassCalib_Coverage">ПОКРЫТИЕ</sys:String>
+    <sys:String x:Key="CompassCalib_Quality">КАЧЕСТВО</sys:String>
+    <sys:String x:Key="CompassCalib_Compass">КОМПАС</sys:String>
+    <sys:String x:Key="CompassCalib_Ready">Готов к калибровке</sys:String>
+    <sys:String x:Key="CompassCalib_Accept">ПРИНЯТЬ</sys:String>
+    <sys:String x:Key="CompassCalib_Instruction_Label">ИНСТРУКЦИЯ</sys:String>
+
+    <!-- Accel Calibration -->
+    <sys:String x:Key="AccelCalib_Title">Калибровка акселерометра</sys:String>
+    <sys:String x:Key="AccelCalib_Header">КАЛИБРОВКА АКСЕЛЕРОМЕТРА</sys:String>
+    <sys:String x:Key="AccelCalib_SubHeader">6-ПОЗИЦИОННАЯ КАЛИБРОВКА</sys:String>
+    <sys:String x:Key="AccelCalib_Level">РОВНО</sys:String>
+    <sys:String x:Key="AccelCalib_Left">ВЛЕВО</sys:String>
+    <sys:String x:Key="AccelCalib_Right">ВПРАВО</sys:String>
+    <sys:String x:Key="AccelCalib_NoseDown">НОС↓</sys:String>
+    <sys:String x:Key="AccelCalib_NoseUp">НОС↑</sys:String>
+    <sys:String x:Key="AccelCalib_UpsideDown">ВЕРХ↓</sys:String>
+    <sys:String x:Key="AccelCalib_Step">Шаг 1/6: LEVEL</sys:String>
+    <sys:String x:Key="AccelCalib_PlaceDrone">Поставьте дрон РОВНО на стол</sys:String>
+    <sys:String x:Key="AccelCalib_PressNext">Нажмите ДАЛЕЕ когда дрон установлен</sys:String>
+    <sys:String x:Key="AccelCalib_PressStart">Нажмите НАЧАТЬ для запуска калибровки</sys:String>
+
+    <!-- ==================== CIRCLE EDIT DIALOG ==================== -->
+    <sys:String x:Key="CircleEdit_Title">Параметры точки</sys:String>
+    <sys:String x:Key="CircleEdit_Radius">Радиус (м):</sys:String>
+    <sys:String x:Key="CircleEdit_Altitude">Высота (м):</sys:String>
+    <sys:String x:Key="CircleEdit_Direction">Направление:</sys:String>
+    <sys:String x:Key="CircleEdit_CW">По часовой ↻</sys:String>
+    <sys:String x:Key="CircleEdit_CCW">Против часовой ↺</sys:String>
+    <sys:String x:Key="CircleEdit_AutoContinue">Авто-переход</sys:String>
+    <sys:String x:Key="CircleEdit_NoWait">(не ждать команду)</sys:String>
+
+    <!-- ==================== UDP CONNECTION ==================== -->
+    <sys:String x:Key="Udp_Title">UDP Подключение</sys:String>
+    <sys:String x:Key="Udp_QuickSettings">БЫСТРЫЕ НАСТРОЙКИ</sys:String>
+    <sys:String x:Key="Udp_Drone">🚁 Дрон (236)</sys:String>
+    <sys:String x:Key="Udp_Simulator">🖥️ Симулятор</sys:String>
+    <sys:String x:Key="Udp_Listen">📡 Ожидание</sys:String>
+    <sys:String x:Key="Udp_DroneAddress">АДРЕС ДРОНА (опционально)</sys:String>
+    <sys:String x:Key="Udp_DroneIp">IP адрес дрона:</sys:String>
+    <sys:String x:Key="Udp_DronePort">Порт дрона:</sys:String>
+    <sys:String x:Key="Udp_LocalSettings">ЛОКАЛЬНЫЕ НАСТРОЙКИ</sys:String>
+    <sys:String x:Key="Udp_LocalIp">Локальный IP:</sys:String>
+    <sys:String x:Key="Udp_LocalPort">Локальный порт:</sys:String>
+    <sys:String x:Key="Udp_Hint1">💡 Оставьте адрес дрона пустым для режима ожидания</sys:String>
+    <sys:String x:Key="Udp_Hint2">💡 Локальный IP 0.0.0.0 = все сетевые интерфейсы</sys:String>
+
+    <!-- ==================== CAMERA WINDOW ==================== -->
+    <sys:String x:Key="Cam_Title">Управление камерой — Z30T</sys:String>
+    <sys:String x:Key="Cam_Heading">Курс: --</sys:String>
+    <sys:String x:Key="Cam_Pitch">Тангаж: --</sys:String>
+    <sys:String x:Key="Cam_Roll">Крен: --</sys:String>
+    <sys:String x:Key="Cam_Distance">Дист: --</sys:String>
+    <sys:String x:Key="Cam_Connection">ПОДКЛЮЧЕНИЕ</sys:String>
+    <sys:String x:Key="Cam_GimbalControl">УПРАВЛЕНИЕ ПОДВЕСОМ</sys:String>
+    <sys:String x:Key="Cam_GimbalHint">WASD или джойстик ниже</sys:String>
+    <sys:String x:Key="Cam_Center">⌂ Центр</sys:String>
+    <sys:String x:Key="Cam_LookDown">↓ Вниз</sys:String>
+    <sys:String x:Key="Cam_ZoomFocus">ЗУМ И ФОКУС</sys:String>
+    <sys:String x:Key="Cam_ZoomHint">Удерживайте кнопки или +/−</sys:String>
+    <sys:String x:Key="Cam_Stop">⬜ Стоп</sys:String>
+    <sys:String x:Key="Cam_Autofocus">Автофокус</sys:String>
+    <sys:String x:Key="Cam_Shooting">СЪЁМКА</sys:String>
+    <sys:String x:Key="Cam_Photo">📷 Фото</sys:String>
+    <sys:String x:Key="Cam_Record">⏺ Запись</sys:String>
+    <sys:String x:Key="Cam_VideoSource">ИСТОЧНИК ВИДЕО</sys:String>
+    <sys:String x:Key="Cam_IR">ИК</sys:String>
+    <sys:String x:Key="Cam_EO_IR_PIP">EO+ИК PIP</sys:String>
+    <sys:String x:Key="Cam_IR_EO_PIP">ИК+EO PIP</sys:String>
+    <sys:String x:Key="Cam_Fusion">Фьюжн</sys:String>
+    <sys:String x:Key="Cam_IRPalette">ИК ПАЛИТРА (10 режимов)</sys:String>
+    <sys:String x:Key="Cam_Pal_WhiteHot">Белое горячее</sys:String>
+    <sys:String x:Key="Cam_Pal_Lava">Лава</sys:String>
+    <sys:String x:Key="Cam_Pal_RedMetal">Красный металл</sys:String>
+    <sys:String x:Key="Cam_Pal_HotMetal">Горячий металл</sys:String>
+    <sys:String x:Key="Cam_Pal_Medical">Медицинская</sys:String>
+    <sys:String x:Key="Cam_Pal_Arctic">Арктика</sys:String>
+    <sys:String x:Key="Cam_Pal_Rainbow1">Радуга 1</sys:String>
+    <sys:String x:Key="Cam_Pal_Rainbow2">Радуга 2</sys:String>
+    <sys:String x:Key="Cam_Pal_RedTrail">Красный след</sys:String>
+    <sys:String x:Key="Cam_Pal_BlackHot">Чёрное горячее</sys:String>
+    <sys:String x:Key="Cam_Temperature">ТЕМПЕРАТУРА (3 Gear)</sys:String>
+    <sys:String x:Key="Cam_Rangefinder">ДАЛЬНОМЕР (LRF)</sys:String>
+    <sys:String x:Key="Cam_LaserToggle">🔴 Лазер Вкл/Выкл</sys:String>
+    <sys:String x:Key="Cam_Additional">ДОПОЛНИТЕЛЬНО</sys:String>
+    <sys:String x:Key="Cam_FillLight">💡 Подсветка</sys:String>
+    <sys:String x:Key="Cam_OSDToggle">OSD Вкл/Выкл</sys:String>
+    <sys:String x:Key="Cam_Tracking">ТРЕКИНГ</sys:String>
+    <sys:String x:Key="Cam_TrackHint">Ctrl+Клик на видео для захвата</sys:String>
+    <sys:String x:Key="Cam_Search">🎯 Поиск</sys:String>
+    <sys:String x:Key="Cam_AIToggle">Вкл/Выкл AI</sys:String>
+    <sys:String x:Key="Cam_Hotkeys">ГОРЯЧИЕ КЛАВИШИ</sys:String>
+    <sys:String x:Key="Cam_SpaceKey">Пробел</sys:String>
+    <sys:String x:Key="Cam_CtrlClick">Ctrl+Клик</sys:String>
+
+    <!-- Camera Connection Dialog -->
+    <sys:String x:Key="CamConn_Title">Подключение камеры</sys:String>
+    <sys:String x:Key="CamConn_Header">Подключение камеры</sys:String>
+    <sys:String x:Key="CamConn_Model">Модель камеры:</sys:String>
+    <sys:String x:Key="CamConn_Other">Другая (ручной ввод)</sys:String>
+    <sys:String x:Key="CamConn_IP">IP адрес камеры:</sys:String>
+    <sys:String x:Key="CamConn_TCPPort">TCP порт (управление):</sys:String>
+    <sys:String x:Key="CamConn_RTSPPort">RTSP порт (видео):</sys:String>
+    <sys:String x:Key="CamConn_RTSPUrl">RTSP URL видеопотока:</sys:String>
+    <sys:String x:Key="CamConn_Connect">🔌 Подключить</sys:String>
+
+    <!-- Camera Settings Dialog -->
+    <sys:String x:Key="CamSet_Title">Настройки камеры</sys:String>
+    <sys:String x:Key="CamSet_Header">⚙ Настройки камеры</sys:String>
+    <sys:String x:Key="CamSet_Gimbal">ПОДВЕС</sys:String>
+    <sys:String x:Key="CamSet_Centralize">🎯 Центрировать</sys:String>
+    <sys:String x:Key="CamSet_LookDown">⬇ Смотреть вниз</sys:String>
+    <sys:String x:Key="CamSet_IRThermal">ИК ТЕПЛОВИЗОР</sys:String>
+
+    <!-- ==================== MAP DOWNLOADER ==================== -->
+    <sys:String x:Key="MapDl_Title">Скачивание карты</sys:String>
+    <sys:String x:Key="MapDl_Header">Скачать карту Казахстана</sys:String>
+    <sys:String x:Key="MapDl_AllKZ">🇰🇿 Весь Казахстан</sys:String>
+    <sys:String x:Key="MapDl_Almaty">📍 Алматы и область</sys:String>
+    <sys:String x:Key="MapDl_Astana">📍 Астана и область</sys:String>
+    <sys:String x:Key="MapDl_CurrentPos">📍 Текущая позиция (50 км)</sys:String>
+    <sys:String x:Key="MapDl_ZoomLevels">Уровни детализации:</sys:String>
+    <sys:String x:Key="MapDl_ZoomHint">Зум 6-10: обзор | 11-13: навигация | 14+: детали (много данных!)</sys:String>
+    <sys:String x:Key="MapDl_Tiles">Тайлов:</sys:String>
+    <sys:String x:Key="MapDl_EstSize">Примерный размер:</sys:String>
+    <sys:String x:Key="MapDl_EstTime">Время (примерно):</sys:String>
+    <sys:String x:Key="MapDl_ReadyToDownload">Готов к скачиванию</sys:String>
+    <sys:String x:Key="MapDl_Download">▶ Скачать</sys:String>
+
+    <!-- ==================== SRTM DOWNLOADER ==================== -->
+    <sys:String x:Key="Srtm_Title">Загрузка рельефа SRTM</sys:String>
+    <sys:String x:Key="Srtm_Header">Загрузка данных рельефа</sys:String>
+    <sys:String x:Key="Srtm_AllKZ">🇰🇿 Весь Казахстан (~670 тайлов)</sys:String>
+    <sys:String x:Key="Srtm_Almaty">🏙️ Алматы и область</sys:String>
+    <sys:String x:Key="Srtm_Astana">🏙️ Астана и область</sys:String>
+    <sys:String x:Key="Srtm_Shymkent">🏙️ Шымкент и область</sys:String>
+    <sys:String x:Key="Srtm_CurrentPos">📍 Текущая позиция карты</sys:String>
+    <sys:String x:Key="Srtm_Custom">✏️ Указать вручную</sys:String>
+
+    <!-- ==================== C# CODE STRINGS ==================== -->
+    <sys:String x:Key="Msg_DroneNotConnected">Дрон не подключён</sys:String>
+    <sys:String x:Key="Msg_MissionEmpty">Миссия пуста. Добавьте точки!</sys:String>
+    <sys:String x:Key="Msg_DroneNotConnectedFull">Дрон не подключен.</sys:String>
+    <sys:String x:Key="Msg_ConnectionSubtitle">Подключение</sys:String>
+    <sys:String x:Key="Msg_Confirmation">Подтверждение</sys:String>
+    <sys:String x:Key="Msg_ArmConfirm">Активировать дрон (ARM)?
+
+Убедитесь что:
+• Пропеллеры свободны
+• Зона безопасна
+• GPS Fix получен</sys:String>
+    <sys:String x:Key="Msg_DisarmConfirm">Деактивировать дрон (DISARM)?</sys:String>
+    <sys:String x:Key="Msg_InAirLand">Дрон в воздухе!
+
+Выполнить безопасную посадку (LAND)?</sys:String>
+    <sys:String x:Key="Msg_EmergencyDisarm">Выполнить аварийный DISARM?
+
+⚠️ ВНИМАНИЕ: Дрон упадёт!</sys:String>
+    <sys:String x:Key="Msg_Dangerous">Опасно!</sys:String>
+    <sys:String x:Key="Msg_Deactivation">Деактивация</sys:String>
+
+
+    <!-- ЕДИНИЦЫ И PLACEHOLDER -->
+    <sys:String x:Key="Unit_m">м</sys:String>
+    <sys:String x:Key="Unit_ms">м/с</sys:String>
+    <sys:String x:Key="Default_Alt">0.0 м</sys:String>
+    <sys:String x:Key="Default_Speed">0.0 м/с</sys:String>
+    <sys:String x:Key="Default_AltZero">0 м</sys:String>
+    <sys:String x:Key="Default_SpeedZero">0 м/с</sys:String>
+    <sys:String x:Key="Default_AltSpace">м</sys:String>
+    <sys:String x:Key="Compass_N">С</sys:String>
+    <sys:String x:Key="Compass_S">Ю</sys:String>
+    <sys:String x:Key="Compass_E">В</sys:String>
+    <sys:String x:Key="Compass_W">З</sys:String>
+    <sys:String x:Key="Circle_S">С</sys:String>
+    <sys:String x:Key="Circle_P">П</sys:String>
+    <sys:String x:Key="Circle_Radius">· 150м</sys:String>
+    <sys:String x:Key="Srtm_Tiles">Тайлов: ~4</sys:String>
+    <sys:String x:Key="Srtm_EstSize">Примерный размер: ~11 MB</sys:String>
+    <sys:String x:Key="Srtm_Cache">В кэше: 0 MB</sys:String>
+    <sys:String x:Key="CompassCalib_Sections">0 / 80 секций</sys:String>
+    <sys:String x:Key="MapDl_EstTimeVal">~0 мин</sys:String>
+
+
+    <!-- ==================== C# КОД (ДОПОЛНИТЕЛЬНЫЕ) ==================== -->
+    <sys:String x:Key="WpEdit_Title">Точка #{0}</sys:String>
+    <sys:String x:Key="WpEdit_Header">Редактирование точки</sys:String>
+    <sys:String x:Key="WpEdit_Command">Команда:</sys:String>
+    <sys:String x:Key="WpEdit_Latitude">Широта:</sys:String>
+    <sys:String x:Key="WpEdit_Longitude">Долгота:</sys:String>
+    <sys:String x:Key="WpEdit_AltitudeM">Высота (м):</sys:String>
+    <sys:String x:Key="WpEdit_RadiusM">Радиус (м):</sys:String>
+    <sys:String x:Key="WpEdit_DelayS">Задержка (с):</sys:String>
+    <sys:String x:Key="WpEdit_Turns">Кругов:</sys:String>
+    <sys:String x:Key="WpEdit_Direction">Направление:</sys:String>
+    <sys:String x:Key="WpEdit_DirHint">🔄 CW = по часовой стрелке, CCW = против часовой</sys:String>
+    <sys:String x:Key="WpEdit_AutoNext">Автопереход к следующей точке</sys:String>
+    <sys:String x:Key="WpEdit_Save">💾 СОХРАНИТЬ</sys:String>
+    <sys:String x:Key="WpEdit_ValidationError">Проверьте правильность введённых данных</sys:String>
+    <sys:String x:Key="WpEdit_LatError">Широта должна быть от -90 до 90</sys:String>
+    <sys:String x:Key="WpEdit_LonError">Долгота должна быть от -180 до 180</sys:String>
+    <sys:String x:Key="Cmd_Q_Waypoint">📍 Q-ТОЧКА</sys:String>
+    <sys:String x:Key="Cmd_Q_Loiter">🔄 Q-КРУГ</sys:String>
+    <sys:String x:Key="Cmd_Q_LoiterTime">⏱️ Q-КРУГ(время)</sys:String>
+    <sys:String x:Key="Cmd_Q_LoiterTurns">🔁 Q-КРУГ(обор)</sys:String>
+    <sys:String x:Key="Cmd_Q_Land">🛬 Q-ПОСАДКА</sys:String>
+    <sys:String x:Key="Cmd_Q_Delay">⏸️ Q-ЗАДЕРЖКА</sys:String>
+    <sys:String x:Key="Cmd_Q_Speed">⚡ Q-СКОРОСТЬ</sys:String>
+    <sys:String x:Key="Cmd_Waypoint">📍 ТОЧКА</sys:String>
+    <sys:String x:Key="Cmd_Loiter">🔄 КРУГ</sys:String>
+    <sys:String x:Key="Cmd_LoiterTime">⏱️ КРУГ(время)</sys:String>
+    <sys:String x:Key="Cmd_LoiterTurns">🔁 КРУГ(обор)</sys:String>
+    <sys:String x:Key="Cmd_Takeoff">🛫 ВЗЛЁТ</sys:String>
+    <sys:String x:Key="Cmd_Land">🛬 ПОСАДКА</sys:String>
+    <sys:String x:Key="Cmd_Delay">⏸️ ЗАДЕРЖКА</sys:String>
+    <sys:String x:Key="Cmd_Speed">⚡ СКОРОСТЬ</sys:String>
+    <sys:String x:Key="Cmd_RTL">🏠 ВОЗВРАТ</sys:String>
+    <sys:String x:Key="Cmd_Spline">〰️ СПЛАЙН</sys:String>
+    <sys:String x:Key="CmdShort_Waypoint">ТОЧКА</sys:String>
+    <sys:String x:Key="CmdShort_Loiter">КРУГ</sys:String>
+    <sys:String x:Key="CmdShort_LoiterTime">КРУГ(время)</sys:String>
+    <sys:String x:Key="CmdShort_LoiterTurns">КРУГ(обор)</sys:String>
+    <sys:String x:Key="CmdShort_Land">ПОСАДКА</sys:String>
+    <sys:String x:Key="CmdShort_Delay">ЗАДЕРЖКА</sys:String>
+    <sys:String x:Key="CmdShort_Speed">СКОРОСТЬ</sys:String>
+    <sys:String x:Key="CmdShort_Takeoff">ВЗЛЁТ</sys:String>
+    <sys:String x:Key="CmdShort_RTL">ВОЗВРАТ</sys:String>
+    <sys:String x:Key="CmdShort_Spline">СПЛАЙН</sys:String>
+    <sys:String x:Key="Vehicle_Multicopter">Мультикоптер</sys:String>
+    <sys:String x:Key="Vehicle_VTOL">СВВП</sys:String>
+    <sys:String x:Key="Vehicle_VTOLFull">Тік Ұшатын және Қонатын Ұшақ</sys:String>
+    <sys:String x:Key="Tip_DownloadMap">Скачать карту офлайн</sys:String>
+    <sys:String x:Key="Tip_DownloadSRTM">Скачать данные высот SRTM</sys:String>
+    <sys:String x:Key="Tip_SaveMission">Сохранить миссию</sys:String>
+    <sys:String x:Key="Tip_LoadMission">Загрузить миссию</sys:String>
+    <sys:String x:Key="Tip_ClearMission">Очистить миссию</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Coords">📍 Координаты:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Alt">📏 Высота:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Radius">⭕ Радиус:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Dir">🔄 Направление:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Delay">⏱ Задержка:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Turns">🔁 Кругов:</sys:String>
+    <sys:String x:Key="Wp_Tooltip_Auto">▶ Авто-переход:</sys:String>
+    <sys:String x:Key="Dir_CW">По часовой (CW)</sys:String>
+    <sys:String x:Key="Dir_CCW">Против часовой (CCW)</sys:String>
+    <sys:String x:Key="Yes">Да</sys:String>
+    <sys:String x:Key="No_Loiter">Нет (кружит)</sys:String>
+    <sys:String x:Key="Wp_Number">Точка #{0}</sys:String>
+    <sys:String x:Key="Wp_Count">{0} точек</sys:String>
+    <sys:String x:Key="Route_Format">Маршрут: {0}</sys:String>
+    <sys:String x:Key="FromWP_Format">От WP{0}: {1}</sys:String>
+    <sys:String x:Key="FromHome_Format">От HOME: {0}</sys:String>
+    <sys:String x:Key="Alt_Format">{0} м</sys:String>
+    <sys:String x:Key="Alt_NoData">— м</sys:String>
+    <sys:String x:Key="Speed_Format">{0} м/с</sys:String>
+    <sys:String x:Key="VTOL_Takeoff">VTOL ВЗЛЁТ</sys:String>
+    <sys:String x:Key="VTOL_Landing">VTOL ПОСАДКА</sys:String>
+    <sys:String x:Key="Copter_Takeoff">ВЗЛЁТ</sys:String>
+    <sys:String x:Key="Copter_RTL">ВОЗВРАТ (RTL)</sys:String>
+    <sys:String x:Key="Mode_Stabilize">Стаб</sys:String>
+    <sys:String x:Key="Msg_InDevelopment">Функция пока в разработке.</sys:String>
+    <sys:String x:Key="Msg_InDevelopmentSub">В разработке</sys:String>
+    <sys:String x:Key="Msg_EmptyMission">Нет точек для сохранения.</sys:String>
+    <sys:String x:Key="Msg_EmptyMissionSub">Пустая миссия</sys:String>
+    <sys:String x:Key="Msg_MissionSaved">Миссия сохранена: {0} точек.&#x0a;📁 {1}</sys:String>
+    <sys:String x:Key="Msg_MissionSavedShort">Миссия сохранена: {0} точек.</sys:String>
+    <sys:String x:Key="Msg_MissionSavedSub">Миссия</sys:String>
+    <sys:String x:Key="Msg_MissionLoaded">Загружено: {0} точек ({1}).&#x0a;📁 {2}</sys:String>
+    <sys:String x:Key="Msg_MissionLoadedSub">Миссия загружена</sys:String>
+    <sys:String x:Key="Msg_MissionReadDrone">Прочитано с дрона: {0} точек ({1}).</sys:String>
+    <sys:String x:Key="Msg_MissionEmptyDrone">Миссия на дроне пуста или не удалось прочитать.</sys:String>
+    <sys:String x:Key="Msg_BadFormat">Неверный формат файла. Ожидается QGC WPL 110.</sys:String>
+    <sys:String x:Key="Msg_BadFormatSub">Ошибка формата</sys:String>
+    <sys:String x:Key="Msg_ErrorSub">Ошибка</sys:String>
+    <sys:String x:Key="Msg_ErrorSave">Ошибка сохранения: {0}</sys:String>
+    <sys:String x:Key="Msg_ErrorLoad">Ошибка загрузки: {0}</sys:String>
+    <sys:String x:Key="Msg_ErrorRead">Ошибка чтения миссии: {0}</sys:String>
+    <sys:String x:Key="Msg_ConfirmReplace">Текущая миссия ({0} точек) будет заменена на миссию с дрона ({1} элементов).&#x0a;&#x0a;Продолжить?</sys:String>
+    <sys:String x:Key="Msg_ConfirmDelete">Удалить точку {0}?</sys:String>
+    <sys:String x:Key="Msg_ConfirmDeleteSub">Подтверждение</sys:String>
+    <sys:String x:Key="Dlg_SaveMission">Сохранить миссию</sys:String>
+    <sys:String x:Key="Dlg_LoadMission">Загрузить миссию</sys:String>
+    <sys:String x:Key="Radius_Tooltip">{0}м</sys:String>
+    <sys:String x:Key="Radius_Tooltip_Min">{0}м (мин: {1}м)</sys:String>
+    <sys:String x:Key="Circle_Radius_Format">Радиус: {0} м&#x0a;</sys:String>
+    <sys:String x:Key="Circle_Alt_Format">Высота: {0} м</sys:String>
+
+    <sys:String x:Key="Udp_Hint_Listen">Ждать входящее подключение на 14550</sys:String>
+    <sys:String x:Key="Connected">Подключено</sys:String>
+    <sys:String x:Key="Msg_ErrorConnection">Ошибка подключения: {0}</sys:String>
+    <sys:String x:Key="Msg_ErrorNavigation">Ошибка навигации: {0}</sys:String>
+    <sys:String x:Key="Msg_DroneNotConnectedDot">Дрон не подключен.</sys:String>
+    <sys:String x:Key="Msg_EmergencyLand">АВАРИЙНАЯ ПОСАДКА?</sys:String>
+    <sys:String x:Key="Msg_Warning">ВНИМАНИЕ</sys:String>
+    <sys:String x:Key="Msg_MissionNotLoadedLong">Миссия не загружена.&#x0a;&#x0a;Создайте миссию на странице 'План полёта' и нажмите 'Write'.</sys:String>
+    <sys:String x:Key="Msg_MissionSub">Миссия</sys:String>
+    <sys:String x:Key="Msg_ActivateMissionArmed">Запустить миссию из {0} точек?&#x0a;&#x0a;Последовательность:&#x0a;1. Загрузка миссии в дрон&#x0a;2. AUTO режим (выполнение)&#x0a;&#x0a;⚠️ Дрон начнёт выполнение миссии!</sys:String>
+    <sys:String x:Key="Msg_ActivateMissionDisarmed">Загрузить миссию из {0} точек?&#x0a;&#x0a;⚠️ Дрон НЕ активирован!&#x0a;</sys:String>
+    <sys:String x:Key="Cam_TitleFmt">Управление камерой — {0}</sys:String>
+    <sys:String x:Key="Cam_Init">Инициализация...</sys:String>
+    <sys:String x:Key="Cam_ErrorFmt">Ошибка: {0}</sys:String>
+    <sys:String x:Key="Cam_HeadingFmt">Курс: {0:F1}°</sys:String>
+    <sys:String x:Key="Cam_PitchFmt">Тангаж: {0:F1}°</sys:String>
+    <sys:String x:Key="Cam_RollFmt">Крен: {0:F1}°</sys:String>
+    <sys:String x:Key="Cam_DistFmt">Дист: {0:F1} м</sys:String>
+    <sys:String x:Key="Cam_LoadingVideo">Загрузка видеоплеера...</sys:String>
+    <sys:String x:Key="Cam_VideoError">Видео недоступно: {0}</sys:String>
+    <sys:String x:Key="MsgBox_Error">Ошибка</sys:String>
+    <sys:String x:Key="MsgBox_Warning">Предупреждение</sys:String>
+    <sys:String x:Key="MsgBox_Info">Информация</sys:String>
+    <sys:String x:Key="MsgBox_Success">Готово</sys:String>
+    <sys:String x:Key="MsgBox_Confirm">Подтверждение</sys:String>
+    <sys:String x:Key="MsgBox_Choose">Выбор действия</sys:String>
+    <sys:String x:Key="MsgBox_Yes">Да</sys:String>
+    <sys:String x:Key="MsgBox_No">Нет</sys:String>
+    <sys:String x:Key="MsgBox_Cancel">Отмена</sys:String>
+    <sys:String x:Key="Msg_MissionReady">Готова миссия: {0} точек</sys:String>
+    <sys:String x:Key="VertSpeed">Верт. ск.</sys:String>
+    <sys:String x:Key="Msg_SelectCalibration">Выберите тип калибровки из списка.</sys:String>
+    <sys:String x:Key="Msg_MissionEmptyAddPoints">Миссия пуста. Добавьте точки!</sys:String>
+    <sys:String x:Key="Msg_SetHome">Установите HOME!</sys:String>
+    <sys:String x:Key="Msg_MissionUploadError">Ошибка загрузки миссии</sys:String>
+    <sys:String x:Key="Msg_ArmFailed">Не удалось активировать дрон</sys:String>
+    <sys:String x:Key="Msg_MissionActivated">Миссия активирована!</sys:String>
+    <sys:String x:Key="Msg_DroneNotArmed">Дрон не активирован</sys:String>
+    <sys:String x:Key="Msg_DroneLastWaypoint">Дрон уже на последней точке миссии</sys:String>
+    <sys:String x:Key="Msg_ClickMapHome">Кликните на карте для установки HOME.</sys:String>
+    <sys:String x:Key="Msg_HomeSetupSub">Установка HOME</sys:String>
+    <sys:String x:Key="Msg_NoGpsSignal">Дрон не подключен или отсутствует GPS сигнал.</sys:String>
+    <sys:String x:Key="Msg_CannotSetHomeSub">Невозможно установить HOME</sys:String>
+    <sys:String x:Key="Msg_WaitGpsFix">Подключитесь к дрону и дождитесь корректного GPS FIX.</sys:String>
+    <sys:String x:Key="Msg_ConnectToReadMission">Подключитесь к дрону для чтения миссии.</sys:String>
+    <sys:String x:Key="Msg_NoConnectionSub">Нет подключения</sys:String>
+    <sys:String x:Key="Msg_ConnectViaSerialOrUdp">Подключитесь через серийный порт или UDP.</sys:String>
+    <sys:String x:Key="Msg_AddPointInDev">Функция добавления точки кнопкой пока в разработке.&#x0a;&#x0a;Используйте двойной клик по карте.</sys:String>
+    <sys:String x:Key="Msg_AddPointsHint">Добавьте точки двойным кликом по карте.</sys:String>
+    <sys:String x:Key="Msg_ConfirmClearSub">Подтверждение очистки</sys:String>
+    <sys:String x:Key="Msg_ClearAllWaypoints">Удалить все точки маршрута?</sys:String>
+    <sys:String x:Key="Msg_ActionIrreversible">Действие необратимо.</sys:String>
+    <sys:String x:Key="Msg_VtolSequence">Взлёт → самолёт → точки → коптер → посадка</sys:String>
+    <sys:String x:Key="Msg_ActivateVtolMission">Активировать VTOL миссию из {0} точек?&#x0a;&#x0a;ВЗЛЁТ → СТАРТ → WPs → ПОСАДКА&#x0a;&#x0a;⚠️ Дрон взлетит автоматически!</sys:String>
+    <sys:String x:Key="Msg_ActivateCopterMission">Активировать миссию из {0} точек?&#x0a;&#x0a;⚠️ Дрон взлетит автоматически!</sys:String>
+    <sys:String x:Key="Route_Label">Маршрут</sys:String>
+    <sys:String x:Key="FromWP_Label">От</sys:String>
+    <sys:String x:Key="FromHOME_Label">От HOME</sys:String>
+    <sys:String x:Key="Unit_sec">сек</sys:String>
+    <sys:String x:Key="Msg_CantFreezeTakeoff">⚠️ Нельзя заморозить: дрон взлетает</sys:String>
+    <sys:String x:Key="Msg_CantFreezeLanding">⚠️ Нельзя заморозить: дрон на посадке</sys:String>
+    <sys:String x:Key="Msg_ResumeMission">▶ Продолжить миссию</sys:String>
+    <sys:String x:Key="Msg_MissionFrozen">⏸ Миссия заморожена — дрон кружит</sys:String>
+    <sys:String x:Key="Msg_NoHomePos">Нет HOME позиции</sys:String>
+    <sys:String x:Key="Msg_UploadError">❌ Ошибка загрузки</sys:String>
+    <sys:String x:Key="Msg_FreezeMission">⏸ Заморозить миссию</sys:String>
+    <sys:String x:Key="Msg_MissionResumed">▶ Миссия продолжена → точка {0}</sys:String>
+    <sys:String x:Key="Tip_GoToWaypoint">Перейти к точке</sys:String>
+    <sys:String x:Key="Tip_DeleteWaypoint">Удалить точку</sys:String>
+    <sys:String x:Key="Msg_MissionWriteErrorSub">Ошибка записи миссии</sys:String>
+    <sys:String x:Key="Msg_CheckFolderAccess">Проверьте доступ к папке и права на запись.</sys:String>
+    <sys:String x:Key="Msg_ReplaceMissionSub">Заменить миссию?</sys:String>
+    <sys:String x:Key="Msg_FileSavedSub">Файл сохранён</sys:String>
+    <sys:String x:Key="Msg_VehicleChangeSub">Смена типа аппарата</sys:String>
+    <sys:String x:Key="Msg_SwitchErrorSub">Ошибка переключения</sys:String>
+    <sys:String x:Key="Msg_SwitchVehicleConfirm">Переключить тип аппарата?</sys:String>
+    <sys:String x:Key="Msg_RetryCheckLogs">Повторите попытку. Если ошибка повторяется — проверьте логи.</sys:String>
+    <sys:String x:Key="Msg_VehicleMenuError">Не удалось открыть выбор типа аппарата: {0}</sys:String>
+</ResourceDictionary>

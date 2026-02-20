@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SimpleDroneGCS.Controls"
-        Title="SimpleDroneGCS - Professional" 
+        Title="{DynamicResource AppTitle}" 
         Height="900" Width="1600"
         MinWidth="1200"
         MinHeight="700"
@@ -43,7 +43,7 @@
                     <!-- ИКОНКА И НАЗВАНИЕ -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="🚁" FontSize="18" Margin="0,0,10,0"/>
-                        <TextBlock Text="SimpleDroneGCS - Professional" 
+                        <TextBlock Text="{DynamicResource AppTitle}" 
                                FontSize="14" 
                                FontWeight="SemiBold"
                                Foreground="#2A5A8F"
@@ -116,7 +116,7 @@
                                             Tag="FlightPlan" Width="38" Height="38">
                                         <Image Source="/Images/flight_plan_icon.png" Width="19" Height="19"/>
                                     </Button>
-                                    <TextBlock Text="МИССИЯ" 
+                                    <TextBlock Text="{DynamicResource Nav_Mission}" 
                                                FontSize="8" 
                                                FontWeight="Bold" 
                                                Foreground="White"
@@ -131,7 +131,7 @@
                                             Click="CameraButton_Click" Width="38" Height="38">
                                         <Image Source="/Images/camera.png" Width="22" Height="22"/>
                                     </Button>
-                                    <TextBlock Text="КАМЕРА" 
+                                    <TextBlock Text="{DynamicResource Nav_Camera}" 
                                                FontSize="8" 
                                                FontWeight="Bold" 
                                                Foreground="White"
@@ -146,7 +146,7 @@
                                             Click="LandButton_Click" Width="38" Height="38">
                                         <Image Source="/Images/landing_icon.png" Width="19" Height="19"/>
                                     </Button>
-                                    <TextBlock Text="ПОСАДКА" 
+                                    <TextBlock Text="{DynamicResource Nav_Land}" 
                                                FontSize="8" 
                                                FontWeight="Bold" 
                                                Foreground="White"
@@ -161,7 +161,7 @@
                                             Click="RthButton_Click" Width="38" Height="38">
                                         <Image Source="/Images/home_icon.png" Width="19" Height="19"/>
                                     </Button>
-                                    <TextBlock Text="ДОМОЙ" 
+                                    <TextBlock Text="{DynamicResource Nav_Home}" 
                                                FontSize="8" 
                                                FontWeight="Bold" 
                                                Foreground="White"
@@ -190,7 +190,7 @@
                      Margin="0,0,6,0"
                      VerticalAlignment="Center"/>
                                         <TextBlock x:Name="ConnectionStatusText" 
-                       Text="Не подключено" 
+                       Text="{DynamicResource NotConnected}" 
                        Foreground="White" 
                        FontSize="11" 
                        FontWeight="SemiBold"
@@ -212,7 +212,7 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    
+
 
                     <!-- ==== КОНТЕНТНАЯ ОБЛАСТЬ ==== -->
                     <Frame x:Name="MainFrame" 
@@ -245,7 +245,7 @@
                                 </Border.RenderTransform>
                             </Border>
                             <TextBlock x:Name="LoadingText" 
-                                       Text="Запуск ViewLink..." 
+                                       Text="{DynamicResource StartingViewLink}" 
                                        Foreground="White" 
                                        FontSize="14" 
                                        FontWeight="SemiBold"

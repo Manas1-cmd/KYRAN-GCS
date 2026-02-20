@@ -9,17 +9,19 @@ using System.Windows.Threading;
 using LibVLCSharp.Shared;
 using SimpleDroneGCS.Services;
 
+using static SimpleDroneGCS.Helpers.Loc;
+
 namespace SimpleDroneGCS.Views
 {
     public partial class CameraWindow : Window
     {
-        private ViewProCameraService? _cameraService;
-        private MAVLinkService? _mavLink;
-        private LibVLC? _libVLC;
-        private MediaPlayer? _mediaPlayer;
-        private DispatcherTimer? _joystickTimer;
+        private Z30TCameraService _cameraService;
+        private MAVLinkService _mavLink;
+        private LibVLC _libVLC;
+        private MediaPlayer _mediaPlayer;
+        private DispatcherTimer _joystickTimer;
 
-        private CameraConnectionSettings? _connectionSettings;
+        private CameraConnectionSettings _connectionSettings;
         private string _rtspUrl = "";
 
         // Джойстик
@@ -34,7 +36,7 @@ namespace SimpleDroneGCS.Views
 
         // Локальная запись
         private bool _isLocalRecording = false;
-        private MediaPlayer? _recordPlayer;
+        private MediaPlayer _recordPlayer;
         private string _mediaFolder = "";
 
         public CameraWindow(CameraConnectionSettings settings, MAVLinkService mavLink)
@@ -46,10 +48,11 @@ namespace SimpleDroneGCS.Views
             _rtspUrl = settings.RtspUrl;
             IpTextBox.Text = settings.CameraIP;
 
-            // Папка для фото/видео
+            Title = string.Format(Get("Cam_TitleFmt"), settings.CameraType);
+
             _mediaFolder = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "KYRAN_GCS", "Camera");
+                "SQK_GCS", "Camera");
             Directory.CreateDirectory(_mediaFolder);
 
             this.KeyDown += OnKeyDown;
@@ -57,8 +60,10 @@ namespace SimpleDroneGCS.Views
             this.Closed += OnWindowClosed;
             this.Loaded += OnWindowLoaded;
 
-            UpdateStatus("Инициализация...");
+            UpdateStatus(Get("Cam_Init"));
         }
+
+        #region Init & Connect
 
         private async void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
@@ -68,21 +73,21 @@ namespace SimpleDroneGCS.Views
                 Canvas.SetTop(JoystickThumb, (JoystickArea.Height - JoystickThumb.Height) / 2);
             }
 
-            // 1. Камера и управление — сразу (лёгкое)
-            _cameraService = new ViewProCameraService();
+            // 1. Камера Z30T
+            _cameraService = new Z30TCameraService();
             _cameraService.IpAddress = _connectionSettings.CameraIP;
             _cameraService.Port = _connectionSettings.TcpPort;
             _cameraService.StatusChanged += s => Dispatcher.Invoke(() => UpdateStatus(s));
             _cameraService.ErrorOccurred += (_, msg) => Dispatcher.Invoke(() => UpdateStatus($"Ошибка: {msg}"));
             _cameraService.AnglesReceived += (_, angles) => Dispatcher.Invoke(() =>
             {
-                YawText.Text = $"Курс: {angles.Yaw:F1}°";
-                PitchText.Text = $"Тангаж: {angles.Pitch:F1}°";
-                RollText.Text = $"Крен: {angles.Roll:F1}°";
+                YawText.Text = string.Format(Get("Cam_HeadingFmt"), angles.Yaw);
+                PitchText.Text = string.Format(Get("Cam_PitchFmt"), angles.Pitch);
+                RollText.Text = string.Format(Get("Cam_RollFmt"), angles.Roll);
             });
             _cameraService.DistanceReceived += (_, dist) => Dispatcher.Invoke(() =>
             {
-                DistanceText.Text = $"Дист: {dist:F1} м";
+                DistanceText.Text = string.Format(Get("Cam_DistFmt"), dist);
             });
 
             _joystickTimer = new DispatcherTimer();
@@ -90,16 +95,13 @@ namespace SimpleDroneGCS.Views
             _joystickTimer.Tick += JoystickTimer_Tick;
             _joystickTimer.Start();
 
-            // 2. LibVLC — тяжёлая часть в фоновом потоке (не блокирует UI)
+            // 2. LibVLC
             try
             {
-                UpdateStatus("Загрузка видеоплеера...");
+                UpdateStatus(Get("Cam_LoadingVideo"));
                 await Task.Run(() => Core.Initialize());
-
                 _libVLC = new LibVLC("--no-xlib", "--network-caching=150", "--rtsp-tcp");
                 _mediaPlayer = new MediaPlayer(_libVLC);
-
-                // Даём VideoView Hwnd полностью инициализироваться
                 await Task.Delay(150);
                 VideoView.MediaPlayer = _mediaPlayer;
             }
@@ -109,7 +111,7 @@ namespace SimpleDroneGCS.Views
                 UpdateStatus($"Видео недоступно: {ex.Message}");
             }
 
-            // 3. Подключение к камере
+            // 3. Авто-подключение
             AutoConnect();
         }
 
@@ -120,7 +122,7 @@ namespace SimpleDroneGCS.Views
             bool ok = await _cameraService.ConnectAsync();
             if (ok)
             {
-                UpdateStatus("Подключено");
+                UpdateStatus(Get("Connected"));
                 ConnectButton.Content = "Отключить";
                 StartVideo();
             }
@@ -164,6 +166,8 @@ namespace SimpleDroneGCS.Views
             }
         }
 
+        #endregion
+
         #region Видео
 
         private void StartVideo()
@@ -173,8 +177,8 @@ namespace SimpleDroneGCS.Views
             try
             {
                 string url = _rtspUrl;
-                if (string.IsNullOrEmpty(url) && _cameraService != null)
-                    url = _cameraService.RtspUrl;
+                if (string.IsNullOrEmpty(url))
+                    url = _cameraService?.RtspUrl;
 
                 UpdateStatus($"Запуск видео: {url}");
 
@@ -196,7 +200,7 @@ namespace SimpleDroneGCS.Views
 
         #region Управление подвесом
 
-        private void JoystickTimer_Tick(object? sender, EventArgs e)
+        private void JoystickTimer_Tick(object sender, EventArgs e)
         {
             if (_cameraService == null || !_cameraService.IsConnected) return;
 
@@ -222,17 +226,31 @@ namespace SimpleDroneGCS.Views
 
         private void JoystickArea_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Canvas canvas) { _isJoystickActive = true; canvas.CaptureMouse(); UpdateJoystickPosition(e.GetPosition(canvas), canvas); }
+            if (sender is Canvas canvas)
+            {
+                _isJoystickActive = true;
+                canvas.CaptureMouse();
+                UpdateJoystickPosition(e.GetPosition(canvas), canvas);
+            }
         }
 
         private void JoystickArea_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_isJoystickActive && sender is Canvas canvas) UpdateJoystickPosition(e.GetPosition(canvas), canvas);
+            if (_isJoystickActive && sender is Canvas canvas)
+                UpdateJoystickPosition(e.GetPosition(canvas), canvas);
         }
 
         private void JoystickArea_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Canvas canvas) { _isJoystickActive = false; canvas.ReleaseMouseCapture(); _joystickX = 0; _joystickY = 0; UpdateJoystickThumb(canvas); _cameraService?.StopGimbal(); }
+            if (sender is Canvas canvas)
+            {
+                _isJoystickActive = false;
+                canvas.ReleaseMouseCapture();
+                _joystickX = 0;
+                _joystickY = 0;
+                UpdateJoystickThumb(canvas);
+                _cameraService?.StopGimbal();
+            }
         }
 
         private void UpdateJoystickPosition(Point pos, Canvas canvas)
@@ -241,7 +259,8 @@ namespace SimpleDroneGCS.Views
             double dx = pos.X - cx, dy = pos.Y - cy;
             double dist = Math.Sqrt(dx * dx + dy * dy);
             if (dist > r) { dx = dx * r / dist; dy = dy * r / dist; }
-            _joystickX = dx / r; _joystickY = dy / r;
+            _joystickX = dx / r;
+            _joystickY = dy / r;
             UpdateJoystickThumb(canvas);
         }
 
@@ -272,15 +291,14 @@ namespace SimpleDroneGCS.Views
 
         private void Photo_Click(object sender, RoutedEventArgs e)
         {
-            _cameraService?.TakePhoto(); // Команда камере (SD-карта)
-            TakeLocalSnapshot();         // + сохраняем на ПК
+            _cameraService?.TakePhoto();
+            TakeLocalSnapshot();
         }
 
         private void Record_Click(object sender, RoutedEventArgs e)
         {
-            if (_cameraService == null) return;
-            _cameraService.ToggleRecording(); // Команда камере (SD-карта)
-            ToggleLocalRecording();           // + запись на ПК
+            _cameraService?.ToggleRecording();
+            ToggleLocalRecording();
         }
 
         #endregion
@@ -306,14 +324,8 @@ namespace SimpleDroneGCS.Views
 
         private void ToggleLocalRecording()
         {
-            if (_isLocalRecording)
-            {
-                StopLocalRecording();
-            }
-            else
-            {
-                StartLocalRecording();
-            }
+            if (_isLocalRecording) StopLocalRecording();
+            else StartLocalRecording();
         }
 
         private void StartLocalRecording()
@@ -323,8 +335,8 @@ namespace SimpleDroneGCS.Views
             try
             {
                 string url = _rtspUrl;
-                if (string.IsNullOrEmpty(url) && _cameraService != null)
-                    url = _cameraService.RtspUrl;
+                if (string.IsNullOrEmpty(url))
+                    url = _cameraService?.RtspUrl;
 
                 string file = Path.Combine(_mediaFolder,
                     $"rec_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
@@ -378,19 +390,36 @@ namespace SimpleDroneGCS.Views
 
         #endregion
 
-        #region ИК палитра
+        #region ИК палитра (10 режимов)
 
-        private void IRWhite_Click(object sender, RoutedEventArgs e) => _cameraService?.SetIRPaletteWhiteHot();
-        private void IRBlack_Click(object sender, RoutedEventArgs e) => _cameraService?.SetIRPaletteBlackHot();
-        private void IRRainbow_Click(object sender, RoutedEventArgs e) => _cameraService?.SetIRPaletteRainbow();
+        private void IRPalette_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag != null && int.TryParse(btn.Tag.ToString(), out int idx))
+                _cameraService?.SetIRPalette(idx);
+        }
 
         #endregion
 
-        #region Дальномер
+        #region Температура (Gear 1-3)
 
-        private void LRFSingle_Click(object sender, RoutedEventArgs e) => _cameraService?.LRFMeasureSingle();
-        private void LRFContinuous_Click(object sender, RoutedEventArgs e) => _cameraService?.LRFMeasureContinuous();
-        private void LRFStop_Click(object sender, RoutedEventArgs e) => _cameraService?.LRFStop();
+        private void TempGear_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag != null && int.TryParse(btn.Tag.ToString(), out int gear))
+                _cameraService?.SetTempGear(gear);
+        }
+
+        #endregion
+
+        #region Дальномер (Laser toggle)
+
+        private void LaserToggle_Click(object sender, RoutedEventArgs e) => _cameraService?.ToggleLaser();
+
+        #endregion
+
+        #region Подсветка и OSD
+
+        private void FillLight_Click(object sender, RoutedEventArgs e) => _cameraService?.ToggleFillLight();
+        private void OSD_Click(object sender, RoutedEventArgs e) => _cameraService?.ToggleOSD();
 
         #endregion
 
@@ -401,7 +430,9 @@ namespace SimpleDroneGCS.Views
             if (e.LeftButton == MouseButtonState.Pressed && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 var pos = e.GetPosition(VideoView);
-                _cameraService?.SetTrackingPoint((float)(pos.X / VideoView.ActualWidth), (float)(pos.Y / VideoView.ActualHeight));
+                _cameraService?.SetTrackingPoint(
+                    (float)(pos.X / VideoView.ActualWidth),
+                    (float)(pos.Y / VideoView.ActualHeight));
             }
         }
 
@@ -429,7 +460,11 @@ namespace SimpleDroneGCS.Views
                 case Key.R: Record_Click(sender, e); break;
                 case Key.H: _cameraService?.ReturnToCenter(); break;
                 case Key.F: _cameraService?.AutoFocus(); break;
-                case Key.L: _cameraService?.LRFMeasureSingle(); break;
+                case Key.L: _cameraService?.ToggleLaser(); break;
+                case Key.T: _cameraService?.MeasureTemperature(); break;
+                case Key.I: _cameraService?.ToggleFillLight(); break;
+                case Key.O: _cameraService?.ToggleOSD(); break;
+                case Key.P: _cameraService?.NextPalette(); break;
             }
             e.Handled = true;
         }
@@ -462,7 +497,7 @@ namespace SimpleDroneGCS.Views
             Debug.WriteLine($"[Камера] {msg}");
         }
 
-        private void OnWindowClosed(object? sender, EventArgs e)
+        private void OnWindowClosed(object sender, EventArgs e)
         {
             _joystickTimer?.Stop();
             if (_isLocalRecording) StopLocalRecording();

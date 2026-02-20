@@ -21,6 +21,8 @@ using System.Windows.Threading;
 
 
 
+using static SimpleDroneGCS.Helpers.Loc;
+
 namespace SimpleDroneGCS.Views
 {
     public partial class FlightPlanView : UserControl
@@ -69,6 +71,10 @@ namespace SimpleDroneGCS.Views
         {
             InitializeComponent();
             DrawCompassTicks();
+
+            // Обновляем C# тексты при смене языка
+            Services.LocalizationService.Instance.LanguageChanged += (s, e) =>
+                Dispatcher.Invoke(() => UpdateVehicleTypeDisplay());
             var testElev = new SrtmElevationProvider();
             var result = testElev.GetElevation(43.238, 76.945);
             System.Diagnostics.Debug.WriteLine($"[SRTM TEST] Результат: {result?.ToString() ?? "NULL"}");
@@ -456,7 +462,7 @@ namespace SimpleDroneGCS.Views
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"ОШИБКА: {ex.Message}\n{ex.StackTrace}");
-                    MessageBox.Show($"Ошибка: {ex.Message}");
+                    AppMessageBox.ShowError($"{Get("MsgBox_Error")}: {ex.Message}", owner: OwnerWindow);
                 }
             }
         }
@@ -618,7 +624,7 @@ namespace SimpleDroneGCS.Views
             header.Children.Add(numText);
             header.Children.Add(new TextBlock
             {
-                Text = $"Точка #{wp.Number}",
+                Text = Fmt("Wp_Number", wp.Number),
                 Foreground = Brushes.White,
                 FontWeight = FontWeights.Bold,
                 FontSize = 14,
@@ -629,13 +635,13 @@ namespace SimpleDroneGCS.Views
             // Параметры
             var paramStyle = new Style(typeof(TextBlock));
 
-            stack.Children.Add(CreateTooltipRow("📍 Координаты:", $"{wp.Latitude:F6}, {wp.Longitude:F6}"));
-            stack.Children.Add(CreateTooltipRow("📏 Высота:", $"{wp.Altitude:F0} м"));
-            stack.Children.Add(CreateTooltipRow("⭕ Радиус:", $"{wp.Radius:F0} м"));
-            stack.Children.Add(CreateTooltipRow("🔄 Направление:", wp.Clockwise ? "По часовой (CW)" : "Против часовой (CCW)"));
-            stack.Children.Add(CreateTooltipRow("⏱ Задержка:", $"{wp.Delay:F0} сек"));
-            stack.Children.Add(CreateTooltipRow("🔁 Кругов:", wp.LoiterTurns.ToString()));
-            stack.Children.Add(CreateTooltipRow("▶ Авто-переход:", wp.AutoNext ? "Да" : "Нет (кружит)"));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Coords"), $"{wp.Latitude:F6}, {wp.Longitude:F6}"));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Alt"), $"{wp.Altitude:F0} м"));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Radius"), $"{wp.Radius:F0} м"));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Dir"), wp.Clockwise ? Get("Dir_CW") : Get("Dir_CCW")));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Delay"), $"{wp.Delay:F0} {Get("Unit_sec")}"));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Turns"), wp.LoiterTurns.ToString()));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Auto"), wp.AutoNext ? Get("Yes") : Get("No_Loiter")));
 
             tooltip.Content = stack;
             return tooltip;
@@ -1492,7 +1498,7 @@ namespace SimpleDroneGCS.Views
                 if (e.ClickCount == 2)
                 {
                     // Двойной клик — диалог редактирования
-                    string title = label == "S" ? "СТАРТ" : "ПОСАДКА";
+                    string title = label == "S" ? Get("StartCircle") : Get("LandingCircle");
                     var dialog = new CircleEditDialog(title, wp.Radius, wp.Altitude, wp.AutoNext, wp.Clockwise);
                     dialog.Owner = OwnerWindow;
 
@@ -1542,8 +1548,8 @@ namespace SimpleDroneGCS.Views
             // ПКМ — удаление (с подтверждением)
             grid.MouseRightButtonDown += (s, e) =>
             {
-                string name = label == "S" ? "СТАРТ" : "ПОСАДКА";
-                if (AppMessageBox.ShowConfirm($"Удалить точку {name}?", OwnerWindow, subtitle: "Подтверждение"))
+                string name = label == "S" ? Get("StartCircle") : Get("LandingCircle");
+                if (AppMessageBox.ShowConfirm(Fmt("Msg_ConfirmDelete", name), OwnerWindow, subtitle: Get("Msg_ConfirmDeleteSub")))
                 {
                     if (label == "S") { _startCircle = null; }
                     else { _landingCircle = null; }
@@ -1571,17 +1577,17 @@ namespace SimpleDroneGCS.Views
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock
             {
-                Text = label == "S" ? "СТАРТ" : "ПОСАДКА",
+                Text = label == "S" ? Get("StartCircle") : Get("LandingCircle"),
                 Foreground = tooltip.BorderBrush,
                 FontWeight = FontWeights.Bold,
                 FontSize = 12
             });
             stack.Children.Add(new TextBlock
             {
-                Text = $"Радиус: {wp.Radius:F0} м\n" +
-                       $"Высота: {wp.Altitude:F0} м\n" +
-                       $"Направление: {(wp.Clockwise ? "CW ↻" : "CCW ↺")}\n" +
-                       $"Авто: {(wp.AutoNext ? "Да" : "Нет (ждать)")}",
+                Text = $"{Get("WpEdit_RadiusM")} {wp.Radius:F0}\n" +
+                       $"{Get("WpEdit_AltitudeM")} {wp.Altitude:F0}\n" +
+                       $"{Get("WpEdit_Direction")} {(wp.Clockwise ? "CW ↻" : "CCW ↺")}\n" +
+                       $"{Get("WpEdit_AutoNext")}: {(wp.AutoNext ? Get("Yes") : Get("No_Loiter"))}",
                 Foreground = Brushes.White,
                 FontSize = 11
             });
@@ -1951,7 +1957,7 @@ namespace SimpleDroneGCS.Views
         /// </summary>
         private void UpdateStatistics()
         {
-            WaypointsCountText.Text = $"Точек: {_waypoints.Count}";
+            WaypointsCountText.Text = Fmt("Wp_Count", _waypoints.Count);
 
             double totalDistance = 0;
 
@@ -1983,7 +1989,7 @@ namespace SimpleDroneGCS.Views
             //DistanceText.Text = $"Общая дистанция: {distText}";
 
             if (TotalDistanceOverlay != null)
-                TotalDistanceOverlay.Text = $"Маршрут: {distText}";
+                TotalDistanceOverlay.Text = $"{Get("Route_Label")}: {distText}";
 
             // Обновляем ленту миссии
             UpdateMissionStrip();
@@ -2102,7 +2108,7 @@ namespace SimpleDroneGCS.Views
         private void UpdateWaypointsList()
         {
             WaypointsListPanel.Children.Clear();
-            WaypointsCountText.Text = $"{_waypoints.Count} точек";
+            WaypointsCountText.Text = Fmt("Wp_Count", _waypoints.Count);
 
             // Стрелка перед RTL
             if (ArrowBeforeRtl != null)
@@ -2226,7 +2232,7 @@ namespace SimpleDroneGCS.Views
                 Width = 18,
                 Height = 18,
                 Cursor = Cursors.Hand,
-                ToolTip = "Перейти к точке"
+                ToolTip = Get("Tip_GoToWaypoint")
             };
             locBtn.Child = new TextBlock { Text = "📍", FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             locBtn.MouseEnter += (s, e) => locBtn.Background = new SolidColorBrush(Color.FromArgb(50, 96, 165, 250));
@@ -2247,7 +2253,7 @@ namespace SimpleDroneGCS.Views
                 Height = 18,
                 Cursor = Cursors.Hand,
                 Margin = new Thickness(2, 0, 0, 0),
-                ToolTip = "Удалить точку"
+                ToolTip = Get("Tip_DeleteWaypoint")
             };
             delBtn.Child = new TextBlock
             {
@@ -2287,17 +2293,17 @@ namespace SimpleDroneGCS.Views
 
             return commandType switch
             {
-                "WAYPOINT" => ("W", $"{prefix}ТОЧКА", Color.FromRgb(34, 197, 94)),
-                "LOITER_UNLIM" => ("L", $"{prefix}КРУГ", Color.FromRgb(59, 130, 246)),
-                "LOITER_TIME" => ("LT", $"{prefix}КРУГ(время)", Color.FromRgb(59, 130, 246)),
-                "LOITER_TURNS" => ("LR", $"{prefix}КРУГ(обор)", Color.FromRgb(59, 130, 246)),
-                "TAKEOFF" => ("T", "ВЗЛЁТ", Color.FromRgb(16, 185, 129)),
-                "LAND" => ("LD", $"{prefix}ПОСАДКА", Color.FromRgb(249, 115, 22)),
-                "DELAY" => ("D", $"{prefix}ЗАДЕРЖКА", Color.FromRgb(139, 92, 246)),
-                "CHANGE_SPEED" => ("S", $"{prefix}СКОРОСТЬ", Color.FromRgb(234, 179, 8)),
-                "RETURN_TO_LAUNCH" => ("R", "ВОЗВРАТ", Color.FromRgb(239, 68, 68)),
-                "SPLINE_WP" => ("SP", "СПЛАЙН", Color.FromRgb(20, 184, 166)),
-                _ => ("W", $"{prefix}ТОЧКА", Color.FromRgb(34, 197, 94))
+                "WAYPOINT" => ("W", $"{prefix}{Get("CmdShort_Waypoint")}", Color.FromRgb(34, 197, 94)),
+                "LOITER_UNLIM" => ("L", $"{prefix}{Get("CmdShort_Loiter")}", Color.FromRgb(59, 130, 246)),
+                "LOITER_TIME" => ("LT", $"{prefix}{Get("CmdShort_LoiterTime")}", Color.FromRgb(59, 130, 246)),
+                "LOITER_TURNS" => ("LR", $"{prefix}{Get("CmdShort_LoiterTurns")}", Color.FromRgb(59, 130, 246)),
+                "TAKEOFF" => ("T", Get("CmdShort_Takeoff"), Color.FromRgb(16, 185, 129)),
+                "LAND" => ("LD", $"{prefix}{Get("CmdShort_Land")}", Color.FromRgb(249, 115, 22)),
+                "DELAY" => ("D", $"{prefix}{Get("CmdShort_Delay")}", Color.FromRgb(139, 92, 246)),
+                "CHANGE_SPEED" => ("S", $"{prefix}{Get("CmdShort_Speed")}", Color.FromRgb(234, 179, 8)),
+                "RETURN_TO_LAUNCH" => ("R", Get("CmdShort_RTL"), Color.FromRgb(239, 68, 68)),
+                "SPLINE_WP" => ("SP", Get("CmdShort_Spline"), Color.FromRgb(20, 184, 166)),
+                _ => ("W", $"{prefix}{Get("CmdShort_Waypoint")}", Color.FromRgb(34, 197, 94))
             };
         }
 
@@ -2413,29 +2419,29 @@ namespace SimpleDroneGCS.Views
                 // ВТОЛ команды (переход автоматический через Q_OPTIONS)
                 return new dynamic[]
                 {
-            new { Name = "ТОЧКА", Value = "WAYPOINT" },
-            new { Name = "КРУГ", Value = "LOITER_UNLIM" },
-            new { Name = "КРУГ(время)", Value = "LOITER_TIME" },
-            new { Name = "КРУГ(обор)", Value = "LOITER_TURNS" },
-            new { Name = "ПОСАДКА", Value = "LAND" },
-            new { Name = "ЗАДЕРЖКА", Value = "DELAY" },
-            new { Name = "СКОРОСТЬ", Value = "CHANGE_SPEED" }
+            new { Name = Get("CmdShort_Waypoint"), Value = "WAYPOINT" },
+            new { Name = Get("CmdShort_Loiter"), Value = "LOITER_UNLIM" },
+            new { Name = Get("CmdShort_LoiterTime"), Value = "LOITER_TIME" },
+            new { Name = Get("CmdShort_LoiterTurns"), Value = "LOITER_TURNS" },
+            new { Name = Get("CmdShort_Land"), Value = "LAND" },
+            new { Name = Get("CmdShort_Delay"), Value = "DELAY" },
+            new { Name = Get("CmdShort_Speed"), Value = "CHANGE_SPEED" }
                 };
             }
 
             // Мультикоптер команды
             return new dynamic[]
             {
-        new { Name = "ТОЧКА", Value = "WAYPOINT" },
-        new { Name = "КРУГ", Value = "LOITER_UNLIM" },
-        new { Name = "КРУГ(время)", Value = "LOITER_TIME" },
-        new { Name = "КРУГ(обор)", Value = "LOITER_TURNS" },
-        new { Name = "ВЗЛЁТ", Value = "TAKEOFF" },
-        new { Name = "ПОСАДКА", Value = "LAND" },
-        new { Name = "ЗАДЕРЖКА", Value = "DELAY" },
-        new { Name = "СКОРОСТЬ", Value = "CHANGE_SPEED" },
-        new { Name = "ВОЗВРАТ", Value = "RETURN_TO_LAUNCH" },
-        new { Name = "СПЛАЙН", Value = "SPLINE_WP" }
+        new { Name = Get("CmdShort_Waypoint"), Value = "WAYPOINT" },
+        new { Name = Get("CmdShort_Loiter"), Value = "LOITER_UNLIM" },
+        new { Name = Get("CmdShort_LoiterTime"), Value = "LOITER_TIME" },
+        new { Name = Get("CmdShort_LoiterTurns"), Value = "LOITER_TURNS" },
+        new { Name = Get("CmdShort_Takeoff"), Value = "TAKEOFF" },
+        new { Name = Get("CmdShort_Land"), Value = "LAND" },
+        new { Name = Get("CmdShort_Delay"), Value = "DELAY" },
+        new { Name = Get("CmdShort_Speed"), Value = "CHANGE_SPEED" },
+        new { Name = Get("CmdShort_RTL"), Value = "RETURN_TO_LAUNCH" },
+        new { Name = Get("CmdShort_Spline"), Value = "SPLINE_WP" }
             };
         }
 
@@ -2449,10 +2455,10 @@ namespace SimpleDroneGCS.Views
             if (_mavlinkService == null || _mavlinkService.CurrentTelemetry.Latitude == 0)
             {
                 AppMessageBox.ShowWarning(
-                    "Дрон не подключен или отсутствует GPS сигнал.",
+                    Get("Msg_NoGpsSignal"),
                     owner: OwnerWindow,
-                    subtitle: "Невозможно установить HOME",
-                    hint: "Подключитесь к дрону и дождитесь корректного GPS FIX."
+                    subtitle: Get("Msg_CannotSetHomeSub"),
+                    hint: Get("Msg_WaitGpsFix")
                 );
                 return;
             }
@@ -2593,7 +2599,7 @@ namespace SimpleDroneGCS.Views
             CompassTickCanvas.Children.Add(north);
         }
 
-        
+
         /// <summary>
         /// Обработчик кнопки установки HOME
         /// </summary>
@@ -2605,9 +2611,9 @@ namespace SimpleDroneGCS.Views
 
             // Подсказка пользователю
             AppMessageBox.ShowInfo(
-                "Кликните на карте для установки HOME.",
+                Get("Msg_ClickMapHome"),
                 owner: OwnerWindow,
-                subtitle: "Установка HOME"
+                subtitle: Get("Msg_HomeSetupSub")
             );
         }
 
@@ -2923,25 +2929,25 @@ namespace SimpleDroneGCS.Views
         private void AddWaypointButton_Click(object sender, RoutedEventArgs e)
         {
             AppMessageBox.ShowInfo(
-                "Функция добавления точки кнопкой пока в разработке.\n\nИспользуйте двойной клик по карте для добавления точки.",
+                Get("Msg_AddPointInDev"),
                 owner: OwnerWindow,
-                subtitle: "В разработке"
+                subtitle: Get("Msg_InDevelopmentSub")
             );
         }
 
         private void ExecuteButton_Click(object sender, RoutedEventArgs e)
         {
-            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
+            AppMessageBox.ShowInfo(Get("Msg_InDevelopment"), owner: OwnerWindow, subtitle: Get("Msg_InDevelopmentSub"));
         }
 
         private void LoiterButton_Click(object sender, RoutedEventArgs e)
         {
-            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
+            AppMessageBox.ShowInfo(Get("Msg_InDevelopment"), owner: OwnerWindow, subtitle: Get("Msg_InDevelopmentSub"));
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
+            AppMessageBox.ShowInfo(Get("Msg_InDevelopment"), owner: OwnerWindow, subtitle: Get("Msg_InDevelopmentSub"));
         }
 
         //private void RthButton_Click(object sender, RoutedEventArgs e)
@@ -2951,7 +2957,7 @@ namespace SimpleDroneGCS.Views
 
         private void ToggleButton_Click(object sender, RoutedEventArgs e)
         {
-            AppMessageBox.ShowInfo("Функция пока в разработке.", owner: OwnerWindow, subtitle: "В разработке");
+            AppMessageBox.ShowInfo(Get("Msg_InDevelopment"), owner: OwnerWindow, subtitle: Get("Msg_InDevelopmentSub"));
         }
 
         private void UploadButton_Click(object sender, RoutedEventArgs e)
@@ -2959,10 +2965,10 @@ namespace SimpleDroneGCS.Views
             if (_waypoints == null || _waypoints.Count == 0)
             {
                 AppMessageBox.ShowWarning(
-                    "Нет точек для сохранения.",
+                    Get("Msg_EmptyMission"),
                     owner: OwnerWindow,
-                    subtitle: "Пустая миссия",
-                    hint: "Добавьте точки двойным кликом по карте."
+                    subtitle: Get("Msg_EmptyMissionSub"),
+                    hint: Get("Msg_AddPointsHint")
                 );
                 return;
             }
@@ -2996,16 +3002,16 @@ namespace SimpleDroneGCS.Views
                     MissionStore.Set((int)_currentVehicleType, GetFullMission());
 
                     // Формируем сообщение об успехе
-                    string successMsg = $"Миссия сохранена: {_waypoints.Count} точек.";
+                    string successMsg = Fmt("Msg_MissionSavedShort", _waypoints.Count);
                     if (_currentVehicleType == VehicleType.QuadPlane)
                     {
-                        successMsg += "\n✈️ Взлёт → авто в самолёт → точки → коптер → посадка";
+                        successMsg += "\n✈️ " + Get("Msg_VtolSequence");
                     }
 
                     AppMessageBox.ShowSuccess(
                         successMsg,
                         owner: OwnerWindow,
-                        subtitle: "Миссия сохранена"
+                        subtitle: Get("Msg_MissionSavedSub")
                     );
                 }
                 else
@@ -3013,19 +3019,19 @@ namespace SimpleDroneGCS.Views
                     MissionStore.Set((int)_currentVehicleType, GetFullMission());
 
                     AppMessageBox.ShowSuccess(
-                        $"Миссия сохранена: {_waypoints.Count} точек.",
+                        Fmt("Msg_MissionSavedShort", _waypoints.Count),
                         owner: OwnerWindow,
-                        subtitle: "Миссия сохранена"
+                        subtitle: Get("Msg_MissionSavedSub")
                     );
                 }
             }
             catch (Exception ex)
             {
                 AppMessageBox.ShowError(
-                    $"Ошибка сохранения: {ex.Message}",
+                    Fmt("Msg_ErrorSave", ex.Message),
                     owner: OwnerWindow,
-                    subtitle: "Ошибка записи миссии",
-                    hint: "Проверьте доступ к папке и права на запись."
+                    subtitle: Get("Msg_MissionWriteErrorSub"),
+                    hint: Get("Msg_CheckFolderAccess")
                 );
                 System.Diagnostics.Debug.WriteLine($" Ошибка: {ex.Message}\n{ex.StackTrace}");
             }
@@ -3043,10 +3049,10 @@ namespace SimpleDroneGCS.Views
             if (_mavlinkService == null || !_mavlinkService.IsConnected)
             {
                 AppMessageBox.ShowWarning(
-                    "Подключитесь к дрону для чтения миссии.",
+                    Get("Msg_ConnectToReadMission"),
                     owner: OwnerWindow,
-                    subtitle: "Нет подключения",
-                    hint: "Подключитесь через серийный порт или UDP."
+                    subtitle: Get("Msg_NoConnectionSub"),
+                    hint: Get("Msg_ConnectViaSerialOrUdp")
                 );
                 return;
             }
@@ -3059,7 +3065,7 @@ namespace SimpleDroneGCS.Views
 
                 if (items == null || items.Count == 0)
                 {
-                    AppMessageBox.ShowWarning("Миссия на дроне пуста или не удалось прочитать.", owner: OwnerWindow, subtitle: "Пустая миссия");
+                    AppMessageBox.ShowWarning(Get("Msg_MissionEmptyDrone"), owner: OwnerWindow, subtitle: Get("Msg_EmptyMissionSub"));
                     return;
                 }
 
@@ -3067,9 +3073,9 @@ namespace SimpleDroneGCS.Views
                 if (_waypoints.Count > 0)
                 {
                     if (!AppMessageBox.ShowConfirm(
-                        $"Текущая миссия ({_waypoints.Count} точек) будет заменена на миссию с дрона ({items.Count} элементов).\n\nПродолжить?",
+                        Fmt("Msg_ConfirmReplace", _waypoints.Count, items.Count),
                         owner: OwnerWindow,
-                        subtitle: "Заменить миссию?"))
+                        subtitle: Get("Msg_ReplaceMissionSub")))
                     {
                         return;
                     }
@@ -3229,16 +3235,16 @@ namespace SimpleDroneGCS.Views
 
                 string typeStr = isVtolMission ? "VTOL" : "Copter";
                 AppMessageBox.ShowSuccess(
-                    $"Прочитано с дрона: {_waypoints.Count} точек ({typeStr}).",
+                    Fmt("Msg_MissionReadDrone", _waypoints.Count, typeStr),
                     owner: OwnerWindow,
-                    subtitle: "Миссия загружена"
+                    subtitle: Get("Msg_MissionLoadedSub")
                 );
 
                 System.Diagnostics.Debug.WriteLine($"[DOWNLOAD] ✅ Миссия прочитана: {_waypoints.Count} WPs, VTOL={isVtolMission}");
             }
             catch (Exception ex)
             {
-                AppMessageBox.ShowError($"Ошибка чтения миссии: {ex.Message}", owner: OwnerWindow, subtitle: "Ошибка");
+                AppMessageBox.ShowError(Fmt("Msg_ErrorRead", ex.Message), owner: OwnerWindow, subtitle: Get("Msg_ErrorSub"));
                 System.Diagnostics.Debug.WriteLine($"[DOWNLOAD] Ошибка: {ex.Message}\n{ex.StackTrace}");
             }
         }
@@ -3247,7 +3253,7 @@ namespace SimpleDroneGCS.Views
         {
             if (_waypoints == null || _waypoints.Count == 0)
             {
-                AppMessageBox.ShowWarning("Нет точек для сохранения.", owner: OwnerWindow, subtitle: "Пустая миссия");
+                AppMessageBox.ShowWarning(Get("Msg_EmptyMission"), owner: OwnerWindow, subtitle: Get("Msg_EmptyMissionSub"));
                 return;
             }
 
@@ -3255,7 +3261,7 @@ namespace SimpleDroneGCS.Views
             {
                 var dlg = new Microsoft.Win32.SaveFileDialog
                 {
-                    Title = "Сохранить миссию",
+                    Title = Get("Dlg_SaveMission"),
                     Filter = "Mission files (*.txt;*.waypoints)|*.txt;*.waypoints|All files (*.*)|*.*",
                     DefaultExt = ".txt",
                     FileName = $"mission_{DateTime.Now:yyyyMMdd_HHmm}.txt"
@@ -3266,14 +3272,14 @@ namespace SimpleDroneGCS.Views
                 SaveMissionToPath(dlg.FileName);
 
                 AppMessageBox.ShowSuccess(
-                    $"Миссия сохранена: {_waypoints.Count} точек.\n📁 {System.IO.Path.GetFileName(dlg.FileName)}",
+                    Fmt("Msg_MissionSaved", _waypoints.Count, System.IO.Path.GetFileName(dlg.FileName)),
                     owner: OwnerWindow,
-                    subtitle: "Файл сохранён"
+                    subtitle: Get("Msg_FileSavedSub")
                 );
             }
             catch (Exception ex)
             {
-                AppMessageBox.ShowError($"Ошибка сохранения: {ex.Message}", owner: OwnerWindow, subtitle: "Ошибка");
+                AppMessageBox.ShowError(Fmt("Msg_ErrorSave", ex.Message), owner: OwnerWindow, subtitle: Get("Msg_ErrorSub"));
             }
         }
 
@@ -3283,7 +3289,7 @@ namespace SimpleDroneGCS.Views
             {
                 var dlg = new Microsoft.Win32.OpenFileDialog
                 {
-                    Title = "Загрузить миссию",
+                    Title = Get("Dlg_LoadMission"),
                     Filter = "Mission files (*.txt;*.waypoints)|*.txt;*.waypoints|All files (*.*)|*.*"
                 };
 
@@ -3292,7 +3298,7 @@ namespace SimpleDroneGCS.Views
                 var lines = System.IO.File.ReadAllLines(dlg.FileName);
                 if (lines.Length < 2 || !lines[0].StartsWith("QGC WPL"))
                 {
-                    AppMessageBox.ShowError("Неверный формат файла. Ожидается QGC WPL 110.", owner: OwnerWindow, subtitle: "Ошибка формата");
+                    AppMessageBox.ShowError(Get("Msg_BadFormat"), owner: OwnerWindow, subtitle: Get("Msg_BadFormatSub"));
                     return;
                 }
 
@@ -3479,16 +3485,16 @@ namespace SimpleDroneGCS.Views
 
                 string typeStr = isVtolMission ? "VTOL" : "Copter";
                 AppMessageBox.ShowSuccess(
-                    $"Загружено: {_waypoints.Count} точек ({typeStr}).\n📁 {System.IO.Path.GetFileName(dlg.FileName)}",
+                    Fmt("Msg_MissionLoaded", _waypoints.Count, typeStr, System.IO.Path.GetFileName(dlg.FileName)),
                     owner: OwnerWindow,
-                    subtitle: "Миссия загружена"
+                    subtitle: Get("Msg_MissionLoadedSub")
                 );
 
                 System.Diagnostics.Debug.WriteLine($"[LOAD] Миссия загружена из {dlg.FileName}: {_waypoints.Count} WPs, VTOL={isVtolMission}");
             }
             catch (Exception ex)
             {
-                AppMessageBox.ShowError($"Ошибка загрузки: {ex.Message}", owner: OwnerWindow, subtitle: "Ошибка");
+                AppMessageBox.ShowError(Fmt("Msg_ErrorLoad", ex.Message), owner: OwnerWindow, subtitle: Get("Msg_ErrorSub"));
                 System.Diagnostics.Debug.WriteLine($"[LOAD] Ошибка: {ex.Message}\n{ex.StackTrace}");
             }
         }
@@ -3520,10 +3526,10 @@ namespace SimpleDroneGCS.Views
         private void ClearButton_Click(object sender, RoutedEventArgs e)
         {
             if (AppMessageBox.ShowConfirm(
-                "Удалить все точки маршрута?",
+                Get("Msg_ClearAllWaypoints"),
                 owner: OwnerWindow,
-                subtitle: "Подтверждение очистки",
-                hint: "Действие необратимо."
+                subtitle: Get("Msg_ConfirmClearSub"),
+                hint: Get("Msg_ActionIrreversible")
             ))
             {
                 // Очищаем ВСЕ маркеры с карты
@@ -4321,10 +4327,10 @@ namespace SimpleDroneGCS.Views
             catch (Exception ex)
             {
                 AppMessageBox.ShowError(
-                    $"Не удалось открыть выбор типа аппарата: {ex.Message}",
+                    Fmt("Msg_VehicleMenuError", ex.Message),
                     owner: OwnerWindow,
-                    subtitle: "Ошибка",
-                    hint: "Повторите попытку. Если ошибка повторяется — проверьте логи."
+                    subtitle: Get("Msg_ErrorSub"),
+                    hint: Get("Msg_RetryCheckLogs")
                 );
             }
         }
@@ -4348,23 +4354,35 @@ namespace SimpleDroneGCS.Views
             itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, Cursors.Hand));
             itemStyle.Setters.Add(new Setter(MenuItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
 
-            var hoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
-            hoverTrigger.Setters.Add(new Setter(MenuItem.BackgroundProperty,
-                (SolidColorBrush)new BrushConverter().ConvertFromString("#1A2433")));
-            itemStyle.Triggers.Add(hoverTrigger);
+            // Убираем белый квадрат (иконная колонка WPF)
+            var menuTemplate = new ControlTemplate(typeof(MenuItem));
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "menuBorder";
+            borderFactory.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+            borderFactory.SetValue(Border.PaddingProperty, new Thickness(10, 8, 10, 8));
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            borderFactory.AppendChild(contentFactory);
+            menuTemplate.VisualTree = borderFactory;
+            var highlightTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
+            highlightTrigger.Setters.Add(new Setter(Border.BackgroundProperty,
+                (SolidColorBrush)new BrushConverter().ConvertFromString("#1A2433"), "menuBorder"));
+            menuTemplate.Triggers.Add(highlightTrigger);
+            itemStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, menuTemplate));
 
             menu.Resources[typeof(MenuItem)] = itemStyle;
 
             var copter = new MenuItem
             {
-                Header = BuildVehicleMenuHeader("/Images/drone_icon.png", "Мультикоптер", "MC"),
+                Header = BuildVehicleMenuHeader("/Images/drone_icon.png", Get("Vehicle_Multicopter"), "MC"),
                 Tag = VehicleType.Copter
             };
             copter.Click += VehicleTypeMenuItem_Click;
 
             var vtol = new MenuItem
             {
-                Header = BuildVehicleMenuHeader("/Images/pl.png", "СВВП", "VTOL"),
+                Header = BuildVehicleMenuHeader("/Images/pl.png", Get("Vehicle_VTOL"), "VTOL"),
                 Tag = VehicleType.QuadPlane
             };
             vtol.Click += VehicleTypeMenuItem_Click;
@@ -4434,9 +4452,9 @@ namespace SimpleDroneGCS.Views
                 return;
 
             bool ok = AppMessageBox.ShowConfirm(
-                "Переключить тип аппарата?",
+                Get("Msg_SwitchVehicleConfirm"),
                 owner: OwnerWindow,
-                subtitle: "Смена типа аппарата"
+                subtitle: Get("Msg_VehicleChangeSub")
             );
 
             if (!ok) return;
@@ -4465,9 +4483,9 @@ namespace SimpleDroneGCS.Views
             catch (Exception ex)
             {
                 AppMessageBox.ShowError(
-                    $"Ошибка: {ex.Message}",
+                    $"{Get("MsgBox_Error")}: {ex.Message}",
                     owner: OwnerWindow,
-                    subtitle: "Ошибка переключения"
+                    subtitle: Get("Msg_SwitchErrorSub")
                 );
             }
         }
@@ -4483,18 +4501,18 @@ namespace SimpleDroneGCS.Views
                     VehicleTypeShortText.Text = profile.Type == VehicleType.Copter ? "MC" : "VTOL";
 
                 if (VehicleTypeFullText != null)
-                    VehicleTypeFullText.Text = profile.Type == VehicleType.Copter ? "Мультикоптер" : "СВВП";
+                    VehicleTypeFullText.SetResourceReference(TextBlock.TextProperty, profile.Type == VehicleType.Copter ? "Vehicle_Multicopter" : "Vehicle_VTOL");
 
                 // Обновляем надписи TAKEOFF/RTL для VTOL
                 if (profile.Type == VehicleType.QuadPlane)
                 {
-                    if (TakeoffLabel != null) TakeoffLabel.Text = "VTOL ВЗЛЁТ";
-                    if (RtlLabel != null) RtlLabel.Text = "VTOL ПОСАДКА";
+                    if (TakeoffLabel != null) TakeoffLabel.SetResourceReference(TextBlock.TextProperty, "VTOL_Takeoff");
+                    if (RtlLabel != null) RtlLabel.SetResourceReference(TextBlock.TextProperty, "VTOL_Landing");
                 }
                 else
                 {
-                    if (TakeoffLabel != null) TakeoffLabel.Text = "ВЗЛЁТ";
-                    if (RtlLabel != null) RtlLabel.Text = "ВОЗВРАТ (RTL)";
+                    if (TakeoffLabel != null) TakeoffLabel.SetResourceReference(TextBlock.TextProperty, "Copter_Takeoff");
+                    if (RtlLabel != null) RtlLabel.SetResourceReference(TextBlock.TextProperty, "Copter_RTL");
                 }
 
                 // Обновляем быстрые кнопки режимов полёта
@@ -4506,7 +4524,7 @@ namespace SimpleDroneGCS.Views
             catch
             {
                 if (VehicleTypeShortText != null) VehicleTypeShortText.Text = "MC";
-                if (VehicleTypeFullText != null) VehicleTypeFullText.Text = "Мультикоптер";
+                if (VehicleTypeFullText != null) VehicleTypeFullText.SetResourceReference(TextBlock.TextProperty, "Vehicle_Multicopter");
             }
         }
 
@@ -4518,20 +4536,20 @@ namespace SimpleDroneGCS.Views
             if (_currentVehicleType == VehicleType.QuadPlane)
             {
                 // VTOL: Q-режимы
-                if (QuickModeBtn1 != null) { QuickModeBtn1.Content = "Q-Удерж"; QuickModeBtn1.Tag = "QLOITER"; }
-                if (QuickModeBtn2 != null) { QuickModeBtn2.Content = "Q-Высота"; QuickModeBtn2.Tag = "QHOVER"; }
-                if (QuickModeBtn3 != null) { QuickModeBtn3.Content = "Выполнить"; QuickModeBtn3.Tag = "AUTO"; }
-                if (QuickModeBtn4 != null) { QuickModeBtn4.Content = "Q-Стаб"; QuickModeBtn4.Tag = "QSTABILIZE"; }
-                if (QuickModeBtn5 != null) { QuickModeBtn5.Content = "Домой"; QuickModeBtn5.Tag = "QRTL"; }
+                if (QuickModeBtn1 != null) { QuickModeBtn1.SetResourceReference(ContentControl.ContentProperty, "Mode_QHold"); QuickModeBtn1.Tag = "QLOITER"; }
+                if (QuickModeBtn2 != null) { QuickModeBtn2.SetResourceReference(ContentControl.ContentProperty, "Mode_QAltHold"); QuickModeBtn2.Tag = "QHOVER"; }
+                if (QuickModeBtn3 != null) { QuickModeBtn3.SetResourceReference(ContentControl.ContentProperty, "Execute"); QuickModeBtn3.Tag = "AUTO"; }
+                if (QuickModeBtn4 != null) { QuickModeBtn4.SetResourceReference(ContentControl.ContentProperty, "Mode_QStabilize"); QuickModeBtn4.Tag = "QSTABILIZE"; }
+                if (QuickModeBtn5 != null) { QuickModeBtn5.SetResourceReference(ContentControl.ContentProperty, "Mode_Home"); QuickModeBtn5.Tag = "QRTL"; }
             }
             else
             {
                 // Copter: обычные режимы
-                if (QuickModeBtn1 != null) { QuickModeBtn1.Content = "Удержание"; QuickModeBtn1.Tag = "LOITER"; }
-                if (QuickModeBtn2 != null) { QuickModeBtn2.Content = "Высота"; QuickModeBtn2.Tag = "ALT_HOLD"; }
-                if (QuickModeBtn3 != null) { QuickModeBtn3.Content = "Выполнить"; QuickModeBtn3.Tag = "AUTO"; }
-                if (QuickModeBtn4 != null) { QuickModeBtn4.Content = "Стаб"; QuickModeBtn4.Tag = "STABILIZE"; }
-                if (QuickModeBtn5 != null) { QuickModeBtn5.Content = "Домой"; QuickModeBtn5.Tag = "RTL"; }
+                if (QuickModeBtn1 != null) { QuickModeBtn1.SetResourceReference(ContentControl.ContentProperty, "Mode_Hold"); QuickModeBtn1.Tag = "LOITER"; }
+                if (QuickModeBtn2 != null) { QuickModeBtn2.SetResourceReference(ContentControl.ContentProperty, "Mode_AltHold"); QuickModeBtn2.Tag = "ALT_HOLD"; }
+                if (QuickModeBtn3 != null) { QuickModeBtn3.SetResourceReference(ContentControl.ContentProperty, "Execute"); QuickModeBtn3.Tag = "AUTO"; }
+                if (QuickModeBtn4 != null) { QuickModeBtn4.SetResourceReference(ContentControl.ContentProperty, "Mode_Stabilize"); QuickModeBtn4.Tag = "STABILIZE"; }
+                if (QuickModeBtn5 != null) { QuickModeBtn5.SetResourceReference(ContentControl.ContentProperty, "Mode_Home"); QuickModeBtn5.Tag = "RTL"; }
             }
         }
 
@@ -4683,11 +4701,11 @@ namespace SimpleDroneGCS.Views
                 var lastWp = _waypoints[_waypoints.Count - 1];
                 double dist = CalculateDistanceLatLng(lastWp.Latitude, lastWp.Longitude,
                                                        cursorLatLng.Lat, cursorLatLng.Lng);
-                CursorDistanceFromLast.Text = $"От WP{lastWp.Number}: {FormatDistance(dist)}";
+                CursorDistanceFromLast.Text = $"{Get("FromWP_Label")} WP{lastWp.Number}: {FormatDistance(dist)}";
             }
             else if (CursorDistanceFromLast != null)
             {
-                CursorDistanceFromLast.Text = "От WP: —";
+                CursorDistanceFromLast.Text = $"{Get("FromWP_Label")} WP: —";
             }
 
             // === ДИСТАНЦИЯ ОТ HOME ===
@@ -4695,11 +4713,11 @@ namespace SimpleDroneGCS.Views
             {
                 double dist = CalculateDistanceLatLng(_homePosition.Latitude, _homePosition.Longitude,
                                                        cursorLatLng.Lat, cursorLatLng.Lng);
-                CursorDistanceFromHome.Text = $"От HOME: {FormatDistance(dist)}";
+                CursorDistanceFromHome.Text = $"{Get("FromHOME_Label")}: {FormatDistance(dist)}";
             }
             else if (CursorDistanceFromHome != null)
             {
-                CursorDistanceFromHome.Text = "От HOME: —";
+                CursorDistanceFromHome.Text = $"{Get("FromHOME_Label")}: —";
             }
         }
 
@@ -4722,7 +4740,7 @@ namespace SimpleDroneGCS.Views
             _mavlinkService.SetFlightMode(mode);
         }
 
-        
+
 
         /// <summary>
         /// Resume - продолжить миссию
@@ -4773,7 +4791,7 @@ namespace SimpleDroneGCS.Views
 
         private void ShowNotConnectedMessage()
         {
-            MessageBox.Show("Дрон не подключён", "KYRAN GCS", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppMessageBox.ShowWarning(Get("Msg_DroneNotConnected"), owner: OwnerWindow);
         }
 
         #endregion
@@ -4809,13 +4827,13 @@ namespace SimpleDroneGCS.Views
             {
                 if (_currentVehicleType == VehicleType.QuadPlane)
                 {
-                    SecondarySpeedLabel.Text = "Возд. ск.";
+                    SecondarySpeedLabel.SetResourceReference(TextBlock.TextProperty, "Airspeed");
                     SecondarySpeedValue.Text = $"{telemetry.Airspeed:F1} м/с";
                     SecondarySpeedValue.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238)); // #22D3EE голубой
                 }
                 else
                 {
-                    SecondarySpeedLabel.Text = "Верт. ск.";
+                    SecondarySpeedLabel.SetResourceReference(TextBlock.TextProperty, "VertSpeed");
                     string sign = telemetry.ClimbRate >= 0 ? "+" : "";
                     SecondarySpeedValue.Text = $"{sign}{telemetry.ClimbRate:F1} м/с";
                     SecondarySpeedValue.Foreground = new SolidColorBrush(
@@ -4903,13 +4921,13 @@ namespace SimpleDroneGCS.Views
 
             if (telemetry.Armed)
             {
-                ArmButton.Content = "ДЕАКТИВИРОВАТЬ";
+                ArmButton.SetResourceReference(ContentControl.ContentProperty, "Disarm");
                 ArmButton.Background = new SolidColorBrush(Color.FromRgb(127, 29, 29));
                 ArmButton.BorderBrush = new SolidColorBrush(Color.FromRgb(239, 68, 68));
             }
             else
             {
-                ArmButton.Content = "АКТИВИРОВАТЬ";
+                ArmButton.SetResourceReference(ContentControl.ContentProperty, "Arm");
                 ArmButton.Background = new SolidColorBrush(Color.FromRgb(22, 101, 52));
                 ArmButton.BorderBrush = new SolidColorBrush(Color.FromRgb(34, 197, 94));
             }
@@ -4958,7 +4976,7 @@ namespace SimpleDroneGCS.Views
             if (FlightModeCombo == null) return;
 
             FlightModeCombo.Items.Clear();
-            FlightModeCombo.Items.Add(new ComboBoxItem { Content = "Режимы полётов", IsSelected = true });
+            FlightModeCombo.Items.Add(new ComboBoxItem { Content = Get("FlightModes"), IsSelected = true });
 
             var modes = _currentVehicleType == VehicleType.QuadPlane
                 ? new[] { "QSTABILIZE", "QHOVER", "QLOITER", "QLAND", "QRTL", "AUTO", "GUIDED", "LOITER", "RTL", "FBWA", "CRUISE" }
@@ -5029,37 +5047,27 @@ namespace SimpleDroneGCS.Views
                 string calibType = item.Content?.ToString() ?? "";
                 var owner = Window.GetWindow(this);
 
-                switch (calibType)
+                if (calibType == Get("Gyroscope"))
                 {
-                    case "Гироскоп":
-                        {
-                            var dialog = new GyroCalibrationDialog(_mavlinkService);
-                            dialog.Owner = owner;
-                            dialog.ShowDialog();
-                            break;
-                        }
-
-                    case "Компас":
-                        {
-                            var dialog = new CompassCalibrationDialog(_mavlinkService);
-                            dialog.Owner = owner;
-                            dialog.ShowDialog();
-                            break;
-                        }
-
-                    case "Акселерометр":
-                        {
-                            var dialog = new AccelCalibrationDialog(_mavlinkService);
-                            dialog.Owner = owner;
-                            dialog.ShowDialog();
-                            break;
-                        }
-
-                    case "Калибровки":
-                        // Заголовок ComboBox — ничего не делаем
-                        MessageBox.Show("Выберите тип калибровки из списка.",
-                            "KYRAN GCS", MessageBoxButton.OK, MessageBoxImage.Information);
-                        break;
+                    var dialog = new GyroCalibrationDialog(_mavlinkService);
+                    dialog.Owner = owner;
+                    dialog.ShowDialog();
+                }
+                else if (calibType == Get("Compass"))
+                {
+                    var dialog = new CompassCalibrationDialog(_mavlinkService);
+                    dialog.Owner = owner;
+                    dialog.ShowDialog();
+                }
+                else if (calibType == Get("Accelerometer"))
+                {
+                    var dialog = new AccelCalibrationDialog(_mavlinkService);
+                    dialog.Owner = owner;
+                    dialog.ShowDialog();
+                }
+                else if (calibType == Get("Calibrations"))
+                {
+                    AppMessageBox.ShowInfo(Get("Msg_SelectCalibration"), owner: OwnerWindow);
                 }
             }
         }
@@ -5077,17 +5085,17 @@ namespace SimpleDroneGCS.Views
 
             if (_waypoints.Count == 0)
             {
-                MessageBox.Show("Миссия пуста. Добавьте точки!", "KYRAN GCS", MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppMessageBox.ShowWarning(Get("Msg_MissionEmptyAddPoints"), owner: OwnerWindow);
                 return;
             }
 
             bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
             string msg = isVtol
-                ? $"Активировать VTOL миссию из {_waypoints.Count} точек?\n\nПоследовательность: ВЗЛЁТ → СТАРТ → WPs → ПОСАДКА → ПРИЗЕМЛЕНИЕ\n\n⚠️ Дрон взлетит автоматически!"
-                : $"Активировать миссию из {_waypoints.Count} точек?\n\n⚠️ Дрон взлетит автоматически!";
+                ? Fmt("Msg_ActivateVtolMission", _waypoints.Count)
+                : Fmt("Msg_ActivateCopterMission", _waypoints.Count);
 
-            var result = MessageBox.Show(msg, "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result != MessageBoxResult.Yes) return;
+            var result = AppMessageBox.ShowConfirm(msg, OwnerWindow, subtitle: Get("MsgBox_Confirm"));
+            if (!result) return;
 
             try
             {
@@ -5096,7 +5104,7 @@ namespace SimpleDroneGCS.Views
                 if (isVtol)
                 {
                     // VTOL миссия с StartCircle + LandingCircle
-                    if (_homePosition == null) { MessageBox.Show("Установите HOME!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); return; }
+                    if (_homePosition == null) { AppMessageBox.ShowError(Get("Msg_SetHome"), owner: OwnerWindow); return; }
                     if (_startCircle == null) InitializeStartCircle();
                     if (_landingCircle == null) InitializeLandingCircle();
 
@@ -5113,7 +5121,7 @@ namespace SimpleDroneGCS.Views
 
                 if (!uploadSuccess)
                 {
-                    MessageBox.Show("Ошибка загрузки миссии", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    AppMessageBox.ShowError(Get("Msg_MissionUploadError"), owner: OwnerWindow);
                     return;
                 }
 
@@ -5125,18 +5133,18 @@ namespace SimpleDroneGCS.Views
 
                 if (!_mavlinkService.CurrentTelemetry.Armed)
                 {
-                    MessageBox.Show("Не удалось активировать дрон", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    AppMessageBox.ShowError(Get("Msg_ArmFailed"), owner: OwnerWindow);
                     return;
                 }
 
                 // AUTO
                 _mavlinkService.StartMission();
 
-                MessageBox.Show("Миссия активирована!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                AppMessageBox.ShowSuccess(Get("Msg_MissionActivated"), owner: OwnerWindow);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppMessageBox.ShowError($"{Get("MsgBox_Error")}: {ex.Message}", owner: OwnerWindow);
             }
         }
 
@@ -5247,14 +5255,14 @@ namespace SimpleDroneGCS.Views
             {
                 if (_mavlinkService == null || !_mavlinkService.IsConnected)
                 {
-                    ShowStatusMessage("Дрон не подключен");
+                    ShowStatusMessage(Get("Msg_DroneNotConnected"));
                     return;
                 }
 
                 var telem = _mavlinkService.CurrentTelemetry;
                 if (telem == null || !telem.Armed)
                 {
-                    ShowStatusMessage("Дрон не активирован");
+                    ShowStatusMessage(Get("Msg_DroneNotArmed"));
                     return;
                 }
 
@@ -5268,7 +5276,7 @@ namespace SimpleDroneGCS.Views
                     // Защита: не замораживаем на TAKEOFF (seq=1), TRANSITION (seq=2)
                     if (currentSeq <= 2)
                     {
-                        ShowStatusMessage("⚠️ Нельзя заморозить: дрон взлетает");
+                        ShowStatusMessage(Get("Msg_CantFreezeTakeoff"));
                         return;
                     }
 
@@ -5282,7 +5290,7 @@ namespace SimpleDroneGCS.Views
 
                         if (currentSeq >= transitionMcSeq)
                         {
-                            ShowStatusMessage("⚠️ Нельзя заморозить: дрон на посадке");
+                            ShowStatusMessage(Get("Msg_CantFreezeLanding"));
                             return;
                         }
                     }
@@ -5294,12 +5302,12 @@ namespace SimpleDroneGCS.Views
                     // Обновляем UI кнопки
                     if (sender is Button btn)
                     {
-                        btn.Content = "▶ Продолжить миссию";
+                        btn.Content = Get("Msg_ResumeMission");
                         btn.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(22, 163, 74)); // Зелёный
                     }
 
                     System.Diagnostics.Debug.WriteLine($"[FREEZE] Миссия заморожена на seq={currentSeq}");
-                    ShowStatusMessage("⏸ Миссия заморожена — дрон кружит");
+                    ShowStatusMessage(Get("Msg_MissionFrozen"));
                 }
                 else
                 {
@@ -5310,20 +5318,20 @@ namespace SimpleDroneGCS.Views
                     if (_currentVehicleType == VehicleType.QuadPlane && _startCircle != null && _landingCircle != null)
                     {
                         // VTOL миссия
-                        if (_homePosition == null) { ShowStatusMessage("Нет HOME позиции"); return; }
+                        if (_homePosition == null) { ShowStatusMessage(Get("Msg_NoHomePos")); return; }
 
                         bool success = await _mavlinkService.UploadVtolMission(
                             _homePosition, _startCircle, _waypoints.ToList(), _landingCircle,
                             _vtolTakeoffAltitude, _vtolLandAltitude);
 
-                        if (!success) { ShowStatusMessage("❌ Ошибка загрузки"); return; }
+                        if (!success) { ShowStatusMessage(Get("Msg_UploadError")); return; }
                     }
                     else
                     {
                         // Обычная миссия (Copter/Plane)
                         _mavlinkService.SavePlannedMission(_waypoints.ToList());
                         bool success = await _mavlinkService.UploadPlannedMission();
-                        if (!success) { ShowStatusMessage("❌ Ошибка загрузки"); return; }
+                        if (!success) { ShowStatusMessage(Get("Msg_UploadError")); return; }
                     }
 
                     await System.Threading.Tasks.Task.Delay(500);
@@ -5339,18 +5347,18 @@ namespace SimpleDroneGCS.Views
 
                     if (sender is Button btn)
                     {
-                        btn.Content = "⏸ Заморозить миссию";
+                        btn.Content = Get("Msg_FreezeMission");
                         btn.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)); // Синий
                     }
 
                     System.Diagnostics.Debug.WriteLine($"[RESUME] Миссия продолжена с seq={nextSeq}");
-                    ShowStatusMessage($"▶ Миссия продолжена → точка {nextSeq}");
+                    ShowStatusMessage(Fmt("Msg_MissionResumed", nextSeq));
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[FREEZE/RESUME] Ошибка: {ex.Message}");
-                ShowStatusMessage($"Ошибка: {ex.Message}");
+                ShowStatusMessage($"{Get("MsgBox_Error")}: {ex.Message}");
             }
         }
 
@@ -5360,8 +5368,7 @@ namespace SimpleDroneGCS.Views
         private void ShowStatusMessage(string message)
         {
             System.Diagnostics.Debug.WriteLine($"[STATUS] {message}");
-            // Используем MessageBox для надёжности
-            MessageBox.Show(message, "KYRAN GCS", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppMessageBox.ShowInfo(message, owner: OwnerWindow);
         }
 
         #endregion
@@ -5377,14 +5384,14 @@ namespace SimpleDroneGCS.Views
             {
                 if (_mavlinkService == null || !_mavlinkService.IsConnected)
                 {
-                    MessageBox.Show("Дрон не подключен", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    AppMessageBox.ShowWarning(Get("Msg_DroneNotConnected"), owner: OwnerWindow);
                     return;
                 }
 
                 var telem = _mavlinkService.CurrentTelemetry;
                 if (telem == null || !telem.Armed)
                 {
-                    MessageBox.Show("Дрон не активирован", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    AppMessageBox.ShowWarning(Get("Msg_DroneNotArmed"), owner: OwnerWindow);
                     return;
                 }
 
@@ -5397,8 +5404,7 @@ namespace SimpleDroneGCS.Views
                 int totalItems = GetFullMission().Count;
                 if (nextSeq >= totalItems)
                 {
-                    MessageBox.Show("Дрон уже на последней точке миссии", "Информация",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    AppMessageBox.ShowInfo(Get("Msg_DroneLastWaypoint"), owner: OwnerWindow);
                     return;
                 }
 
@@ -5408,7 +5414,7 @@ namespace SimpleDroneGCS.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppMessageBox.ShowError($"{Get("MsgBox_Error")}: {ex.Message}", owner: OwnerWindow);
             }
         }
     }
