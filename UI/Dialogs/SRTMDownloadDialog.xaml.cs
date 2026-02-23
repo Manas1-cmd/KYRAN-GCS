@@ -13,7 +13,6 @@ namespace SimpleDroneGCS.UI.Dialogs
         private double _currentLat;
         private double _currentLon;
 
-        // Границы регионов
         private readonly (double minLat, double maxLat, double minLon, double maxLon) _kzBounds = (40, 56, 46, 88);
         private readonly (double minLat, double maxLat, double minLon, double maxLon) _almatyBounds = (43, 44, 76, 78);
         private readonly (double minLat, double maxLat, double minLon, double maxLon) _astanaBounds = (51, 52, 71, 72);
@@ -35,7 +34,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private void RegionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded || TilesInfoText == null) return;  // ← добавь эту строку
+            if (!IsLoaded || TilesInfoText == null) return;  
 
             if (RegionComboBox.SelectedItem is ComboBoxItem)
             {

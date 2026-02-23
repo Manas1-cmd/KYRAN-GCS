@@ -151,7 +151,7 @@
     <sys:String x:Key="CircleEdit_CW">По часовой ↻</sys:String>
     <sys:String x:Key="CircleEdit_CCW">Против часовой ↺</sys:String>
     <sys:String x:Key="CircleEdit_AutoContinue">Авто-переход</sys:String>
-    <sys:String x:Key="CircleEdit_NoWait">(не ждать команду)</sys:String>
+    <sys:String x:Key="CircleEdit_NoWait"> (не ждать команду)</sys:String>
 
     <!-- ==================== UDP CONNECTION ==================== -->
     <sys:String x:Key="Udp_Title">UDP Подключение</sys:String>
@@ -237,7 +237,7 @@
 
     <!-- ==================== MAP DOWNLOADER ==================== -->
     <sys:String x:Key="MapDl_Title">Скачивание карты</sys:String>
-    <sys:String x:Key="MapDl_Header">Скачать карту Казахстана</sys:String>
+    <sys:String x:Key="MapDl_Header"> Скачать карту Казахстана</sys:String>
     <sys:String x:Key="MapDl_AllKZ">🇰🇿 Весь Казахстан</sys:String>
     <sys:String x:Key="MapDl_Almaty">📍 Алматы и область</sys:String>
     <sys:String x:Key="MapDl_Astana">📍 Астана и область</sys:String>
@@ -290,7 +290,7 @@
     <sys:String x:Key="Default_Speed">0.0 м/с</sys:String>
     <sys:String x:Key="Default_AltZero">0 м</sys:String>
     <sys:String x:Key="Default_SpeedZero">0 м/с</sys:String>
-    <sys:String x:Key="Default_AltSpace">м</sys:String>
+    <sys:String x:Key="Default_AltSpace"> м</sys:String>
     <sys:String x:Key="Compass_N">С</sys:String>
     <sys:String x:Key="Compass_S">Ю</sys:String>
     <sys:String x:Key="Compass_E">В</sys:String>
@@ -486,4 +486,22 @@
     <sys:String x:Key="Msg_SwitchVehicleConfirm">Переключить тип аппарата?</sys:String>
     <sys:String x:Key="Msg_RetryCheckLogs">Повторите попытку. Если ошибка повторяется — проверьте логи.</sys:String>
     <sys:String x:Key="Msg_VehicleMenuError">Не удалось открыть выбор типа аппарата: {0}</sys:String>
+    <sys:String x:Key="Status_UdpWaiting">UDP: Ожидание дрона...</sys:String>
+    <sys:String x:Key="Status_ConnectedUdp">Подключено (UDP)</sys:String>
+    <sys:String x:Key="Disconnected">Отключено</sys:String>
+    <sys:String x:Key="Msg_NoResponse">Нет ответа от дрона. Проверьте IP/порт.</sys:String>
+    <sys:String x:Key="Msg_ComPortFailed">Не удалось открыть COM порт</sys:String>
+    <sys:String x:Key="Msg_ComPortBusy">COM порт занят другим приложением</sys:String>
+    <sys:String x:Key="Msg_NoSavedMission">Нет сохранённой миссии</sys:String>
+    <sys:String x:Key="Msg_NoPointsToUpload">Нет точек для загрузки</sys:String>
+    <sys:String x:Key="Msg_FcRejectedMission">FC отклонил миссию</sys:String>
+    <sys:String x:Key="Msg_UdpError">UDP ошибка</sys:String>
+    <sys:String x:Key="Msg_PortError">Ошибка порта</sys:String>
+    <sys:String x:Key="Msg_MissionUploadErrorFmt">Ошибка загрузки миссии: {0}</sys:String>
+    <sys:String x:Key="Msg_VtolMissionError">Ошибка VTOL миссии: {0}</sys:String>
+    <sys:String x:Key="Msg_CalibStarted">Калибровка запущена: {0}</sys:String>
+    <sys:String x:Key="Stats_Received">Получено</sys:String>
+    <sys:String x:Key="Stats_Packets">Пакетов</sys:String>
+    <sys:String x:Key="Stats_Sent">Отправлено</sys:String>
+    <sys:String x:Key="Stats_Errors">Ошибок</sys:String>
 </ResourceDictionary>

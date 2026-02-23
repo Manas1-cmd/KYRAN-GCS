@@ -2,7 +2,7 @@
 using SimpleDroneGCS.Services;
 using System;
 using System.Windows;
-using System.Diagnostics; // ДОБАВИТЬ
+using System.Diagnostics; 
 
 namespace SimpleDroneGCS
 {
@@ -12,16 +12,13 @@ namespace SimpleDroneGCS
         {
             base.OnStartup(e);
 
-            // ⭐ КРИТИЧНО! Говорим WPF не закрываться пока мы не скажем!
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             Debug.WriteLine("[APP] Starting application...");
 
-            // Показываем Splash Screen
             var splash = new Views.SplashScreen();
             splash.Show();
 
-            // Запускаем через 4.5 секунды
             var timer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(3)
@@ -32,10 +29,8 @@ namespace SimpleDroneGCS
                 timer.Stop();
                 Debug.WriteLine("[APP] Splash timer finished, showing vehicle selection...");
 
-                // ЗАКРЫВАЕМ SPLASH!
                 splash.Close();
 
-                // После splash screen показываем выбор типа дрона
                 ShowVehicleSelectionOrMainWindow();
             };
 
@@ -67,10 +62,8 @@ namespace SimpleDroneGCS
                         Debug.WriteLine("[APP] Creating MainWindow...");
                         var mainWindow = new MainWindow();
 
-                        // ⭐ Устанавливаем главное окно
                         Application.Current.MainWindow = mainWindow;
 
-                        // ⭐ ВОЗВРАЩАЕМ нормальный режим - закрытие при закрытии главного окна
                         ShutdownMode = ShutdownMode.OnMainWindowClose;
 
                         mainWindow.Show();
@@ -89,10 +82,8 @@ namespace SimpleDroneGCS
 
                     var mainWindow = new MainWindow();
 
-                    // ⭐ Устанавливаем главное окно
                     Application.Current.MainWindow = mainWindow;
 
-                    // ⭐ ВОЗВРАЩАЕМ нормальный режим - закрытие при закрытии главного окна
                     ShutdownMode = ShutdownMode.OnMainWindowClose;
 
                     mainWindow.Show();

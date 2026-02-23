@@ -4,11 +4,11 @@ namespace SimpleDroneGCS.Models
 {
     public enum VehicleType
     {
-        Copter,        // Multirotor (Quad, Hexa, Octo)
-        Plane,         // Fixed Wing
-        QuadPlane,     // VTOL (Vertical Takeoff and Landing)
-        Rover,         // Ground Vehicle (future)
-        Boat           // Water Vehicle (future)
+        Copter,        
+        Plane,         
+        QuadPlane,     
+        Rover,         
+        Boat           
     }
 
     public class VehicleProfile
@@ -21,8 +21,7 @@ namespace SimpleDroneGCS.Models
         public TelemetryConfiguration TelemetryConfig { get; set; }
         public ParameterSet DefaultParameters { get; set; }
 
-        // MAVLink specific
-        public byte MavType { get; set; }  // MAV_TYPE from MAVLink
+        public byte MavType { get; set; }  
         public bool SupportsVTOL { get; set; }
         public bool RequiresAirspeed { get; set; }
         public bool SupportsHover { get; set; }
@@ -30,7 +29,7 @@ namespace SimpleDroneGCS.Models
 
     public class TelemetryConfiguration
     {
-        // Which telemetry items to show/hide
+        
         public bool ShowAirspeed { get; set; }
         public bool ShowGroundSpeed { get; set; }
         public bool ShowClimbRate { get; set; }
@@ -39,12 +38,11 @@ namespace SimpleDroneGCS.Models
         public bool ShowVTOLStatus { get; set; }
         public bool ShowFlaps { get; set; }
 
-        // Units and ranges
-        public double MaxAirspeed { get; set; }  // m/s
-        public double StallSpeed { get; set; }   // m/s
-        public double CruiseSpeed { get; set; }  // m/s
-        public double MaxAltitude { get; set; }  // meters
-        public double MaxRange { get; set; }     // km
+        public double MaxAirspeed { get; set; }  
+        public double StallSpeed { get; set; }   
+        public double CruiseSpeed { get; set; }  
+        public double MaxAltitude { get; set; }  
+        public double MaxRange { get; set; }     
     }
 
     public class ParameterSet

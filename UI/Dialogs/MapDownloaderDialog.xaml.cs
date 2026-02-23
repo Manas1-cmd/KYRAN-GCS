@@ -16,17 +16,16 @@ namespace SimpleDroneGCS.UI.Dialogs
         private bool _isDownloading = false;
         private PointLatLng? _currentPosition = null;
 
-        // Границы регионов
         private static readonly RectLatLng KazakhstanBounds = new RectLatLng(
-            55.45, 46.49, 14.89, 40.82  // north, west, heightLat, widthLng
+            55.45, 46.49, 14.89, 40.82  
         );
 
         private static readonly RectLatLng AlmatyBounds = new RectLatLng(
-            44.0, 76.0, 1.5, 2.0  // Алматы и окрестности
+            44.0, 76.0, 1.5, 2.0  
         );
 
         private static readonly RectLatLng AstanaBounds = new RectLatLng(
-            51.5, 71.0, 1.0, 1.5  // Астана и окрестности
+            51.5, 71.0, 1.0, 1.5  
         );
 
         public MapDownloaderDialog(PointLatLng? currentPosition = null)
@@ -34,15 +33,13 @@ namespace SimpleDroneGCS.UI.Dialogs
             InitializeComponent();
             _currentPosition = currentPosition;
 
-            // Подписки на изменения
             RegionCombo.SelectionChanged += (s, e) => UpdateEstimate();
             ZoomFromCombo.SelectionChanged += (s, e) => UpdateEstimate();
             ZoomToCombo.SelectionChanged += (s, e) => UpdateEstimate();
 
-            // Если нет текущей позиции, скрываем эту опцию
             if (_currentPosition == null)
             {
-                RegionCombo.Items.RemoveAt(3); // Убираем "Текущая позиция"
+                RegionCombo.Items.RemoveAt(3); 
             }
 
             UpdateEstimate();
@@ -64,13 +61,13 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private RectLatLng CreateBoundsAroundPoint(PointLatLng center, double radiusKm)
         {
-            // Примерно 1 градус = 111 км
+            
             double degreeSpan = radiusKm / 111.0;
             return new RectLatLng(
-                center.Lat + degreeSpan,  // north
-                center.Lng - degreeSpan,  // west
-                degreeSpan * 2,           // height
-                degreeSpan * 2            // width
+                center.Lat + degreeSpan,  
+                center.Lng - degreeSpan,  
+                degreeSpan * 2,           
+                degreeSpan * 2            
             );
         }
 
@@ -91,13 +88,11 @@ namespace SimpleDroneGCS.UI.Dialogs
 
                 TileCountText.Text = $"~{totalTiles:N0}";
 
-                // Примерно 25 KB на тайл
                 double estimatedMB = totalTiles * 0.025;
                 EstimatedSizeText.Text = estimatedMB < 1000
                     ? $"~{estimatedMB:N0} MB"
                     : $"~{estimatedMB / 1000:N1} GB";
 
-                // Примерно 30 тайлов в секунду
                 double estimatedMinutes = totalTiles / 30.0 / 60.0;
                 EstimatedTimeText.Text = estimatedMinutes < 1
                     ? "< 1 мин"
@@ -127,7 +122,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             if (_isDownloading)
             {
-                // Остановка
+                
                 _cts?.Cancel();
                 return;
             }
@@ -145,7 +140,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             _isDownloading = true;
             _cts = new CancellationTokenSource();
 
-            // UI состояние
             StartButton.Content = "⏹ Стоп";
             StartButton.Background = System.Windows.Media.Brushes.OrangeRed;
             RegionCombo.IsEnabled = false;
@@ -183,17 +177,15 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private async Task DownloadTilesAsync(int zoomFrom, int zoomTo, CancellationToken ct)
         {
-            // Папка кэша
+            
             string cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MapCache");
             if (!Directory.Exists(cacheFolder))
                 Directory.CreateDirectory(cacheFolder);
 
-            // Режим с кэшированием
             GMaps.Instance.Mode = AccessMode.ServerAndCache;
 
             var bounds = GetSelectedBounds();
 
-            // Считаем общее количество тайлов
             long totalTiles = 0;
             for (int z = zoomFrom; z <= zoomTo; z++)
             {
@@ -221,7 +213,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
                     try
                     {
-                        // GMap.NET автоматически кэширует
+                        
                         var img = GMaps.Instance.GetImageFrom(
                             GMapProviders.GoogleSatelliteMap, tile, zoom, out var ex);
 
@@ -241,7 +233,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
                     downloaded++;
 
-                    // Обновляем UI каждые 20 тайлов
                     if (downloaded % 20 == 0 || downloaded == totalTiles)
                     {
                         int percent = (int)((downloaded * 100) / totalTiles);
@@ -256,11 +247,9 @@ namespace SimpleDroneGCS.UI.Dialogs
                                           $"Ошибок: {errors} | " +
                                           $"~{TimeSpan.FromSeconds(remaining):mm\\:ss} осталось";
 
-                        // Даём UI обновиться
                         await Task.Delay(1, ct);
                     }
 
-                    // Пауза между запросами (защита от бана)
                     await Task.Delay(25, ct);
                 }
             }

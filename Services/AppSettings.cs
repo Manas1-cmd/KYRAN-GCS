@@ -9,13 +9,13 @@ namespace SimpleDroneGCS.Services
     {
         private static AppSettings _instance;
         public static AppSettings Instance => _instance ??= new AppSettings();
-
+        
         private readonly string _settingsPath;
         private Settings _settings;
-
+        
         public class Settings
         {
-            public bool IsFirstRun { get; set; } = true; // НОВОЕ
+            public bool IsFirstRun { get; set; } = true; 
             public VehicleType LastSelectedVehicleType { get; set; } = VehicleType.Copter;
             public bool ShowVehicleSelectionOnStartup { get; set; } = true;
             public string LastConnectionString { get; set; } = "COM3:57600";
@@ -25,32 +25,30 @@ namespace SimpleDroneGCS.Services
             public bool EnableLogging { get; set; } = true;
             public string LogDirectory { get; set; } = "Logs";
             public double MapDefaultZoom { get; set; } = 15;
-            public double MapDefaultLat { get; set; } = 43.238949;  // Almaty
+            public double MapDefaultLat { get; set; } = 43.238949;  
             public double MapDefaultLon { get; set; } = 76.889709;
             public bool ShowTelemetryHUD { get; set; } = true;
-            public int TelemetryUpdateRate { get; set; } = 10; // Hz
+            public int TelemetryUpdateRate { get; set; } = 10; 
             public bool AutoConnect { get; set; } = false;
             public bool ShowPreflightChecklist { get; set; } = true;
             public string PilotName { get; set; } = "";
             public string PilotLicense { get; set; } = "";
         }
-
+        
         private AppSettings()
         {
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var sqkFolder = Path.Combine(appDataPath, "SQK_GCS");
-
+            
             if (!Directory.Exists(sqkFolder))
             {
                 Directory.CreateDirectory(sqkFolder);
             }
-
+            
             _settingsPath = Path.Combine(sqkFolder, "settings.json");
             LoadSettings();
         }
 
-
-        // ДОБАВЬ ЭТО СВОЙСТВО-ОБЕРТКУ:
         public bool IsFirstRun
         {
             get => _settings.IsFirstRun;
@@ -60,9 +58,6 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-
-
-
 
         private void LoadSettings()
         {
@@ -84,7 +79,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-
+        
         public void SaveSettings()
         {
             try
@@ -101,8 +96,7 @@ namespace SimpleDroneGCS.Services
                 System.Diagnostics.Debug.WriteLine($"Failed to save settings: {ex.Message}");
             }
         }
-
-        // Properties for easy access
+        
         public VehicleType LastSelectedVehicleType
         {
             get => _settings.LastSelectedVehicleType;
@@ -112,7 +106,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-
+        
         public bool ShowVehicleSelectionOnStartup
         {
             get => _settings.ShowVehicleSelectionOnStartup;
@@ -122,7 +116,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-
+        
         public string LastConnectionString
         {
             get => _settings.LastConnectionString;
@@ -132,7 +126,7 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-
+        
         public bool DarkModeEnabled
         {
             get => _settings.DarkModeEnabled;
@@ -142,9 +136,9 @@ namespace SimpleDroneGCS.Services
                 SaveSettings();
             }
         }
-
+        
         public Settings GetSettings() => _settings;
-
+        
         public void ResetToDefaults()
         {
             _settings = new Settings();

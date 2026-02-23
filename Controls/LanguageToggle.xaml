@@ -6,14 +6,13 @@
              MouseLeftButtonDown="Toggle_Click">
 
     <Grid>
-        <!-- Фоновый овал -->
+        
         <Border x:Name="Background"
                 Background="#0D1733"
                 CornerRadius="20"
                 BorderBrush="#2A4361"
                 BorderThickness="2"/>
 
-        <!-- Слайдер (активный индикатор) -->
         <Border x:Name="Slider"
                 Width="100"
                 Height="36"
@@ -26,7 +25,6 @@
             </Border.RenderTransform>
         </Border>
 
-        <!-- Тексты -->
         <Grid>
             <TextBlock x:Name="RussianText"
                       Text="Русский"

@@ -24,14 +24,13 @@ namespace SimpleDroneGCS.Views
         {
             if (sender is Border border && border.Tag is string vehicleTag)
             {
-                // Парсим выбранный тип
+                
                 if (Enum.TryParse<VehicleType>(vehicleTag, out var vehicleType))
                 {
                     SelectedVehicle = vehicleType;
                     SelectionMade = true;
                     Debug.WriteLine($"[VehicleSelection] {vehicleType} selected");
 
-                    // Закрываем окно с результатом
                     DialogResult = true;
                     Close();
                 }
@@ -40,7 +39,7 @@ namespace SimpleDroneGCS.Views
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Позволяет перетаскивать окно
+            
             if (e.ButtonState == MouseButtonState.Pressed)
             {
                 DragMove();

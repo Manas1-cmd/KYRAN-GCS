@@ -1,4 +1,4 @@
-<Window x:Class="SimpleDroneGCS.UI.Dialogs.CompassCalibrationDialog"
+﻿<Window x:Class="SimpleDroneGCS.UI.Dialogs.CompassCalibrationDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource CompassCalib_Title}" 
@@ -20,7 +20,6 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Заголовок -->
         <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,12">
             <TextBlock Text="{DynamicResource CompassCalib_Header}" 
                        FontSize="16" FontWeight="Bold" FontFamily="Consolas"
@@ -30,7 +29,6 @@
                        Foreground="#4498F019" HorizontalAlignment="Center" Margin="0,2,0,0"/>
         </StackPanel>
 
-        <!-- Визуализация сферы -->
         <Border Grid.Row="1" Background="#0D1733" CornerRadius="8"
                 BorderBrush="#1A2A4361" BorderThickness="1" Padding="8">
             <Grid>
@@ -86,13 +84,11 @@
             </Grid>
         </Border>
 
-        <!-- Прогресс -->
         <Grid Grid.Row="2" Margin="0,10,0,0">
             <ProgressBar x:Name="CalibProgress" Height="10" Minimum="0" Maximum="100" Value="0"
                          Background="#1A2A4361" Foreground="#98F019" BorderThickness="0"/>
         </Grid>
 
-        <!-- Статус -->
         <TextBlock x:Name="StatusText" Grid.Row="3"
                    Text="{DynamicResource CompassCalib_Ready}" FontSize="11" FontFamily="Consolas"
                    Foreground="#6698F019" HorizontalAlignment="Center"
@@ -103,7 +99,6 @@
                    Foreground="#3398F019" HorizontalAlignment="Center"
                    TextAlignment="Center" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="440"/>
 
-        <!-- Кнопки -->
         <Grid Grid.Row="5" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>

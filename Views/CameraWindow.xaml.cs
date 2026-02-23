@@ -24,17 +24,14 @@ namespace SimpleDroneGCS.Views
         private CameraConnectionSettings _connectionSettings;
         private string _rtspUrl = "";
 
-        // Джойстик
         private bool _isJoystickActive = false;
         private double _joystickX = 0;
         private double _joystickY = 0;
 
-        // Клавиатура
         private bool _keyW, _keyA, _keyS, _keyD;
         private bool _keyZoomIn, _keyZoomOut;
         private const int GIMBAL_SPEED = 60;
 
-        // Локальная запись
         private bool _isLocalRecording = false;
         private MediaPlayer _recordPlayer;
         private string _mediaFolder = "";
@@ -63,8 +60,6 @@ namespace SimpleDroneGCS.Views
             UpdateStatus(Get("Cam_Init"));
         }
 
-        #region Init & Connect
-
         private async void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
             if (JoystickThumb != null && JoystickArea != null)
@@ -73,7 +68,6 @@ namespace SimpleDroneGCS.Views
                 Canvas.SetTop(JoystickThumb, (JoystickArea.Height - JoystickThumb.Height) / 2);
             }
 
-            // 1. Камера Z30T
             _cameraService = new Z30TCameraService();
             _cameraService.IpAddress = _connectionSettings.CameraIP;
             _cameraService.Port = _connectionSettings.TcpPort;
@@ -95,7 +89,6 @@ namespace SimpleDroneGCS.Views
             _joystickTimer.Tick += JoystickTimer_Tick;
             _joystickTimer.Start();
 
-            // 2. LibVLC
             try
             {
                 UpdateStatus(Get("Cam_LoadingVideo"));
@@ -111,7 +104,6 @@ namespace SimpleDroneGCS.Views
                 UpdateStatus($"Видео недоступно: {ex.Message}");
             }
 
-            // 3. Авто-подключение
             AutoConnect();
         }
 
@@ -166,10 +158,6 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-        #endregion
-
-        #region Видео
-
         private void StartVideo()
         {
             if (_mediaPlayer == null || _libVLC == null) return;
@@ -195,10 +183,6 @@ namespace SimpleDroneGCS.Views
         }
 
         private void StopVideo() => _mediaPlayer?.Stop();
-
-        #endregion
-
-        #region Управление подвесом
 
         private void JoystickTimer_Tick(object sender, EventArgs e)
         {
@@ -275,19 +259,11 @@ namespace SimpleDroneGCS.Views
         private void HomeButton_Click(object sender, RoutedEventArgs e) => _cameraService?.ReturnToCenter();
         private void LookDownButton_Click(object sender, RoutedEventArgs e) => _cameraService?.LookDown();
 
-        #endregion
-
-        #region Зум и фокус
-
         private void ZoomIn_Down(object sender, MouseButtonEventArgs e) => _cameraService?.ZoomIn();
         private void ZoomOut_Down(object sender, MouseButtonEventArgs e) => _cameraService?.ZoomOut();
         private void Zoom_Up(object sender, MouseButtonEventArgs e) => _cameraService?.ZoomStop();
         private void ZoomStop_Click(object sender, RoutedEventArgs e) => _cameraService?.ZoomStop();
         private void AutoFocus_Click(object sender, RoutedEventArgs e) => _cameraService?.AutoFocus();
-
-        #endregion
-
-        #region Фото и видео
 
         private void Photo_Click(object sender, RoutedEventArgs e)
         {
@@ -300,10 +276,6 @@ namespace SimpleDroneGCS.Views
             _cameraService?.ToggleRecording();
             ToggleLocalRecording();
         }
-
-        #endregion
-
-        #region Локальное сохранение
 
         private void TakeLocalSnapshot()
         {
@@ -378,19 +350,11 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-        #endregion
-
-        #region Источник видео
-
         private void SensorEO_Click(object sender, RoutedEventArgs e) => _cameraService?.SetVideoEO();
         private void SensorIR_Click(object sender, RoutedEventArgs e) => _cameraService?.SetVideoIR();
         private void SensorPIP1_Click(object sender, RoutedEventArgs e) => _cameraService?.SetVideoEO_IR_PIP();
         private void SensorPIP2_Click(object sender, RoutedEventArgs e) => _cameraService?.SetVideoIR_EO_PIP();
         private void SensorFusion_Click(object sender, RoutedEventArgs e) => _cameraService?.SetVideoFusion();
-
-        #endregion
-
-        #region ИК палитра (10 режимов)
 
         private void IRPalette_Click(object sender, RoutedEventArgs e)
         {
@@ -398,32 +362,16 @@ namespace SimpleDroneGCS.Views
                 _cameraService?.SetIRPalette(idx);
         }
 
-        #endregion
-
-        #region Температура (Gear 1-3)
-
         private void TempGear_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag != null && int.TryParse(btn.Tag.ToString(), out int gear))
                 _cameraService?.SetTempGear(gear);
         }
 
-        #endregion
-
-        #region Дальномер (Laser toggle)
-
         private void LaserToggle_Click(object sender, RoutedEventArgs e) => _cameraService?.ToggleLaser();
-
-        #endregion
-
-        #region Подсветка и OSD
 
         private void FillLight_Click(object sender, RoutedEventArgs e) => _cameraService?.ToggleFillLight();
         private void OSD_Click(object sender, RoutedEventArgs e) => _cameraService?.ToggleOSD();
-
-        #endregion
-
-        #region Трекинг
 
         private void VideoView_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -439,10 +387,6 @@ namespace SimpleDroneGCS.Views
         private void SearchMode_Click(object sender, RoutedEventArgs e) => _cameraService?.EnableSearchMode();
         private void StopTracking_Click(object sender, RoutedEventArgs e) => _cameraService?.StopTracking();
         private void ToggleAI_Click(object sender, RoutedEventArgs e) => _cameraService?.ToggleAIDetection();
-
-        #endregion
-
-        #region Клавиатура
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
@@ -487,10 +431,6 @@ namespace SimpleDroneGCS.Views
             e.Handled = true;
         }
 
-        #endregion
-
-        #region Утилиты
-
         private void UpdateStatus(string msg)
         {
             StatusText.Text = msg;
@@ -508,6 +448,5 @@ namespace SimpleDroneGCS.Views
             _libVLC?.Dispose();
         }
 
-        #endregion
     }
 }

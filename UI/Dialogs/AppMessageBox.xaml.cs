@@ -49,13 +49,12 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             CancelButton.Visibility = showCancel ? Visibility.Visible : Visibility.Collapsed;
 
-            // фокус на OK (Enter работает)
             Loaded += (_, __) => OkButton.Focus();
         }
 
         private static (string icon, Color accent) GetVisuals(AppMessageBoxType type)
         {
-            // Под твой "космо" стиль
+            
             Color green = (Color)ColorConverter.ConvertFromString("#98F019");
             Color red = (Color)ColorConverter.ConvertFromString("#EF4444");
             Color yellow = (Color)ColorConverter.ConvertFromString("#FFB800");
@@ -76,7 +75,6 @@ namespace SimpleDroneGCS.UI.Dialogs
         private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
         private void Close_Click(object sender, RoutedEventArgs e) => DialogResult = false;
 
-        // Результат для YesNoCancel
         public AppMessageBoxResult Result { get; private set; } = AppMessageBoxResult.Cancel;
 
         private void Yes_Click(object sender, RoutedEventArgs e)
@@ -91,7 +89,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             DialogResult = true;
         }
 
-        // Enter/Esc
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
@@ -105,8 +102,6 @@ namespace SimpleDroneGCS.UI.Dialogs
                 e.Handled = true;
             }
         }
-
-        // ---------------- Public API ----------------
 
         public static bool Show(Window owner, string title, string message, AppMessageBoxType type,
                                 string okText = "OK", string cancelText = null, bool showCancel = false,
@@ -136,7 +131,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             => Show(owner, Get("MsgBox_Confirm"), message, AppMessageBoxType.Confirm,
                     okText: Get("MsgBox_Yes"), cancelText: Get("MsgBox_No"), showCancel: true, subtitle: subtitle, hint: hint);
         public static AppMessageBoxResult ShowYesNoCancel(string message, Window owner = null,
-            string subtitle = null, string yesText = null, string noText = null, string cancelText = null)
+            string subtitle = null, string yesText = "Да", string noText = "Нет", string cancelText = null)
         {
             var dlg = new AppMessageBox(Get("MsgBox_Choose"), message, AppMessageBoxType.Confirm,
                 yesText ?? Get("MsgBox_Yes"), cancelText ?? Get("MsgBox_Cancel"), showCancel: true, subtitle: subtitle)
@@ -144,22 +139,19 @@ namespace SimpleDroneGCS.UI.Dialogs
                 Owner = owner ?? Application.Current?.MainWindow
             };
 
-            // Меняем кнопки на Yes/No/Cancel
-            dlg.OkButton.Content = yesText ?? Get("MsgBox_Yes");
+            dlg.OkButton.Content = yesText;
             dlg.OkButton.Click -= dlg.Ok_Click;
             dlg.OkButton.Click += dlg.Yes_Click;
 
-            // Добавляем кнопку No
             var noButton = new System.Windows.Controls.Button
             {
-                Content = noText ?? Get("MsgBox_No"),
+                Content = noText,
                 Style = dlg.CancelButton.Style,
                 Margin = new Thickness(8, 0, 0, 0),
                 MinWidth = 80
             };
             noButton.Click += dlg.No_Click;
 
-            // Вставляем между OK и Cancel
             var panel = (System.Windows.Controls.StackPanel)dlg.OkButton.Parent;
             panel.Children.Insert(1, noButton);
 

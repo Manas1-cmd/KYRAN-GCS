@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
@@ -41,7 +41,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             WarningText.Text = "⚠ НЕ ТРОГАЙТЕ ДРОН!";
             ProgressText.Text = "Калибровка...";
 
-            // Используем существующий метод MAVLinkService
             _mavlink.SendPreflightCalibration(gyro: true);
 
             _timer.Start();

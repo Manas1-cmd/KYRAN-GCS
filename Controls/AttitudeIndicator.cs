@@ -8,34 +8,27 @@ using System.Windows.Shapes;
 
 namespace SimpleDroneGCS.Controls
 {
-    /// <summary>
-    /// Кастомный Attitude Indicator (искусственный горизонт) с плавной интерполяцией lololo
-    /// 450x250 прямоугольный формат sgdsfdaasfdfddfgs
-    /// </summary>
+    
     public class AttitudeIndicator : UserControl
     {
         private Canvas _canvas;
         private Image _rollIndicatorImage;
         private Canvas _pitchLadder;
 
-        // Трансформации
         private RotateTransform _backgroundRollTransform;
         private TranslateTransform _backgroundPitchTransform;
         private TransformGroup _backgroundTransformGroup;
         private RotateTransform _pitchLadderRollTransform;
         private TranslateTransform _pitchLadderPitchTransform;
 
-        // Целевые и текущие значения для плавности
         private double _currentRoll = 0;
         private double _currentPitch = 0;
         private double _targetRoll = 0;
         private double _targetPitch = 0;
         private readonly object _lockObject = new object();
 
-        // Rendering для 60 FPS
         private bool _isRendering = false;
 
-        // Dependency Properties
         public static readonly DependencyProperty RollProperty =
             DependencyProperty.Register("Roll", typeof(double), typeof(AttitudeIndicator),
                 new PropertyMetadata(0.0, OnAttitudeChanged));
@@ -61,7 +54,6 @@ namespace SimpleDroneGCS.Controls
             Width = 450;
             Height = 250;
 
-            // GPU ускорение
             RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.LowQuality);
             RenderOptions.SetCachingHint(this, CachingHint.Cache);
 
@@ -80,9 +72,6 @@ namespace SimpleDroneGCS.Controls
             StopRendering();
         }
 
-        /// <summary>
-        /// Запуск rendering loop на частоте монитора (~60 FPS)
-        /// </summary>
         private void StartRendering()
         {
             if (_isRendering) return;
@@ -96,14 +85,10 @@ namespace SimpleDroneGCS.Controls
             CompositionTarget.Rendering -= OnRendering;
         }
 
-        /// <summary>
-        /// Rendering callback - вызывается на частоте монитора
-        /// </summary>
         private void OnRendering(object sender, EventArgs e)
         {
             if (!_isRendering) return;
 
-            // Плавное движение к целевым значениям
             const double smoothing = 0.15;
 
             lock (_lockObject)
@@ -115,36 +100,26 @@ namespace SimpleDroneGCS.Controls
             ApplyTransforms();
         }
 
-        /// <summary>
-        /// Линейная интерполяция
-        /// </summary>
         private double Lerp(double current, double target, double amount)
         {
             return current + (target - current) * amount;
         }
 
-        /// <summary>
-        /// Применение трансформаций к элементам
-        /// </summary>
         private void ApplyTransforms()
         {
             if (_backgroundRollTransform == null || _backgroundPitchTransform == null) return;
 
-            double pixelsPerDegree = 2.5; // для 250px высоты
+            double pixelsPerDegree = 2.5; 
 
-            // ФОН
             _backgroundPitchTransform.Y = _currentPitch * pixelsPerDegree;
             _backgroundRollTransform.Angle = -_currentRoll;
 
-            // PITCH LADDER
             if (_pitchLadderPitchTransform != null && _pitchLadderRollTransform != null)
             {
                 _pitchLadderPitchTransform.Y = _currentPitch * pixelsPerDegree;
                 _pitchLadderRollTransform.Angle = -_currentRoll;
             }
 
-            // attitude_roll СТАТИЧЕН - не применяем трансформации
-            // Обновляем pitch ladder при необходимости
             UpdatePitchLadder(_currentPitch);
         }
 
@@ -168,10 +143,8 @@ namespace SimpleDroneGCS.Controls
                 RadiusY = 8
             };
 
-            // === ФОН 2000x2000 (гарантированно покрывает pitch ±90° + roll ±180°) ===
             var bg = new Canvas { Width = 2000, Height = 2000 };
 
-            // НЕБО тёмное (верх)
             bg.Children.Add(new Rectangle
             {
                 Width = 2000,
@@ -179,7 +152,6 @@ namespace SimpleDroneGCS.Controls
                 Fill = new SolidColorBrush(Color.FromRgb(12, 45, 85))
             });
 
-            // НЕБО градиент
             var skyGrad = new LinearGradientBrush { StartPoint = new Point(0.5, 0), EndPoint = new Point(0.5, 1) };
             skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(12, 45, 85), 0.0));
             skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(40, 95, 145), 0.3));
@@ -189,7 +161,6 @@ namespace SimpleDroneGCS.Controls
             Canvas.SetTop(skyRect, 650);
             bg.Children.Add(skyRect);
 
-            // ЗЕМЛЯ градиент
             var gndGrad = new LinearGradientBrush { StartPoint = new Point(0.5, 0), EndPoint = new Point(0.5, 1) };
             gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(252, 238, 190), 0.0));
             gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(220, 200, 150), 0.3));
@@ -199,7 +170,6 @@ namespace SimpleDroneGCS.Controls
             Canvas.SetTop(gndRect, 1000);
             bg.Children.Add(gndRect);
 
-            // ЗЕМЛЯ тёмная (низ)
             var gndDark = new Rectangle
             {
                 Width = 2000,
@@ -209,7 +179,6 @@ namespace SimpleDroneGCS.Controls
             Canvas.SetTop(gndDark, 1350);
             bg.Children.Add(gndDark);
 
-            // Линия горизонта
             bg.Children.Add(new Line
             {
                 X1 = 0,
@@ -221,7 +190,6 @@ namespace SimpleDroneGCS.Controls
                 Opacity = 0.9
             });
 
-            // Трансформации (центр 1000,1000)
             _backgroundPitchTransform = new TranslateTransform(0, 0);
             _backgroundRollTransform = new RotateTransform(0, 1000, 1000);
             _backgroundTransformGroup = new TransformGroup();
@@ -229,11 +197,10 @@ namespace SimpleDroneGCS.Controls
             _backgroundTransformGroup.Children.Add(_backgroundRollTransform);
             bg.RenderTransform = _backgroundTransformGroup;
 
-            Canvas.SetLeft(bg, -775);  // (450-2000)/2
-            Canvas.SetTop(bg, -875);   // (250-2000)/2
+            Canvas.SetLeft(bg, -775);  
+            Canvas.SetTop(bg, -875);   
             _canvas.Children.Add(bg);
 
-            // === PITCH LADDER ===
             _pitchLadder = new Canvas { Width = Width * 2, Height = Height * 2 };
             RenderOptions.SetBitmapScalingMode(_pitchLadder, BitmapScalingMode.LowQuality);
             UpdatePitchLadder(0);
@@ -249,7 +216,6 @@ namespace SimpleDroneGCS.Controls
             Canvas.SetTop(_pitchLadder, -Height / 2);
             _canvas.Children.Add(_pitchLadder);
 
-            // === ROLL INDICATOR (статичный) ===
             _rollIndicatorImage = LoadImageLayer("Assets/attitude_roll.png");
             if (_rollIndicatorImage != null)
             {
@@ -295,39 +261,32 @@ namespace SimpleDroneGCS.Controls
 
         private void UpdatePitchLadder(double currentPitch)
         {
-            // Обновляем только если pitch изменился больше чем на 2°
+            
+            _pitchLadder.Children.Clear(); 
 
-            _pitchLadder.Children.Clear(); // Очищаем старые элементы
-
-            double centerX = _pitchLadder.Width / 2;   // 450 (центр canvas)
-            double centerY = _pitchLadder.Height / 2;  // 250
+            double centerX = _pitchLadder.Width / 2;   
+            double centerY = _pitchLadder.Height / 2;  
             double pixelsPerDegree = 2.5;
 
-            // Видимая область: 158px / 2.5 = ~63° по вертикали
-            // Генерируем ±40° от текущего pitch с запасом
             int startAngle = (int)(currentPitch - 32);
             int endAngle = (int)(currentPitch + 32);
 
-            // Округляем до ближайших 5°
             startAngle = (startAngle / 5) * 5;
             endAngle = (endAngle / 5) * 5;
 
-            // Ограничиваем -90 до +90
             startAngle = Math.Max(-90, startAngle);
             endAngle = Math.Min(90, endAngle);
 
             for (int angle = startAngle; angle <= endAngle; angle += 5)
             {
-                if (angle == 0) continue; // пропускаем горизонт
+                if (angle == 0) continue; 
 
                 double yPos = centerY - (angle * pixelsPerDegree);
 
-                // ЧЕРЕДОВАНИЕ: каждые 10° - длинная, остальные - короткая
                 bool isLong = angle % 10 == 0;
                 double lineWidth = isLong ? 100 : 50;
                 double thickness = isLong ? 3 : 2;
 
-                // ПОЛНАЯ линия по центру
                 var line = new Line
                 {
                     X1 = centerX - lineWidth / 2,
@@ -341,7 +300,6 @@ namespace SimpleDroneGCS.Controls
                 };
                 _pitchLadder.Children.Add(line);
 
-                // Цифры ТОЛЬКО каждые 30° и ТОЛЬКО слева
                 if (angle % 30 == 0)
                 {
                     var textLeft = new TextBlock
@@ -359,9 +317,6 @@ namespace SimpleDroneGCS.Controls
             }
         }
 
-        /// <summary>
-        /// Обновление целевых значений
-        /// </summary>
         private static void OnAttitudeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is AttitudeIndicator indicator)

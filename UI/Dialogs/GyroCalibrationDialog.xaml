@@ -1,4 +1,4 @@
-<Window x:Class="SimpleDroneGCS.UI.Dialogs.GyroCalibrationDialog"
+﻿<Window x:Class="SimpleDroneGCS.UI.Dialogs.GyroCalibrationDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource GyroCalib_Title}" 
@@ -19,7 +19,6 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Заголовок -->
         <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,16">
             <TextBlock Text="{DynamicResource GyroCalib_Header}" 
                        FontSize="16" FontWeight="Bold" FontFamily="Consolas"
@@ -29,7 +28,6 @@
                        Foreground="#4498F019" HorizontalAlignment="Center" Margin="0,2,0,0"/>
         </StackPanel>
 
-        <!-- Иконка дрона + инструкция -->
         <Border Grid.Row="1" Background="#0D1733" CornerRadius="8" Padding="20"
                 BorderBrush="#1A2A4361" BorderThickness="1">
             <StackPanel VerticalAlignment="Center">
@@ -62,7 +60,6 @@
             </StackPanel>
         </Border>
 
-        <!-- Прогресс -->
         <Grid Grid.Row="2" Margin="0,12,0,0">
             <ProgressBar x:Name="CalibProgress" 
                          Height="8" Minimum="0" Maximum="100" Value="0"
@@ -74,14 +71,12 @@
                        Margin="0,12,0,0"/>
         </Grid>
 
-        <!-- Статус от дрона -->
         <TextBlock x:Name="StatusText" Grid.Row="3"
                    Text="" FontSize="10" FontFamily="Consolas"
                    Foreground="#4498F019" HorizontalAlignment="Center"
                    TextAlignment="Center" Margin="0,8,0,0"
                    TextWrapping="Wrap"/>
 
-        <!-- Кнопки -->
         <Grid Grid.Row="4" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>

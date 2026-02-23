@@ -23,7 +23,6 @@ namespace SimpleDroneGCS
         private bool _isConnected = false;
         private Button _activeNavButton = null;
 
-        // Кэш страниц - создаются один раз
         private FlightPlanView _flightPlanView;
 
         private CameraWindow _cameraWindow;
@@ -58,12 +57,8 @@ namespace SimpleDroneGCS
 
         private void OnTelemetryReceived(object sender, EventArgs e)
         {
-            // Данные обновляются автоматически через MAVLink.CurrentTelemetry
+            
         }
-
-
-
-        #region ПОДКЛЮЧЕНИЕ
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
@@ -112,19 +107,15 @@ namespace SimpleDroneGCS
         {
             if (_isConnected)
             {
-                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Зелёный
+                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94)); 
                 ConnectionStatusText.Text = Get("Connected");
             }
             else
             {
-                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Красный
+                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); 
                 ConnectionStatusText.Text = Get("NotConnected");
             }
         }
-
-        #endregion
-
-        #region НАВИГАЦИЯ
 
         private void NavigationButton_Click(object sender, RoutedEventArgs e)
         {
@@ -160,14 +151,9 @@ namespace SimpleDroneGCS
             }
         }
 
-        #endregion
-
-        #region КОМАНДЫ
-
-
         private void CameraButton_Click(object sender, RoutedEventArgs e)
         {
-            // Если окно камеры уже открыто - фокусируемся на нём
+            
             if (_cameraWindow != null && _cameraWindow.IsLoaded)
             {
                 _cameraWindow.Activate();
@@ -175,7 +161,6 @@ namespace SimpleDroneGCS
                 return;
             }
 
-            // Открываем диалог настроек подключения
             var dialog = new CameraConnectionDialog();
             dialog.Owner = this;
 
@@ -223,13 +208,9 @@ namespace SimpleDroneGCS
             }
         }
 
-        #endregion
-
-        #region ОКНО
-
         protected override void OnClosed(EventArgs e)
         {
-
+           
             MAVLink?.Disconnect();
             base.OnClosed(e);
         }
@@ -263,6 +244,5 @@ namespace SimpleDroneGCS
             this.Close();
         }
 
-        #endregion
     }
 }

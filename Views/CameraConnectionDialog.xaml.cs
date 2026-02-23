@@ -1,4 +1,4 @@
-using SimpleDroneGCS.Properties;
+﻿using SimpleDroneGCS.Properties;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -9,7 +9,7 @@ namespace SimpleDroneGCS.Views
 {
     public partial class CameraConnectionDialog : Window
     {
-        // RTSP URL шаблоны по модели камеры
+        
         private static readonly Dictionary<string, string> RtspTemplates = new()
         {
             ["Z30T"] = "rtsp://{0}:{1}/chn0",
@@ -18,7 +18,6 @@ namespace SimpleDroneGCS.Views
             ["Custom"] = "rtsp://{0}:{1}"
         };
 
-        // TCP порты управления
         private static readonly Dictionary<string, int> TcpPorts = new()
         {
             ["Z30T"] = 2000,
@@ -27,7 +26,6 @@ namespace SimpleDroneGCS.Views
             ["Custom"] = 2000
         };
 
-        // RTSP порты видео
         private static readonly Dictionary<string, int> RtspPorts = new()
         {
             ["Z30T"] = 554,
@@ -36,7 +34,6 @@ namespace SimpleDroneGCS.Views
             ["Custom"] = 554
         };
 
-        // Описания камер
         private static readonly Dictionary<string, string> CameraDescriptions = new()
         {
             ["Z30T"] = "📷 30x Zoom | Sony Sensor | 🎯 Tracking | 🔥 IR | 📏 LRF",
@@ -45,7 +42,6 @@ namespace SimpleDroneGCS.Views
             ["Custom"] = "Пользовательская конфигурация"
         };
 
-        // IP адреса по умолчанию
         private static readonly Dictionary<string, string> DefaultIPs = new()
         {
             ["Z30T"] = "192.168.144.68",
@@ -66,8 +62,6 @@ namespace SimpleDroneGCS.Views
             UpdateRtspUrl();
         }
 
-        #region Выбор пресета
-
         private void PresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!_isInitialized) return;
@@ -77,25 +71,20 @@ namespace SimpleDroneGCS.Views
             {
                 string preset = item.Tag?.ToString() ?? "Z30T";
 
-                // Применяем IP по умолчанию для выбранной модели
                 if (DefaultIPs.TryGetValue(preset, out string defaultIP))
                     IpAddressTextBox.Text = defaultIP;
 
-                // Применяем TCP порт
                 if (TcpPorts.TryGetValue(preset, out int tcpPort))
                     TcpPortTextBox.Text = tcpPort.ToString();
 
-                // Применяем RTSP порт
                 if (RtspPorts.TryGetValue(preset, out int rtspPort))
                     RtspPortTextBox.Text = rtspPort.ToString();
 
-                // Описание камеры
                 if (CameraDescriptions.TryGetValue(preset, out string desc))
                     CameraInfoText.Text = desc;
 
                 UpdateRtspUrl();
 
-                // Custom — разрешаем ручной ввод RTSP
                 bool isCustom = preset == "Custom";
                 RtspUrlTextBox.IsReadOnly = !isCustom;
             }
@@ -128,10 +117,6 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-        #endregion
-
-        #region Сохранение настроек
-
         private void LoadSavedSettings()
         {
             try
@@ -141,7 +126,6 @@ namespace SimpleDroneGCS.Views
 
                 var settings = Properties.Settings.Default;
 
-                // Загружаем сохранённый пресет (по умолчанию Z30T)
                 string savedPreset = !string.IsNullOrEmpty(settings.CameraPreset)
                     ? settings.CameraPreset : "Z30T";
 
@@ -154,13 +138,11 @@ namespace SimpleDroneGCS.Views
                     }
                 }
 
-                // Загружаем IP (или default для пресета)
                 if (!string.IsNullOrEmpty(settings.CameraIP))
                     IpAddressTextBox.Text = settings.CameraIP;
                 else if (DefaultIPs.TryGetValue(savedPreset, out string defaultIP))
                     IpAddressTextBox.Text = defaultIP;
 
-                // Загружаем порты
                 if (settings.CameraTcpPort > 0)
                     TcpPortTextBox.Text = settings.CameraTcpPort.ToString();
 
@@ -169,7 +151,6 @@ namespace SimpleDroneGCS.Views
                 else
                     RtspPortTextBox.Text = "554";
 
-                // Описание
                 if (CameraDescriptions.TryGetValue(savedPreset, out string desc))
                     CameraInfoText.Text = desc;
             }
@@ -198,10 +179,6 @@ namespace SimpleDroneGCS.Views
                 System.Diagnostics.Debug.WriteLine($"[CameraDialog] SaveSettings: {ex.Message}");
             }
         }
-
-        #endregion
-
-        #region Кнопки
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
@@ -252,12 +229,8 @@ namespace SimpleDroneGCS.Views
             if (e.ClickCount == 1) DragMove();
         }
 
-        #endregion
     }
 
-    /// <summary>
-    /// Настройки подключения камеры
-    /// </summary>
     public class CameraConnectionSettings
     {
         public string CameraIP { get; set; } = "192.168.144.68";

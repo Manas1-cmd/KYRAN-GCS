@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows;
@@ -36,8 +36,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             DrawSectorGrid();
         }
-
-        #region Визуализация сферы
 
         private void DrawSectorGrid()
         {
@@ -77,7 +75,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         private void UpdateSectorVisual(int sectorIndex, bool covered)
         {
             if (sectorIndex < 0 || sectorIndex >= _sectorDots.Count) return;
-            if (_sectorsCovered[sectorIndex]) return; // уже покрыта
+            if (_sectorsCovered[sectorIndex]) return; 
 
             _sectorsCovered[sectorIndex] = covered;
             var dot = _sectorDots[sectorIndex];
@@ -113,10 +111,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             }
         }
 
-        #endregion
-
-        #region MAVLink Protocol
-
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
             if (_calibrating) return;
@@ -125,7 +119,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             _elapsedSeconds = 0;
             _lastCompletionPct = 0;
 
-            // Сбрасываем секции
             for (int i = 0; i < 80; i++) _sectorsCovered[i] = false;
 
             StartButton.IsEnabled = false;
@@ -136,8 +129,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             StatusText.Text = "Отправка DO_START_MAG_CAL...";
             InstructionText.Text = "Медленно вращайте\nдрон во всех\nнаправлениях.\n\nПокройте всю\nсферу зелёным!";
 
-            // MAV_CMD_DO_START_MAG_CAL = 42424
-            // param1=0 (все компасы), param2=0, param3=0 (без autosave), param4=0, param5=0
             _mavlink.SendCommandLong(42424,
                 param1: 0, param2: 0, param3: 0, param4: 0, param5: 0);
 
@@ -145,7 +136,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             Debug.WriteLine("[CompassCalib] MAG_CAL started");
         }
 
-        /// <summary>MAG_CAL_PROGRESS (#191)</summary>
         private void OnMagCalProgress(byte compassId, byte completionPct, byte[] completionMask,
             float directionX, float directionY, float directionZ)
         {
@@ -172,7 +162,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             });
         }
 
-        /// <summary>MAG_CAL_REPORT (#192)</summary>
         private void OnMagCalReport(byte compassId, byte calStatus, float fitness,
             float ofsX, float ofsY, float ofsZ)
         {
@@ -182,7 +171,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                 _calibrating = false;
                 _completed = true;
 
-                bool success = calStatus == 4; // MAG_CAL_SUCCESS
+                bool success = calStatus == 4; 
 
                 CalibProgress.Value = 100;
                 CenterPercent.Text = success ? "✓" : "✗";
@@ -220,7 +209,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private void AcceptButton_Click(object sender, RoutedEventArgs e)
         {
-            // MAV_CMD_DO_ACCEPT_MAG_CAL = 42425
+            
             _mavlink.SendCommandLong(42425, param1: 0);
 
             StatusText.Text = "Калибровка сохранена!";
@@ -228,8 +217,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             AcceptButton.Content = "СОХРАНЕНО";
             Debug.WriteLine("[CompassCalib] Calibration accepted");
         }
-
-        #endregion
 
         private void OnStatusText(string text)
         {
@@ -245,7 +232,6 @@ namespace SimpleDroneGCS.UI.Dialogs
                 StatusText.Text = "Таймаут 120 сек — калибровка отменена";
                 StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
 
-                // MAV_CMD_DO_CANCEL_MAG_CAL = 42426
                 _mavlink.SendCommandLong(42426);
                 _calibrating = false;
                 StartButton.IsEnabled = true;
@@ -257,7 +243,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             if (_calibrating)
             {
-                _mavlink.SendCommandLong(42426); // DO_CANCEL_MAG_CAL
+                _mavlink.SendCommandLong(42426); 
                 Debug.WriteLine("[CompassCalib] Cancelled");
             }
             Close();

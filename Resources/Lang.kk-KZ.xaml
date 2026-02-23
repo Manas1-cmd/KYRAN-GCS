@@ -486,4 +486,22 @@
     <sys:String x:Key="Msg_SwitchVehicleConfirm">Аппарат түрін ауыстыру?</sys:String>
     <sys:String x:Key="Msg_RetryCheckLogs">Қайталап көріңіз. Қате қайталанса — логтарды тексеріңіз.</sys:String>
     <sys:String x:Key="Msg_VehicleMenuError">Аппарат түрін таңдау ашылмады: {0}</sys:String>
+    <sys:String x:Key="Status_UdpWaiting">UDP: Дрон күтілуде...</sys:String>
+    <sys:String x:Key="Status_ConnectedUdp">Қосылды (UDP)</sys:String>
+    <sys:String x:Key="Disconnected">Ажыратылды</sys:String>
+    <sys:String x:Key="Msg_NoResponse">Дроннан жауап жоқ. IP/портты тексеріңіз.</sys:String>
+    <sys:String x:Key="Msg_ComPortFailed">COM портты ашу мүмкін болмады</sys:String>
+    <sys:String x:Key="Msg_ComPortBusy">COM порт басқа қолданбамен бос емес</sys:String>
+    <sys:String x:Key="Msg_NoSavedMission">Сақталған миссия жоқ</sys:String>
+    <sys:String x:Key="Msg_NoPointsToUpload">Жүктеу үшін нүктелер жоқ</sys:String>
+    <sys:String x:Key="Msg_FcRejectedMission">FC миссияны қабылдамады</sys:String>
+    <sys:String x:Key="Msg_UdpError">UDP қатесі</sys:String>
+    <sys:String x:Key="Msg_PortError">Порт қатесі</sys:String>
+    <sys:String x:Key="Msg_MissionUploadErrorFmt">Миссияны жүктеу қатесі: {0}</sys:String>
+    <sys:String x:Key="Msg_VtolMissionError">VTOL миссия қатесі: {0}</sys:String>
+    <sys:String x:Key="Msg_CalibStarted">Калибрлеу басталды: {0}</sys:String>
+    <sys:String x:Key="Stats_Received">Алынды</sys:String>
+    <sys:String x:Key="Stats_Packets">Пакеттер</sys:String>
+    <sys:String x:Key="Stats_Sent">Жіберілді</sys:String>
+    <sys:String x:Key="Stats_Errors">Қателер</sys:String>
 </ResourceDictionary>

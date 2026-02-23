@@ -20,7 +20,7 @@ namespace SimpleDroneGCS.Views
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
-            // Валидация локального IP
+            
             string localIp = LocalIpTextBox.Text.Trim();
             if (string.IsNullOrEmpty(localIp) || !IPAddress.TryParse(localIp, out _))
             {
@@ -29,7 +29,6 @@ namespace SimpleDroneGCS.Views
             }
             LocalIp = localIp;
 
-            // Валидация локального порта
             if (!int.TryParse(LocalPortTextBox.Text, out int localPort) || localPort < 1 || localPort > 65535)
             {
                 AppMessageBox.ShowWarning("Введите корректный локальный порт (1-65535)");
@@ -37,7 +36,6 @@ namespace SimpleDroneGCS.Views
             }
             LocalPort = localPort;
 
-            // IP дрона (опционально)
             string hostIp = HostIpTextBox.Text.Trim();
             if (!string.IsNullOrEmpty(hostIp))
             {
@@ -48,7 +46,6 @@ namespace SimpleDroneGCS.Views
                 }
                 HostIp = hostIp;
 
-                // Если указан IP дрона, порт тоже нужен
                 if (!int.TryParse(HostPortTextBox.Text, out int hostPort) || hostPort < 1 || hostPort > 65535)
                 {
                     AppMessageBox.ShowWarning("Введите корректный порт дрона (1-65535)");
@@ -73,11 +70,9 @@ namespace SimpleDroneGCS.Views
             Close();
         }
 
-        // === ЗАГОТОВКИ ===
-        
         private void PresetDrone_Click(object sender, RoutedEventArgs e)
         {
-            // Дрон: 192.168.1.236:15000 → local:192.168.1.33:15000
+            
             HostIpTextBox.Text = "192.168.1.236";
             HostPortTextBox.Text = "15000";
             LocalIpTextBox.Text = "192.168.1.33";
@@ -86,7 +81,7 @@ namespace SimpleDroneGCS.Views
 
         private void PresetSimulator_Click(object sender, RoutedEventArgs e)
         {
-            // Симулятор: listen на 14550
+            
             HostIpTextBox.Text = "";
             HostPortTextBox.Text = "";
             LocalIpTextBox.Text = "0.0.0.0";
@@ -95,7 +90,7 @@ namespace SimpleDroneGCS.Views
 
         private void PresetListen_Click(object sender, RoutedEventArgs e)
         {
-            // Ожидание: слушать все интерфейсы
+            
             HostIpTextBox.Text = "";
             HostPortTextBox.Text = "";
             LocalIpTextBox.Text = "0.0.0.0";

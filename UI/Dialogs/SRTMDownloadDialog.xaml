@@ -20,14 +20,12 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Заголовок -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
                 <TextBlock Text="⛰️" FontSize="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <TextBlock Text="{DynamicResource Srtm_Header}" 
                            Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
             </StackPanel>
 
-            <!-- Выбор региона -->
             <TextBlock Grid.Row="1" Text="{DynamicResource Region}" Foreground="#8899AA" FontSize="12" Margin="0,0,0,5"/>
             <ComboBox Grid.Row="2" x:Name="RegionComboBox" 
                       Background="#1A2433" Foreground="#1A2433" 
@@ -41,7 +39,6 @@
                 <ComboBoxItem Content="{DynamicResource Srtm_Custom}" Tag="Custom"/>
             </ComboBox>
 
-            <!-- Инфо о размере -->
             <Border Grid.Row="3" Background="#1A2433" CornerRadius="6" Padding="10" Margin="0,0,0,15">
                 <StackPanel>
                     <TextBlock x:Name="TilesInfoText" Text="{DynamicResource Srtm_Tiles}" Foreground="White" FontSize="12"/>
@@ -50,7 +47,6 @@
                 </StackPanel>
             </Border>
 
-            <!-- Прогресс -->
             <StackPanel Grid.Row="4" x:Name="ProgressPanel" Visibility="Collapsed">
                 <TextBlock x:Name="ProgressText" Text="{DynamicResource Loading}" Foreground="White" FontSize="12" Margin="0,0,0,8"/>
                 <ProgressBar x:Name="ProgressBar" Height="8" Minimum="0" Maximum="100" 
@@ -58,7 +54,6 @@
                 <TextBlock x:Name="ProgressDetailText" Text="" Foreground="#8899AA" FontSize="11" Margin="0,5,0,0"/>
             </StackPanel>
 
-            <!-- Кнопки -->
             <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
                 <Button x:Name="CancelButton" Content="{DynamicResource Cancel}" Width="100" Height="35"
                         Background="#2A4361" Foreground="White" BorderThickness="0"

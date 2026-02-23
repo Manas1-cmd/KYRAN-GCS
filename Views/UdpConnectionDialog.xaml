@@ -20,7 +20,6 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- ЗАГОЛОВОК -->
             <Grid Grid.Row="0" Margin="0,0,0,20">
                 <TextBlock Text="{DynamicResource Udp_Title}" 
                            FontSize="18" 
@@ -36,16 +35,14 @@
                         Click="CloseButton_Click"/>
             </Grid>
 
-            <!-- ПОЛЯ ВВОДА -->
             <StackPanel Grid.Row="1" VerticalAlignment="Top">
 
-                <!-- ЗАГОТОВКИ -->
                 <TextBlock Text="{DynamicResource Udp_QuickSettings}" 
                            Foreground="#98F019" 
                            FontSize="11"
                            FontWeight="Bold"
                            Margin="0,0,0,8"/>
-
+                
                 <WrapPanel Margin="0,0,0,15">
                     <Button Content="{DynamicResource Udp_Drone}" 
                             Click="PresetDrone_Click"
@@ -67,14 +64,12 @@
                             ToolTip="{DynamicResource Udp_Hint_Listen}"/>
                 </WrapPanel>
 
-                <!-- Секция: Дрон/Симулятор -->
                 <TextBlock Text="{DynamicResource Udp_DroneAddress}" 
                            Foreground="#98F019" 
                            FontSize="11"
                            FontWeight="Bold"
                            Margin="0,0,0,8"/>
 
-                <!-- IP дрона -->
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140"/>
@@ -93,7 +88,6 @@
                              FontSize="14"/>
                 </Grid>
 
-                <!-- Порт дрона -->
                 <Grid Margin="0,0,0,15">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140"/>
@@ -112,14 +106,12 @@
                              FontSize="14"/>
                 </Grid>
 
-                <!-- Секция: Локальные настройки -->
                 <TextBlock Text="{DynamicResource Udp_LocalSettings}" 
                            Foreground="#98F019" 
                            FontSize="11"
                            FontWeight="Bold"
                            Margin="0,5,0,8"/>
 
-                <!-- Локальный IP -->
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140"/>
@@ -138,7 +130,6 @@
                              FontSize="14"/>
                 </Grid>
 
-                <!-- Локальный порт -->
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140"/>
@@ -157,7 +148,6 @@
                              FontSize="14"/>
                 </Grid>
 
-                <!-- Подсказки -->
                 <StackPanel Margin="0,8,0,0">
                     <TextBlock Text="{DynamicResource Udp_Hint1}" 
                                Foreground="#6B7280" 
@@ -170,7 +160,6 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- КНОПКИ -->
             <StackPanel Grid.Row="2" 
                         Orientation="Horizontal" 
                         HorizontalAlignment="Right"

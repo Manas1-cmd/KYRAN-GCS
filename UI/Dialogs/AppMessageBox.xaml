@@ -12,7 +12,6 @@
         SnapsToDevicePixels="True"
         KeyDown="Window_KeyDown">
 
-	<!-- Card -->
 	<Border CornerRadius="18"
             BorderThickness="0"
             Padding="0"
@@ -28,7 +27,6 @@
 			</LinearGradientBrush>
 		</Border.BorderBrush>
 
-		<!-- Внутренний неоновый фон -->
 		<Grid>
 			<Grid.RowDefinitions>
 				<RowDefinition Height="Auto"/>
@@ -36,7 +34,6 @@
 				<RowDefinition Height="Auto"/>
 			</Grid.RowDefinitions>
 
-			<!-- Background gradients -->
 			<Border CornerRadius="16" Grid.RowSpan="3">
 				<Border.Background>
 					<LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -50,7 +47,6 @@
 				</Border.Effect>
 			</Border>
 
-			<!-- Glow ring (accent) -->
 			<Border CornerRadius="16"
                     BorderThickness="2"
                     Margin="1">
@@ -62,7 +58,6 @@
 				</Border.Effect>
 			</Border>
 
-			<!-- Header -->
 			<Grid Grid.Row="0" Margin="6,4,6,14">
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="Auto"/>
@@ -70,7 +65,6 @@
 					<ColumnDefinition Width="Auto"/>
 				</Grid.ColumnDefinitions>
 
-				<!-- small status dot -->
 				<Ellipse Width="10" Height="10" Margin="0,6,12,0"
                          Fill="{Binding AccentBrush}"
                          VerticalAlignment="Top"/>
@@ -87,7 +81,6 @@
                                Visibility="{Binding SubTitleVisibility}"/>
 				</StackPanel>
 
-				<!-- Close -->
 				<Button Grid.Column="2"
                         Content="✕"
                         Width="34" Height="34"
@@ -110,14 +103,12 @@
 				</Button>
 			</Grid>
 
-			<!-- Body -->
 			<Grid Grid.Row="1" Margin="6,0,6,18">
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="Auto"/>
 					<ColumnDefinition Width="*"/>
 				</Grid.ColumnDefinitions>
 
-				<!-- Icon box -->
 				<Border Width="64" Height="64"
                         CornerRadius="18"
                         Background="#0D1733"
@@ -147,7 +138,6 @@
                                TextWrapping="Wrap"
                                LineHeight="20"/>
 
-					<!-- Optional hint -->
 					<TextBlock Text="{Binding HintText}"
                                Foreground="#93C5FD"
                                FontSize="12"
@@ -157,7 +147,6 @@
 				</StackPanel>
 			</Grid>
 
-			<!-- Buttons -->
 			<Grid Grid.Row="2" Margin="6,0,6,6">
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition/>
@@ -215,4 +204,3 @@
 		</Grid>
 	</Border>
 </Window>
-    

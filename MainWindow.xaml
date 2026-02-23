@@ -1,4 +1,4 @@
-<Window x:Class="SimpleDroneGCS.MainWindow"
+﻿<Window x:Class="SimpleDroneGCS.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SimpleDroneGCS.Controls"
@@ -20,7 +20,6 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <!-- КАСТОМНЫЙ ЗАГОЛОВОК ОКНА -->
     <Border Background="#060B1A" CornerRadius="10" BorderThickness="1" BorderBrush="#1E3A5F">
         <Grid>
             <Grid.RowDefinitions>
@@ -28,7 +27,6 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- TITLE BAR -->
             <Border Grid.Row="0" 
                 Background="#060B1A" 
                 CornerRadius="10,10,0,0"
@@ -40,7 +38,6 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- ИКОНКА И НАЗВАНИЕ -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="🚁" FontSize="18" Margin="0,0,10,0"/>
                         <TextBlock Text="{DynamicResource AppTitle}" 
@@ -50,7 +47,6 @@
                                VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- КНОПКИ УПРАВЛЕНИЯ ОКНОМ -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="—" 
                             Width="40" Height="30"
@@ -81,17 +77,14 @@
                 </Grid>
             </Border>
 
-            <!-- ОСНОВНОЙ КОНТЕНТ -->
             <Grid Grid.Row="1" Background="#060B1A">
 
-                <!-- ОСНОВНОЙ LAYOUT -->
                 <Grid Margin="10,0,10,10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!-- ==== ВЕРХНИЙ БЛОК НАВИГАЦИИ ==== -->
                     <Border Grid.Row="0"
                             Background="#0D1733"
                             BorderThickness="3"
@@ -105,10 +98,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- НАВИГАЦИОННЫЕ КНОПКИ -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal">
 
-                                <!-- МИССИЯ (объединённые Данные + План) -->
                                 <StackPanel Margin="15,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Button x:Name="FlightPlanButton" 
                                             Style="{StaticResource ActiveNavButtonStyle}"
@@ -124,7 +115,6 @@
                                                Margin="0,4,0,0"/>
                                 </StackPanel>
 
-                                <!-- КАМЕРА -->
                                 <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Button x:Name="CameraButton" 
                                             Style="{StaticResource NavButtonStyle}"
@@ -139,7 +129,6 @@
                                                Margin="0,4,0,0"/>
                                 </StackPanel>
 
-                                <!-- АВАРИЙНАЯ ПОСАДКА -->
                                 <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Button x:Name="LandButton" 
                                             Style="{StaticResource NavButtonStyle}"
@@ -154,7 +143,6 @@
                                                Margin="0,4,0,0"/>
                                 </StackPanel>
 
-                                <!-- ВОЗВРАТ ДОМОЙ -->
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Button x:Name="RthButton" 
                                             Style="{StaticResource NavButtonStyle}"
@@ -171,12 +159,10 @@
 
                             </StackPanel>
 
-                            <!-- КНОПКА ПОДКЛЮЧЕНИЯ -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
 
                                 <local:LanguageToggle Margin="0,0,12,0"/>
 
-                                <!-- СТАТУС + КНОПКА -->
                                 <Border Background="#0D1733"
             BorderBrush="#2A4361"
             BorderThickness="2"
@@ -212,16 +198,13 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-
-
-                    <!-- ==== КОНТЕНТНАЯ ОБЛАСТЬ ==== -->
+                    
                     <Frame x:Name="MainFrame" 
                            Grid.Row="1"
                            NavigationUIVisibility="Hidden"
                            Background="Transparent"/>
                 </Grid>
 
-                <!-- ==== ОВЕРЛЕЙ ЗАГРУЗКИ ==== -->
                 <Grid x:Name="LoadingOverlay" 
                       Visibility="Collapsed" 
                       Background="#AA060B1A">
@@ -233,7 +216,7 @@
                             BorderBrush="#2A4361"
                             BorderThickness="2">
                         <StackPanel HorizontalAlignment="Center">
-                            <!-- Вращающийся спиннер -->
+                            
                             <Border x:Name="SpinnerBorder" 
                                     Width="50" Height="50" 
                                     CornerRadius="25"

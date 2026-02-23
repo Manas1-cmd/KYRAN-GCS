@@ -16,10 +16,8 @@ namespace SimpleDroneGCS.Controls
         {
             InitializeComponent();
 
-            // Подписываемся на изменение языка
             LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
 
-            // Устанавливаем начальное состояние
             UpdateVisual(LocalizationService.Instance.CurrentLanguage == "kk");
         }
 
@@ -28,7 +26,6 @@ namespace SimpleDroneGCS.Controls
             _isKazakh = !_isKazakh;
             AnimateToggle(_isKazakh);
 
-            // Меняем язык в сервисе
             LocalizationService.Instance.CurrentLanguage = _isKazakh ? "kk" : "ru";
         }
 
@@ -44,7 +41,7 @@ namespace SimpleDroneGCS.Controls
 
         private void AnimateToggle(bool toKazakh)
         {
-            // Анимация слайда
+            
             var animation = new DoubleAnimation
             {
                 To = toKazakh ? 96 : 0,
@@ -54,7 +51,6 @@ namespace SimpleDroneGCS.Controls
 
             SliderTransform.BeginAnimation(TranslateTransform.XProperty, animation);
 
-            // Анимация цветов текста
             AnimateTextColor(RussianText, toKazakh ? "#98F019" : "White");
             AnimateTextColor(KazakhText, toKazakh ? "White" : "#98F019");
         }

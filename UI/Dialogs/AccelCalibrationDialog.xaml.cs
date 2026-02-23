@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,7 +26,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             ("ВВЕРХ НОГАМИ",   "Переверните дрон ВВЕРХ НОГАМИ\n(крышка вниз)",             "Дрон перевёрнут"),
         };
 
-        // Углы поворота иконки для каждой позиции
         private readonly double[] _rotations = { 0, -90, 90, 45, -45, 180 };
 
         public AccelCalibrationDialog(MAVLinkService mavlinkService)
@@ -44,14 +43,12 @@ namespace SimpleDroneGCS.UI.Dialogs
             StartButton.IsEnabled = false;
             StartButton.Content = "ИДЁТ...";
 
-            // PREFLIGHT_CALIBRATION param5=1 (Accelerometer)
             _mavlink.SendPreflightCalibration(accelerometer: true);
 
             StatusText.Text = "Ожидание ответа от дрона...";
             _waitingForDrone = true;
             _currentStep = -1;
 
-            // Таймер на случай если дрон не ответит STATUSTEXT
             var fallback = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
             fallback.Tick += (s, args) =>
             {
@@ -71,14 +68,12 @@ namespace SimpleDroneGCS.UI.Dialogs
             NextButton.IsEnabled = false;
             NextButton.Opacity = 0.4;
 
-            // MAV_CMD_ACCEL_CAL_VEHICLE_POS = 42429
             _mavlink.SendCommandLong(42429, param1: _currentStep);
 
             StatusText.Text = "Дрон собирает данные... не двигайте!";
             _waitingForDrone = true;
             MarkStepCompleted(_currentStep);
 
-            // Через 3 сек переходим если дрон не ответил
             var fallback = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
             fallback.Tick += (s, args) =>
             {
@@ -152,14 +147,11 @@ namespace SimpleDroneGCS.UI.Dialogs
             });
         }
 
-        #region Визуализация дрона
-
         private void DrawDroneIcon(int step, double rotation)
         {
             DroneIconCanvas.Children.Clear();
             double cx = 80, cy = 55;
 
-            // Корпус дрона
             var body = new Ellipse
             {
                 Width = 30, Height = 24,
@@ -170,7 +162,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             Canvas.SetLeft(body, cx - 15);
             Canvas.SetTop(body, cy - 12);
 
-            // Лучи и моторы
             var arms = new[] {
                 (cx - 15, cy, cx - 32, cy - 16),
                 (cx + 15, cy, cx + 32, cy - 16),
@@ -202,7 +193,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             DroneIconCanvas.Children.Add(body);
 
-            // Нос (оранжевый треугольник)
             var nose = new Polygon
             {
                 Points = new PointCollection(new[] {
@@ -214,7 +204,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             };
             DroneIconCanvas.Children.Add(nose);
 
-            // Вращаем весь Canvas
             if (rotation != 0)
             {
                 DroneIconCanvas.RenderTransformOrigin = new Point(0.5, 0.45);
@@ -225,7 +214,6 @@ namespace SimpleDroneGCS.UI.Dialogs
                 DroneIconCanvas.RenderTransform = null;
             }
 
-            // Линия поверхности (стол)
             var surface = new Line
             {
                 X1 = 15, Y1 = 105, X2 = 145, Y2 = 105,
@@ -235,10 +223,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             };
             DroneIconCanvas.Children.Add(surface);
         }
-
-        #endregion
-
-        #region Step Indicators
 
         private void MarkStepActive(int step)
         {
@@ -262,8 +246,6 @@ namespace SimpleDroneGCS.UI.Dialogs
                 if (!tb.Text.StartsWith("✓")) tb.Text = "✓ " + tb.Text;
             }
         }
-
-        #endregion
 
         private void ShowResult(bool success, string message)
         {

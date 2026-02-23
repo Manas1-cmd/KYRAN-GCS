@@ -10,7 +10,7 @@
         Topmost="True">
 
     <Grid>
-        <!-- ВНЕШНИЙ КРУГ (градиент космический) -->
+        
         <Ellipse Width="420" Height="420">
             <Ellipse.Fill>
                 <RadialGradientBrush>
@@ -20,15 +20,13 @@
                 </RadialGradientBrush>
             </Ellipse.Fill>
             <Ellipse.Effect>
-                <!-- БЕЛОЕ СВЕЧЕНИЕ -->
+                
                 <DropShadowEffect Color="White" BlurRadius="40" ShadowDepth="0" Opacity="0.5"/>
             </Ellipse.Effect>
         </Ellipse>
 
-        <!-- КОНТЕНТ -->
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 
-            <!-- ЛОГО (опущено на 20px) -->
             <Grid Width="160" Height="160" Margin="0,20,0,30">
                 <Image Source="/Images/drone_icon.png" 
                        Width="140" 
@@ -42,7 +40,6 @@
                 </Image>
             </Grid>
 
-            <!-- НАЗВАНИЕ SQK GCS -->
             <TextBlock Text="S Q K   G C S"
                        FontSize="34"
                        FontWeight="Black"
@@ -54,7 +51,6 @@
                 </TextBlock.Effect>
             </TextBlock>
 
-            <!-- PRESENTED BY SPACEY - ЗЕЛЁНЫЙ -->
             <TextBlock Text="presented by spacey"
                        FontSize="14"
                        FontStyle="Italic"
@@ -67,7 +63,6 @@
                 </TextBlock.Effect>
             </TextBlock>
 
-            <!-- LOADING DOTS ANIMATION -->
             <StackPanel Orientation="Horizontal" 
                         HorizontalAlignment="Center">
                 <Ellipse Width="10" Height="10" Fill="#98F019" Margin="6" x:Name="Dot1" Opacity="0.3"/>
@@ -78,16 +73,14 @@
         </StackPanel>
     </Grid>
 
-    <!-- АНИМАЦИЯ -->
     <Window.Triggers>
         <EventTrigger RoutedEvent="Window.Loaded">
             <BeginStoryboard>
                 <Storyboard>
-                    <!-- Fade in окна -->
+                    
                     <DoubleAnimation Storyboard.TargetProperty="Opacity"
                                    From="0" To="1" Duration="0:0:0.6"/>
 
-                    <!-- Пульсация точек загрузки -->
                     <DoubleAnimation Storyboard.TargetName="Dot1"
                                    Storyboard.TargetProperty="Opacity"
                                    From="0.3" To="1" Duration="0:0:0.5"

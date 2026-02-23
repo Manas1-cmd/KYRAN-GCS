@@ -1,7 +1,6 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- ==================== ЦВЕТОВАЯ ПАЛИТРА ==================== -->
     <SolidColorBrush x:Key="SpaceBlack" Color="#060B1A"/>
     <SolidColorBrush x:Key="DarkBlue" Color="#0D1733"/>
     <SolidColorBrush x:Key="MidBlue" Color="#2A4361"/>
@@ -9,13 +8,11 @@
     <SolidColorBrush x:Key="TextGray" Color="#9CA3AF"/>
     <SolidColorBrush x:Key="White" Color="#FFFFFF"/>
     
-    <!-- Алиасы -->
     <SolidColorBrush x:Key="DarkBackground" Color="#060B1A"/>
     <SolidColorBrush x:Key="DarkPanel" Color="#0D1733"/>
     <SolidColorBrush x:Key="BlueGray" Color="#2A4361"/>
     <SolidColorBrush x:Key="WhiteText" Color="#FFFFFF"/>
 
-    <!-- ==================== НАВИГАЦИОННЫЕ КНОПКИ ==================== -->
     <Style x:Key="NavButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{StaticResource BlueGray}"/>
         <Setter Property="BorderBrush" Value="{StaticResource DarkPanel}"/>
@@ -44,15 +41,11 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Активная навигационная кнопка -->
     <Style x:Key="ActiveNavButtonStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
         <Setter Property="Background" Value="{StaticResource BlueGray}"/>
         <Setter Property="BorderBrush" Value="{StaticResource AcidGreen}"/>
     </Style>
 
-    <!-- ==================== COMBOBOX ==================== -->
-    
-    <!-- ToggleButton для ComboBox -->
     <Style x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -65,7 +58,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="35"/>
                         </Grid.ColumnDefinitions>
-                        <!-- Стрелка -->
+                        
                         <Path Grid.Column="1"
                               x:Name="Arrow"
                               Data="M 0 0 L 6 8 L 12 0 Z"
@@ -80,7 +73,6 @@
         </Setter>
     </Style>
 
-    <!-- Стиль ComboBox -->
     <Style x:Key="CustomComboBoxStyle" TargetType="ComboBox">
         <Setter Property="Background" Value="{StaticResource BlueGray}"/>
         <Setter Property="Foreground" Value="{StaticResource WhiteText}"/>
@@ -104,7 +96,6 @@
                                     <ColumnDefinition Width="35"/>
                                 </Grid.ColumnDefinitions>
                                 
-                                <!-- Отображение выбранного элемента -->
                                 <ContentPresenter Grid.Column="0"
                                                 x:Name="ContentSite"
                                                 Content="{TemplateBinding SelectionBoxItem}"
@@ -115,7 +106,6 @@
                                                 VerticalAlignment="Center"
                                                 IsHitTestVisible="False"/>
                                 
-                                <!-- ToggleButton для открытия -->
                                 <ToggleButton Grid.Column="0" Grid.ColumnSpan="2"
                                             x:Name="ToggleButton"
                                             Style="{StaticResource ComboBoxToggleButton}"
@@ -125,7 +115,6 @@
                             </Grid>
                         </Border>
                         
-                        <!-- Popup -->
                         <Popup x:Name="PART_Popup"
                                Placement="Bottom"
                                IsOpen="{TemplateBinding IsDropDownOpen}"
@@ -152,7 +141,6 @@
         </Setter>
     </Style>
 
-    <!-- Компактный ComboBox для списка waypoints -->
     <Style x:Key="CompactComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource CustomComboBoxStyle}">
         <Setter Property="MinWidth" Value="80"/>
         <Setter Property="Padding" Value="6,4"/>
@@ -179,7 +167,6 @@
         </Style.Triggers>
     </Style>
 
-    <!-- ==================== БЛОКИ ==================== -->
     <Style x:Key="TelemetryBoxStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource MidBlue}"/>
         <Setter Property="BorderThickness" Value="2"/>
@@ -187,14 +174,12 @@
         <Setter Property="Padding" Value="12"/>
     </Style>
 
-
     <Style x:Key="TelemetryBoxSecondStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource DarkBlue}"/>
         <Setter Property="BorderThickness" Value="2"/>
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="Padding" Value="12"/>
     </Style>
-
 
     <Style x:Key="PanelStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource DarkBlue}"/>
@@ -204,7 +189,6 @@
         <Setter Property="Padding" Value="10"/>
     </Style>
 
-    <!-- ==================== КНОПКИ ==================== -->
     <Style x:Key="ActivationButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{StaticResource AcidGreen}"/>
         <Setter Property="Foreground" Value="#000000"/>
@@ -249,7 +233,6 @@
         </Style.Triggers>
     </Style>
 
-    <!-- КНОПКИ РЕЖИМОВ ПОЛЕТА (синие) -->
     <Style x:Key="FlightModeButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="#1E3A5F"/>
         <Setter Property="Foreground" Value="{StaticResource AcidGreen}"/>
@@ -279,7 +262,6 @@
             </Trigger>
         </Style.Triggers>
     </Style>
-
 
     <Style x:Key="MissionButtonStyle" TargetType="Button" BasedOn="{StaticResource ControlButtonStyle}">
         <Setter Property="Background" Value="{StaticResource AcidGreen}"/>
@@ -315,7 +297,6 @@
         <Setter Property="Foreground" Value="#000000"/>
     </Style>
 
-    <!-- ==================== ТЕКСТ ==================== -->
     <Style x:Key="LabelTextStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
         <Setter Property="FontSize" Value="12"/>
@@ -335,9 +316,6 @@
         <Setter Property="FontWeight" Value="Bold"/>
     </Style>
 
-    <!-- ==================== КНОПКИ ТАБЛИЦЫ МЕТОК ==================== -->
-    
-    <!-- Стиль для кнопок действий в таблице (вверх/вниз) -->
     <Style x:Key="WaypointActionButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="#3E4553"/>
         <Setter Property="BorderBrush" Value="#323741"/>
@@ -366,7 +344,6 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Стиль для кнопки удалить -->
     <Style x:Key="WaypointDeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource WaypointActionButtonStyle}">
         <Setter Property="Background" Value="#EF4444"/>
         <Setter Property="BorderBrush" Value="#DC2626"/>

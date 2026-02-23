@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -9,7 +9,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 {
     public class WaypointEditDialog : Window
     {
-        // === РЕЗУЛЬТАТЫ ===
+        
         public double Latitude { get; private set; }
         public double Longitude { get; private set; }
         public double Altitude { get; private set; }
@@ -18,19 +18,18 @@ namespace SimpleDroneGCS.UI.Dialogs
         public int LoiterTurns { get; private set; }
         public bool AutoNext { get; private set; }
         public bool Clockwise { get; private set; }
-        public string CommandType { get; private set; }  // НОВОЕ
+        public string CommandType { get; private set; }  
 
-        // === ПОЛЯ ВВОДА ===
         private TextBox _latBox, _lngBox, _altBox, _radBox, _delayBox, _turnsBox;
         private CheckBox _autoNextBox;
         private Border _cwButton, _ccwButton;
-        private ComboBox _commandCombo;  // НОВОЕ
+        private ComboBox _commandCombo;  
         private bool _isClockwise;
-        private bool _isVtol;  // НОВОЕ
+        private bool _isVtol;  
 
         public WaypointEditDialog(int waypointNumber, double lat, double lng, double alt,
                                   double radius, double delay, int turns, bool autoNext, bool clockwise,
-                                  string commandType = "WAYPOINT", bool isVtol = false)  // НОВЫЕ ПАРАМЕТРЫ
+                                  string commandType = "WAYPOINT", bool isVtol = false)  
         {
             Latitude = lat;
             Longitude = lng;
@@ -40,13 +39,13 @@ namespace SimpleDroneGCS.UI.Dialogs
             LoiterTurns = turns;
             AutoNext = autoNext;
             Clockwise = clockwise;
-            CommandType = commandType;  // НОВОЕ
+            CommandType = commandType;  
             _isClockwise = clockwise;
-            _isVtol = isVtol;  // НОВОЕ
+            _isVtol = isVtol;  
 
             Title = Fmt("WpEdit_Title", waypointNumber);
             Width = 450;
-            Height = 720;  // Увеличено для команды
+            Height = 720;  
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
             Background = new SolidColorBrush(Color.FromRgb(10, 14, 26));
@@ -70,7 +69,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             var mainStack = new StackPanel();
 
-            // === Заголовок ===
             var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -105,7 +103,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             Grid.SetColumn(titleStack, 0);
             headerGrid.Children.Add(titleStack);
 
-            // Кнопка закрытия
             var closeBtn = new TextBlock
             {
                 Text = "✕",
@@ -122,7 +119,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             mainStack.Children.Add(headerGrid);
 
-            // === ВЫБОР КОМАНДЫ ===
             var cmdPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
             cmdPanel.Children.Add(new TextBlock
             {
@@ -178,7 +174,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             cmdPanel.Children.Add(_commandCombo);
             mainStack.Children.Add(cmdPanel);
 
-            // === Поля ввода ===
             _latBox = new TextBox();
             mainStack.Children.Add(CreateInputRow(Get("WpEdit_Latitude"), Latitude.ToString("F7"), _latBox));
 
@@ -197,7 +192,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             _turnsBox = new TextBox();
             mainStack.Children.Add(CreateInputRow(Get("WpEdit_Turns"), LoiterTurns.ToString(), _turnsBox));
 
-            // === НАПРАВЛЕНИЕ КРУЖЕНИЯ ===
             var directionPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -224,7 +218,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             mainStack.Children.Add(directionPanel);
 
-            // Подсказка направления
             var dirHintPanel = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
@@ -241,7 +234,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             };
             mainStack.Children.Add(dirHintPanel);
 
-            // === АВТОПЕРЕХОД ===
             var autoPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -264,7 +256,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             });
             mainStack.Children.Add(autoPanel);
 
-            // === КНОПКА СОХРАНИТЬ ===
             var saveBtn = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(22, 101, 52)),
@@ -292,7 +283,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             mainBorder.Child = mainStack;
             Content = mainBorder;
 
-            // Перетаскивание окна
             mainBorder.MouseLeftButtonDown += (s, e) =>
             {
                 if (e.ButtonState == MouseButtonState.Pressed)
@@ -466,7 +456,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             AutoNext = _autoNextBox.IsChecked ?? true;
             Clockwise = _isClockwise;
 
-            // Сохраняем команду
             if (_commandCombo.SelectedItem is ComboBoxItem cmdItem)
                 CommandType = cmdItem.Tag?.ToString() ?? "WAYPOINT";
 

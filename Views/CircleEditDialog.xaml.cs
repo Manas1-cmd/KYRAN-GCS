@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 
 namespace SimpleDroneGCS.Views
@@ -18,8 +18,8 @@ namespace SimpleDroneGCS.Views
 
             TitleText.Text = title;
             TitleText.Foreground = title == "СТАРТ" 
-                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(250, 204, 21))  // Yellow
-                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(249, 115, 22)); // Orange
+                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(250, 204, 21))  
+                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(249, 115, 22)); 
 
             RadiusBox.Text = radius.ToString("F0");
             AltitudeBox.Text = altitude.ToString("F0");

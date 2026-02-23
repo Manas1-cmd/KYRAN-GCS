@@ -1,4 +1,4 @@
-<Window x:Class="SimpleDroneGCS.UI.Dialogs.AccelCalibrationDialog"
+﻿<Window x:Class="SimpleDroneGCS.UI.Dialogs.AccelCalibrationDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource AccelCalib_Title}" 
@@ -20,7 +20,6 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Заголовок -->
         <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,10">
             <TextBlock Text="{DynamicResource AccelCalib_Header}" 
                        FontSize="15" FontWeight="Bold" FontFamily="Consolas"
@@ -30,7 +29,6 @@
                        Foreground="#4498F019" HorizontalAlignment="Center" Margin="0,2,0,0"/>
         </StackPanel>
 
-        <!-- Индикаторы шагов -->
         <Grid Grid.Row="1" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -61,7 +59,6 @@
             </Border>
         </Grid>
 
-        <!-- Центральная визуализация -->
         <Border Grid.Row="2" Background="#0D1733" CornerRadius="8"
                 BorderBrush="#1A2A4361" BorderThickness="1" Padding="16">
             <Grid>
@@ -89,20 +86,17 @@
             </Grid>
         </Border>
 
-        <!-- Прогресс -->
         <Grid Grid.Row="3" Margin="0,10,0,0">
             <ProgressBar x:Name="CalibProgress" Height="8" Minimum="0" Maximum="6" Value="0"
                          Background="#1A2A4361" Foreground="#98F019" BorderThickness="0"/>
         </Grid>
 
-        <!-- Статус -->
         <TextBlock x:Name="StatusText" Grid.Row="4"
                    Text="{DynamicResource AccelCalib_PressStart}"
                    FontSize="10" FontFamily="Consolas"
                    Foreground="#6698F019" HorizontalAlignment="Center"
                    TextAlignment="Center" Margin="0,8,0,0" TextWrapping="Wrap"/>
 
-        <!-- Кнопки -->
         <Grid Grid.Row="5" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>

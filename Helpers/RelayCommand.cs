@@ -3,9 +3,7 @@ using System.Windows.Input;
 
 namespace SimpleDroneGCS.Helpers
 {
-    /// <summary>
-    /// Реализация ICommand для MVVM паттерна
-    /// </summary>
+    
     public class RelayCommand : ICommand
     {
         private readonly Action<object> _execute;

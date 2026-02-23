@@ -22,26 +22,23 @@ namespace SimpleDroneGCS.Services
                 if (_currentLanguage != value)
                 {
                     _currentLanguage = value;
-                    ApplyLanguage(value); // ⭐ ЗАГРУЖАЕМ только при СМЕНЕ
+                    ApplyLanguage(value); 
                     LanguageChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
-        }
+        }   
 
         private LocalizationService()
         {
-            // ⭐ ДОБАВЛЯЕМ TRY-CATCH
+            
             try
             {
                 _currentLanguage = Properties.Settings.Default.Language ?? "ru";
             }
             catch
             {
-                _currentLanguage = "ru"; // По умолчанию русский
+                _currentLanguage = "ru"; 
             }
-
-            // ⭐ НЕ ЗАГРУЖАЕМ программно - уже загружен через App.xaml!
-            // ApplyLanguage(_currentLanguage); // ← УБИРАЕМ ЭТО!
 
             System.Diagnostics.Debug.WriteLine($"[Localization] Init: {_currentLanguage}");
         }
@@ -63,9 +60,8 @@ namespace SimpleDroneGCS.Services
                         break;
                 }
 
-                // Удаляем ВСЕ старые языковые словари (ищем "Lang" без точки — ловит и запятую и точку)
                 var oldDicts = Application.Current.Resources.MergedDictionaries
-                    .Where(d => d.Source?.OriginalString.Contains("Lang") == true
+                    .Where(d => d.Source?.OriginalString.Contains("Lang") == true 
                              && d.Source.OriginalString.Contains("Resources"))
                     .ToList();
 

@@ -6,23 +6,9 @@ using System.Threading.Tasks;
 
 namespace SimpleDroneGCS.Services
 {
-    /// <summary>
-    /// Сервис управления камерой ViewPro / LOONG
-    /// Протокол ViewLink Serial Command Communication Protocol V3.4.4
-    /// 
-    /// Верифицировано через Wireshark дамп ViewLink v4.0.7
-    /// 
-    /// TX (ПК→Камера): EB 90 [LEN] [55 AA DC serial_packet] [SUM]
-    /// RX (Камера→ПК): 55 AA DC [serial_packet] (сырой, без EB 90)
-    /// 
-    /// Frame 0x30 = управление: A1(9) + C1(2) + E1(3) = 14 байт
-    /// Frame 0x15 = запрос статуса (шлётся периодически)
-    /// Frame 0x40 = feedback от камеры (углы, статус)
-    /// Frame 0xAC = ACK от камеры
-    /// </summary>
+    
     public class ViewProCameraService : IDisposable
     {
-        #region Константы
 
         private const byte HEADER_55 = 0x55;
         private const byte HEADER_AA = 0xAA;
@@ -35,22 +21,19 @@ namespace SimpleDroneGCS.Services
         private const byte FRAME_FEEDBACK = 0x40;
         private const byte FRAME_ACK = 0xAC;
 
-        // A1 режимы (верифицировано Wireshark)
         private const byte A1_MOTOR_CTRL = 0x00;
         private const byte A1_SPEED = 0x01;
         private const byte A1_HOME = 0x04;
         private const byte A1_TRACKING = 0x06;
         private const byte A1_ANGLE_ABS = 0x0B;
-        private const byte A1_RC = 0x0D;          // RC/PWM — ViewLink использует для джойстика!
+        private const byte A1_RC = 0x0D;          
         private const byte A1_NO_CHANGE = 0x0F;
         private const byte A1_PITCH_DOWN = 0x12;
 
-        // PWM константы
         private const int PWM_CENTER = 1500;
         private const int PWM_MIN = 1000;
         private const int PWM_MAX = 2000;
 
-        // C1 команды
         private const byte C1_STOP = 0x01;
         private const byte C1_ZOOM_OUT = 0x08;
         private const byte C1_ZOOM_IN = 0x09;
@@ -66,36 +49,28 @@ namespace SimpleDroneGCS.Services
         private const byte C1_IR_DZOOM_IN = 0x1B;
         private const byte C1_IR_DZOOM_OUT = 0x1C;
 
-        // LRF дальномер (биты 13-15 поля C1, из ArduPilot Lua-драйвера)
         private const byte LRF_NONE = 0x00;
-        private const byte LRF_SINGLE = 0x01;      // однократное измерение
-        private const byte LRF_CONTINUOUS = 0x02;   // непрерывное измерение
-        private const byte LRF_STOP = 0x03;         // остановить
+        private const byte LRF_SINGLE = 0x01;      
+        private const byte LRF_CONTINUOUS = 0x02;   
+        private const byte LRF_STOP = 0x03;         
 
-        // Источники видео
         public const byte SRC_EO = 0x01;
         public const byte SRC_IR = 0x02;
         public const byte SRC_EO_IR_PIP = 0x03;
         public const byte SRC_IR_EO_PIP = 0x04;
         public const byte SRC_FUSION = 0x05;
 
-        // E1 команды
         private const byte E1_NONE = 0x00;
         private const byte E1_STOP = 0x01;
         private const byte E1_SEARCH = 0x02;
         private const byte E1_START = 0x03;
         private const byte E1_AI_TOGGLE = 0x05;
 
-        // Обратная совместимость
         public const byte VIDEO_EO1 = SRC_EO;
         public const byte VIDEO_IR = SRC_IR;
         public const byte VIDEO_EO_IR_PIP = SRC_EO_IR_PIP;
         public const byte VIDEO_IR_EO_PIP = SRC_IR_EO_PIP;
         public const byte VIDEO_FUSION = SRC_FUSION;
-
-        #endregion
-
-        #region События
 
         public event EventHandler<bool>? ConnectionChanged;
         public event EventHandler<GimbalAngles>? AnglesReceived;
@@ -103,10 +78,6 @@ namespace SimpleDroneGCS.Services
         public event EventHandler<string>? ErrorOccurred;
         public event EventHandler<byte[]>? DataReceived;
         public event Action<string>? StatusChanged;
-
-        #endregion
-
-        #region Свойства
 
         public bool IsConnected => _tcpClient?.Connected ?? false;
         public string IpAddress { get; set; } = "192.168.1.108";
@@ -117,10 +88,6 @@ namespace SimpleDroneGCS.Services
         public bool IsRecording { get; private set; } = false;
         public string RtspUrl => $"rtsp://{IpAddress}:{RtspPort}/stream0";
         public long TotalBytesReceived { get; private set; } = 0;
-
-        #endregion
-
-        #region Приватные поля
 
         private TcpClient? _tcpClient;
         private NetworkStream? _networkStream;
@@ -133,10 +100,6 @@ namespace SimpleDroneGCS.Services
         private byte _currentSensor = SRC_EO;
         private volatile bool _userActive = false;
         private DateTime _lastUserCmd = DateTime.MinValue;
-
-        #endregion
-
-        #region Подключение
 
         public async Task<bool> ConnectAsync(string ip, int port)
         {
@@ -171,7 +134,6 @@ namespace SimpleDroneGCS.Services
                 _receiveTask = Task.Run(() => ReceiveLoop(_cts.Token));
                 _heartbeatTask = Task.Run(() => HeartbeatLoop(_cts.Token));
 
-                // Инициализация как ViewLink: Frame 0x15 → Motor ON
                 await Task.Delay(100);
                 SendQuery(0x43);
                 await Task.Delay(100);
@@ -209,14 +171,6 @@ namespace SimpleDroneGCS.Services
             }
         }
 
-        #endregion
-
-        #region ═══ ПОСТРОЕНИЕ И ОТПРАВКА ПАКЕТОВ ═══
-
-        /// <summary>
-        /// Серийный пакет: 55 AA DC [LEN_CTR] [FRAME_ID] [DATA...] [XOR]
-        /// bodyLength = DATA_LEN + 3 (LEN_CTR + FRAME_ID + XOR)
-        /// </summary>
         private byte[] BuildSerialPacket(byte frameId, byte[] data)
         {
             int bodyLength = data.Length + 3;
@@ -239,23 +193,15 @@ namespace SimpleDroneGCS.Services
             return packet;
         }
 
-        /// <summary>
-        /// TCP-обёртка: EB 90 [LEN] [serial_packet] [SUM]
-        ///   LEN = длина серийного пакета в байтах
-        ///   SUM = (сумма всех байтов серийного пакета) & 0xFF
-        /// 
-        /// ⚠ Ранее отсутствовал байт LEN — из-за этого камера игнорировала все пакеты!
-        /// Верифицировано через Wireshark дамп ViewLink v4.0.7
-        /// </summary>
         private byte[] WrapTcp(byte[] serial)
         {
             byte sum = 0;
             foreach (byte b in serial) sum += b;
 
-            byte[] wrapped = new byte[2 + 1 + serial.Length + 1]; // EB 90 + LEN + serial + SUM
+            byte[] wrapped = new byte[2 + 1 + serial.Length + 1]; 
             wrapped[0] = TCP_EB;
             wrapped[1] = TCP_90;
-            wrapped[2] = (byte)serial.Length;  // ← КЛЮЧЕВОЙ БАЙТ! Раньше отсутствовал!
+            wrapped[2] = (byte)serial.Length;  
             Array.Copy(serial, 0, wrapped, 3, serial.Length);
             wrapped[wrapped.Length - 1] = sum;
             return wrapped;
@@ -300,10 +246,6 @@ namespace SimpleDroneGCS.Services
             return SendPacket(BuildSerialPacket(FRAME_QUERY, new byte[] { queryType }));
         }
 
-        #endregion
-
-        #region Билдеры
-
         private byte[] BuildA1(byte mode, int yaw = 0, int pitch = 0)
         {
             byte[] a1 = new byte[9];
@@ -330,19 +272,15 @@ namespace SimpleDroneGCS.Services
 
             if (sensor == 0) sensor = _currentSensor;
             ushort c1 = 0;
-            c1 |= (ushort)(sensor & 0x07);           // биты 0-2
-            c1 |= (ushort)((zoomSpd & 0x07) << 3);   // биты 3-5
-            c1 |= (ushort)((cmd & 0x7F) << 6);        // биты 6-12
-            c1 |= (ushort)((lrf & 0x07) << 13);       // биты 13-15
+            c1 |= (ushort)(sensor & 0x07);           
+            c1 |= (ushort)((zoomSpd & 0x07) << 3);   
+            c1 |= (ushort)((cmd & 0x7F) << 6);        
+            c1 |= (ushort)((lrf & 0x07) << 13);       
             return c1;
         }
 
         private byte[] BuildE1(byte cmd = 0, byte x = 0, byte y = 0)
             => new byte[] { cmd, x, y };
-
-        #endregion
-
-        #region Heartbeat
 
         private async Task HeartbeatLoop(CancellationToken ct)
         {
@@ -370,10 +308,6 @@ namespace SimpleDroneGCS.Services
         public void SendHeartbeat() =>
             SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(), BuildE1());
 
-        #endregion
-
-        #region Мотор
-
         public void SendMotorOn()
         {
             byte[] a1 = BuildA1(A1_MOTOR_CTRL);
@@ -389,20 +323,12 @@ namespace SimpleDroneGCS.Services
             SendFrame30(a1, BuildC1(), BuildE1());
         }
 
-        #endregion
-
-        #region ═══ УПРАВЛЕНИЕ ПОДВЕСОМ ═══
-
-        /// <summary>
-        /// Управление через RC/PWM (0x0D) — как ViewLink
-        /// yawPct/pitchPct: -100..+100 → PWM 1000-2000
-        /// </summary>
         public void SetGimbalSpeed(int yawPct, int pitchPct)
         {
             _userActive = true;
             _lastUserCmd = DateTime.UtcNow;
             int yawPwm = PWM_CENTER + (yawPct * 500 / 100);
-            int pitchPwm = PWM_CENTER - (pitchPct * 500 / 100); // инвертировано: PWM>1500 = вниз у ViewPro
+            int pitchPwm = PWM_CENTER - (pitchPct * 500 / 100); 
             SendFrame30(BuildA1_RC(yawPwm, pitchPwm), BuildC1(), BuildE1());
         }
 
@@ -451,10 +377,6 @@ namespace SimpleDroneGCS.Services
         public void MoveRight() => SetGimbalSpeed(50, 0);
         public void StopMovement() => StopGimbal();
 
-        #endregion
-
-        #region ═══ ЗУМ И ФОКУС ═══
-
         public bool ZoomIn(int speed = 5)
         {
             _userActive = true; _lastUserCmd = DateTime.UtcNow;
@@ -474,19 +396,11 @@ namespace SimpleDroneGCS.Services
         public bool FocusStop() => ZoomStop();
         public bool FocusAuto() => AutoFocus();
 
-        #endregion
-
-        #region ═══ ФОТО И ВИДЕО ═══
-
         public bool TakePhoto() { StatusChanged?.Invoke("Фото"); return SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(C1_PHOTO), BuildE1()); }
         public bool StartRecording() { IsRecording = true; StatusChanged?.Invoke("Запись..."); return SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(C1_REC_START), BuildE1()); }
         public bool StopRecording() { IsRecording = false; StatusChanged?.Invoke("Стоп запись"); return SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(C1_REC_STOP), BuildE1()); }
         public bool ToggleRecording() => IsRecording ? StopRecording() : StartRecording();
         public bool RecordToggle() => ToggleRecording();
-
-        #endregion
-
-        #region ═══ ИСТОЧНИК ВИДЕО ═══
 
         public bool SetVideoSource(byte src) { _currentSensor = src; return SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(0, src), BuildE1()); }
         public bool SetVideoEO() => SetVideoSource(SRC_EO);
@@ -502,10 +416,6 @@ namespace SimpleDroneGCS.Services
         public bool SetSensorIR_EO_PIP() => SetVideoIR_EO_PIP();
         public bool SetSensorFusion() => SetVideoFusion();
 
-        #endregion
-
-        #region ═══ ИК ПАЛИТРА ═══
-
         public bool SetIRPaletteWhiteHot() => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(C1_IR_WHITE), BuildE1());
         public bool SetIRPaletteBlackHot() => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(C1_IR_BLACK), BuildE1());
         public bool SetIRPaletteRainbow() => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(C1_IR_RAINBOW), BuildE1());
@@ -513,22 +423,11 @@ namespace SimpleDroneGCS.Services
         public bool IRDigitalZoomOut() => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(C1_IR_DZOOM_OUT), BuildE1());
         public bool SetIrDigitalZoom(int level) { if (level > 1) return IRDigitalZoomIn(); return true; }
 
-        #endregion
-
-        #region ═══ ДАЛЬНОМЕР (LRF) ═══
-
-        /// <summary>Однократное измерение дальности</summary>
         public bool LRFMeasureSingle() => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(0, _currentSensor, 0, LRF_SINGLE), BuildE1());
 
-        /// <summary>Непрерывное измерение дальности</summary>
         public bool LRFMeasureContinuous() => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(0, _currentSensor, 0, LRF_CONTINUOUS), BuildE1());
 
-        /// <summary>Остановить измерение дальности</summary>
         public bool LRFStop() => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(0, _currentSensor, 0, LRF_STOP), BuildE1());
-
-        #endregion
-
-        #region ═══ ТРЕКИНГ ═══
 
         public bool StartTracking(byte src = SRC_EO) => SendFrame30(BuildA1(A1_TRACKING), BuildC1(0, src), BuildE1(E1_START));
         public bool StopTracking(byte src = SRC_EO) => SendFrame30(BuildA1(A1_NO_CHANGE), BuildC1(0, src), BuildE1(E1_STOP));
@@ -548,10 +447,6 @@ namespace SimpleDroneGCS.Services
         public bool TrackAtPosition(int sx, int sy, byte sz = 0) => TrackAtScreenPosition(sx, sy, 1920, 1080);
         public bool SetTrackingSize(byte s) => true;
 
-        #endregion
-
-        #region Заглушки
-
         public bool SaveGimbalSettings() => true;
         public bool RestoreGimbalSettings() => true;
         public bool QuerySdCardStatus() => true;
@@ -560,14 +455,6 @@ namespace SimpleDroneGCS.Services
         public bool FormatSdCard() => true;
         public bool SetZoomLevel(int l) => true;
 
-        #endregion
-
-        #region ═══ ПРИЁМ ДАННЫХ ═══
-
-        /// <summary>
-        /// Камера отвечает СЫРЫМИ 55 AA DC пакетами (без EB 90!)
-        /// Верифицировано Wireshark
-        /// </summary>
         private async Task ReceiveLoop(CancellationToken ct)
         {
             byte[] buffer = new byte[1024];
@@ -659,11 +546,10 @@ namespace SimpleDroneGCS.Services
                 CurrentAngles = new GimbalAngles { Roll = roll, Pitch = pitch, Yaw = yaw };
                 AnglesReceived?.Invoke(this, CurrentAngles);
 
-                // D1 секция: LRF дистанция (байты 30-31 = uint16 в дециметрах)
                 if (len >= 32 && off + 31 < data.Length)
                 {
                     ushort rawDist = (ushort)((data[off + 30] << 8) | data[off + 31]);
-                    if (rawDist > 0 && rawDist < 30000) // 0-3000м
+                    if (rawDist > 0 && rawDist < 30000) 
                     {
                         float distM = rawDist * 0.1f;
                         CurrentDistance = distM;
@@ -674,10 +560,6 @@ namespace SimpleDroneGCS.Services
             catch (Exception ex) { Debug.WriteLine($"[ViewPro] Parse feedback: {ex.Message}"); }
         }
 
-        #endregion
-
-        #region IDisposable
-
         public void Dispose()
         {
             if (_disposed) return;
@@ -685,7 +567,6 @@ namespace SimpleDroneGCS.Services
             Disconnect();
         }
 
-        #endregion
     }
 
     public class GimbalAngles

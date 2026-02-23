@@ -1,4 +1,4 @@
-<Window x:Class="SimpleDroneGCS.Views.CameraConnectionDialog"
+﻿<Window x:Class="SimpleDroneGCS.Views.CameraConnectionDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource CamConn_Title}" 
@@ -11,7 +11,7 @@
         ShowInTaskbar="False">
 
     <Window.Resources>
-        <!-- Тёмный стиль для ComboBox -->
+        
         <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="#1A2744"/>
             <Setter Property="Foreground" Value="White"/>
@@ -79,7 +79,6 @@
             </Setter>
         </Style>
 
-        <!-- Стиль для элементов ComboBox -->
         <Style TargetType="ComboBoxItem">
             <Setter Property="Background" Value="#1A2744"/>
             <Setter Property="Foreground" Value="White"/>
@@ -115,7 +114,6 @@
                 <RowDefinition Height="60"/>
             </Grid.RowDefinitions>
 
-            <!-- Title Bar -->
             <Border Grid.Row="0" Background="#0A1628" CornerRadius="12,12,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid Margin="15,0">
@@ -133,10 +131,8 @@
                 </Grid>
             </Border>
 
-            <!-- Content -->
             <StackPanel Grid.Row="1" Margin="25,20">
 
-                <!-- Preset Selection -->
                 <TextBlock Text="{DynamicResource CamConn_Model}" Foreground="#9CA3AF" FontSize="12" Margin="0,0,0,6"/>
                 <ComboBox x:Name="PresetComboBox" Height="36" 
                           Style="{StaticResource DarkComboBoxStyle}"
@@ -148,7 +144,6 @@
                     <ComboBoxItem Content="{DynamicResource CamConn_Other}" Tag="Custom"/>
                 </ComboBox>
 
-                <!-- IP Address -->
                 <TextBlock Text="{DynamicResource CamConn_IP}" Foreground="#9CA3AF" FontSize="12" Margin="0,15,0,6"/>
                 <TextBox x:Name="IpAddressTextBox" Height="36" 
                          Text="192.168.144.68"
@@ -157,7 +152,6 @@
                          Padding="10,8" VerticalContentAlignment="Center"
                          TextChanged="IpAddress_TextChanged"/>
 
-                <!-- TCP Port + RTSP Port -->
                 <Grid Margin="0,15,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -185,7 +179,6 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- RTSP URL -->
                 <TextBlock Text="{DynamicResource CamConn_RTSPUrl}" Foreground="#9CA3AF" FontSize="12" Margin="0,15,0,6"/>
                 <TextBox x:Name="RtspUrlTextBox" Height="36" 
                          Text="rtsp://192.168.144.68:554/chn0"
@@ -194,7 +187,6 @@
                          Padding="10,8" VerticalContentAlignment="Center"
                          IsReadOnly="True"/>
 
-                <!-- Camera Info -->
                 <Border x:Name="CameraInfoBorder" Background="#0A1628" CornerRadius="8" 
                         Padding="12" Margin="0,15,0,0">
                     <StackPanel>
@@ -206,7 +198,6 @@
 
             </StackPanel>
 
-            <!-- Buttons -->
             <Border Grid.Row="2" Background="#0A1628" CornerRadius="0,0,12,12">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="20,0">
                     <Button x:Name="CancelButton" Content="{DynamicResource Cancel}" 
