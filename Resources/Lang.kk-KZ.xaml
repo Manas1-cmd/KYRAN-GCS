@@ -415,6 +415,7 @@
     <sys:String x:Key="Msg_DroneNotConnectedDot">Дрон қосылмаған.</sys:String>
     <sys:String x:Key="Msg_EmergencyLand">АПАТТЫҚ ҚОНУ?</sys:String>
     <sys:String x:Key="Msg_Warning">НАЗАР АУДАРЫҢЫЗ</sys:String>
+    <sys:String x:Key="Msg_ForceDisarmInFlight">Дрон әуеде! Мәжбүрлі DISARM қозғалтқыштарды бірден өшіреді. Дрон ҚҰЛАЙДЫ. Жалғастыру керек пе?</sys:String>
     <sys:String x:Key="Msg_MissionNotLoadedLong">Миссия жүктелмеген.&#x0a;&#x0a;'Ұшу жоспары' бетінде миссия жасап, 'Write' басыңыз.</sys:String>
     <sys:String x:Key="Msg_MissionSub">Миссия</sys:String>
     <sys:String x:Key="Msg_ActivateMissionArmed">{0} нүктелік миссияны іске қосу?&#x0a;&#x0a;Тізбек:&#x0a;1. Миссияны дронға жүктеу&#x0a;2. AUTO режимі (орындау)&#x0a;&#x0a;⚠️ Дрон миссияны орындай бастайды!</sys:String>
@@ -440,6 +441,9 @@
     <sys:String x:Key="Msg_MissionReady">Миссия дайын: {0} нүкте</sys:String>
     <sys:String x:Key="VertSpeed">Тік жылд.</sys:String>
     <sys:String x:Key="Msg_SelectCalibration">Тізімнен калибрлеу түрін таңдаңыз.</sys:String>
+    <sys:String x:Key="Msg_SelectFlightMode">Ұшу режимін тізімнен таңдаңыз.</sys:String>
+    <sys:String x:Key="Msg_SwitchMode">{0} режиміне ауысу керек пе?</sys:String>
+    <sys:String x:Key="Msg_ReturnHome">HOME нүктесіне қайтару керек пе?</sys:String>
     <sys:String x:Key="Msg_MissionEmptyAddPoints">Миссия бос. Нүктелер қосыңыз!</sys:String>
     <sys:String x:Key="Msg_SetHome">HOME орнатыңыз!</sys:String>
     <sys:String x:Key="Msg_MissionUploadError">Миссияны жүктеу қатесі</sys:String>
@@ -490,6 +494,7 @@
     <sys:String x:Key="Status_ConnectedUdp">Қосылды (UDP)</sys:String>
     <sys:String x:Key="Disconnected">Ажыратылды</sys:String>
     <sys:String x:Key="Msg_NoResponse">Дроннан жауап жоқ. IP/портты тексеріңіз.</sys:String>
+    <sys:String x:Key="Msg_ConnectionLost">Дронмен байланыс үзілді</sys:String>
     <sys:String x:Key="Msg_ComPortFailed">COM портты ашу мүмкін болмады</sys:String>
     <sys:String x:Key="Msg_ComPortBusy">COM порт басқа қолданбамен бос емес</sys:String>
     <sys:String x:Key="Msg_NoSavedMission">Сақталған миссия жоқ</sys:String>

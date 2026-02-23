@@ -151,7 +151,7 @@
     <sys:String x:Key="CircleEdit_CW">По часовой ↻</sys:String>
     <sys:String x:Key="CircleEdit_CCW">Против часовой ↺</sys:String>
     <sys:String x:Key="CircleEdit_AutoContinue">Авто-переход</sys:String>
-    <sys:String x:Key="CircleEdit_NoWait"> (не ждать команду)</sys:String>
+    <sys:String x:Key="CircleEdit_NoWait">(не ждать команду)</sys:String>
 
     <!-- ==================== UDP CONNECTION ==================== -->
     <sys:String x:Key="Udp_Title">UDP Подключение</sys:String>
@@ -237,7 +237,7 @@
 
     <!-- ==================== MAP DOWNLOADER ==================== -->
     <sys:String x:Key="MapDl_Title">Скачивание карты</sys:String>
-    <sys:String x:Key="MapDl_Header"> Скачать карту Казахстана</sys:String>
+    <sys:String x:Key="MapDl_Header">Скачать карту Казахстана</sys:String>
     <sys:String x:Key="MapDl_AllKZ">🇰🇿 Весь Казахстан</sys:String>
     <sys:String x:Key="MapDl_Almaty">📍 Алматы и область</sys:String>
     <sys:String x:Key="MapDl_Astana">📍 Астана и область</sys:String>
@@ -290,7 +290,7 @@
     <sys:String x:Key="Default_Speed">0.0 м/с</sys:String>
     <sys:String x:Key="Default_AltZero">0 м</sys:String>
     <sys:String x:Key="Default_SpeedZero">0 м/с</sys:String>
-    <sys:String x:Key="Default_AltSpace"> м</sys:String>
+    <sys:String x:Key="Default_AltSpace">м</sys:String>
     <sys:String x:Key="Compass_N">С</sys:String>
     <sys:String x:Key="Compass_S">Ю</sys:String>
     <sys:String x:Key="Compass_E">В</sys:String>
@@ -415,6 +415,7 @@
     <sys:String x:Key="Msg_DroneNotConnectedDot">Дрон не подключен.</sys:String>
     <sys:String x:Key="Msg_EmergencyLand">АВАРИЙНАЯ ПОСАДКА?</sys:String>
     <sys:String x:Key="Msg_Warning">ВНИМАНИЕ</sys:String>
+    <sys:String x:Key="Msg_ForceDisarmInFlight">Дрон в воздухе! Принудительное DISARM немедленно отключит моторы. Дрон УПАДЁТ. Продолжить?</sys:String>
     <sys:String x:Key="Msg_MissionNotLoadedLong">Миссия не загружена.&#x0a;&#x0a;Создайте миссию на странице 'План полёта' и нажмите 'Write'.</sys:String>
     <sys:String x:Key="Msg_MissionSub">Миссия</sys:String>
     <sys:String x:Key="Msg_ActivateMissionArmed">Запустить миссию из {0} точек?&#x0a;&#x0a;Последовательность:&#x0a;1. Загрузка миссии в дрон&#x0a;2. AUTO режим (выполнение)&#x0a;&#x0a;⚠️ Дрон начнёт выполнение миссии!</sys:String>
@@ -440,6 +441,9 @@
     <sys:String x:Key="Msg_MissionReady">Готова миссия: {0} точек</sys:String>
     <sys:String x:Key="VertSpeed">Верт. ск.</sys:String>
     <sys:String x:Key="Msg_SelectCalibration">Выберите тип калибровки из списка.</sys:String>
+    <sys:String x:Key="Msg_SelectFlightMode">Выберите режим полёта из списка.</sys:String>
+    <sys:String x:Key="Msg_SwitchMode">Переключить в режим {0}?</sys:String>
+    <sys:String x:Key="Msg_ReturnHome">Возврат на точку HOME?</sys:String>
     <sys:String x:Key="Msg_MissionEmptyAddPoints">Миссия пуста. Добавьте точки!</sys:String>
     <sys:String x:Key="Msg_SetHome">Установите HOME!</sys:String>
     <sys:String x:Key="Msg_MissionUploadError">Ошибка загрузки миссии</sys:String>
@@ -490,6 +494,7 @@
     <sys:String x:Key="Status_ConnectedUdp">Подключено (UDP)</sys:String>
     <sys:String x:Key="Disconnected">Отключено</sys:String>
     <sys:String x:Key="Msg_NoResponse">Нет ответа от дрона. Проверьте IP/порт.</sys:String>
+    <sys:String x:Key="Msg_ConnectionLost">Потеря связи с дроном</sys:String>
     <sys:String x:Key="Msg_ComPortFailed">Не удалось открыть COM порт</sys:String>
     <sys:String x:Key="Msg_ComPortBusy">COM порт занят другим приложением</sys:String>
     <sys:String x:Key="Msg_NoSavedMission">Нет сохранённой миссии</sys:String>

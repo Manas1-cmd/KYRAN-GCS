@@ -57,7 +57,7 @@ namespace SimpleDroneGCS
 
         private void OnTelemetryReceived(object sender, EventArgs e)
         {
-            
+
         }
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -94,7 +94,7 @@ namespace SimpleDroneGCS
             }
             catch (Exception ex)
             {
-                AppMessageBox.ShowError($"Ошибка подключения: {ex.Message}", owner: this);
+                AppMessageBox.ShowError(Fmt("Msg_ErrorConnection", ex.Message), owner: this);
             }
         }
 
@@ -107,12 +107,12 @@ namespace SimpleDroneGCS
         {
             if (_isConnected)
             {
-                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94)); 
+                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94));
                 ConnectionStatusText.Text = Get("Connected");
             }
             else
             {
-                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); 
+                ConnectionIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
                 ConnectionStatusText.Text = Get("NotConnected");
             }
         }
@@ -153,7 +153,7 @@ namespace SimpleDroneGCS
 
         private void CameraButton_Click(object sender, RoutedEventArgs e)
         {
-            
+
             if (_cameraWindow != null && _cameraWindow.IsLoaded)
             {
                 _cameraWindow.Activate();
@@ -202,7 +202,7 @@ namespace SimpleDroneGCS
                 return;
             }
 
-            if (AppMessageBox.ShowConfirm("Возврат домой?", owner: this, subtitle: "Подтверждение"))
+            if (AppMessageBox.ShowConfirm(Get("Msg_ReturnHome"), owner: this, subtitle: Get("MsgBox_Confirm")))
             {
                 MAVLink.SendRTL();
             }
@@ -210,7 +210,7 @@ namespace SimpleDroneGCS
 
         protected override void OnClosed(EventArgs e)
         {
-           
+
             MAVLink?.Disconnect();
             base.OnClosed(e);
         }

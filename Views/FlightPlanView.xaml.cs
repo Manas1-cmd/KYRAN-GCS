@@ -32,37 +32,43 @@ namespace SimpleDroneGCS.Views
         private ObservableCollection<WaypointItem> _waypoints;
         private GMapMarker _currentDragMarker;
         private WaypointItem _selectedWaypoint;
-        private double _waypointRadius = 80; 
-        private WaypointItem _radiusDragWaypoint = null;  
-        private bool _isRadiusDragging = false;           
-        private TextBlock _radiusTooltip = null;          
+        private double _waypointRadius = 80;
+        private WaypointItem _radiusDragWaypoint = null;
+        private bool _isRadiusDragging = false;
+        private TextBlock _radiusTooltip = null;
         private MAVLinkService _mavlinkService;
         private GMapMarker _droneMarker = null;
-        private WaypointItem _homePosition = null; 
-        private bool _isInitialized = false; 
-        private Dictionary<VehicleType, List<WaypointItem>> _missionsByType = new(); 
+        private WaypointItem _homePosition = null;
+        private bool _isInitialized = false;
+        private Dictionary<VehicleType, List<WaypointItem>> _missionsByType = new();
         private Dictionary<VehicleType, WaypointItem> _homeByType = new();
         private Dictionary<VehicleType, WaypointItem> _startByType = new();
         private Dictionary<VehicleType, WaypointItem> _landingByType = new();
-        private DispatcherTimer _droneUpdateTimer; 
-        private bool _isSettingHomeMode = false; 
-        private double _takeoffAltitude = 10;  
-        private double _rtlAltitude = 15;      
-        private bool _wasArmed = false; 
-        private SrtmElevationProvider _elevationProvider = new(); 
-        private Dictionary<WaypointItem, GMapMarker> _resizeHandles = new(); 
+        private DispatcherTimer _droneUpdateTimer;
+        private bool _isSettingHomeMode = false;
+        private double _takeoffAltitude = 10;
+        private double _rtlAltitude = 15;
+        private bool _wasArmed = false;
+        private bool _homeLockedFromArm = false;
+        private bool? _lastDisplayedArmed = null;
+        private bool? _lastNextBtnVisible = null;
+        private string _lastDisplayedMode = null;
+        private VehicleType? _lastSpeedLabelType = null;
+        private byte _lastGpsFixType = 255;
+        private SrtmElevationProvider _elevationProvider = new();
+        private Dictionary<WaypointItem, GMapMarker> _resizeHandles = new();
 
-        private DispatcherTimer _telemetryTimer;      
-        private DispatcherTimer _connectionTimer;     
-        private DateTime _connectionStartTime;        
-        private bool _wasConnected = false;           
+        private DispatcherTimer _telemetryTimer;
+        private DispatcherTimer _connectionTimer;
+        private DateTime _connectionStartTime;
+        private bool _wasConnected = false;
 
-        private WaypointItem _startCircle;            
-        private WaypointItem _landingCircle;          
-        private double _vtolTakeoffAltitude = 30;     
-        private double _vtolLandAltitude = 30;        
-        private bool _isMissionFrozen = false;        
-        private bool _isDataTabActive = true;          
+        private WaypointItem _startCircle;
+        private WaypointItem _landingCircle;
+        private double _vtolTakeoffAltitude = 30;
+        private double _vtolLandAltitude = 30;
+        private bool _isMissionFrozen = false;
+        private bool _isDataTabActive = true;
 
         public FlightPlanView(MAVLinkService mavlinkService = null)
         {
@@ -84,10 +90,10 @@ namespace SimpleDroneGCS.Views
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        
+
                         if (_currentVehicleType != profile.Type && _isInitialized)
                         {
-                            
+
                             SaveCurrentMissionForType();
 
                             _currentVehicleType = profile.Type;
@@ -100,7 +106,7 @@ namespace SimpleDroneGCS.Views
                         }
 
                         UpdateVehicleTypeDisplay();
-                        PopulateFlightModes(); 
+                        PopulateFlightModes();
                     });
                 };
             }
@@ -144,7 +150,7 @@ namespace SimpleDroneGCS.Views
 
             this.Loaded += (s, e) =>
             {
-                
+
                 if (_isInitialized) return;
                 _isInitialized = true;
 
@@ -154,16 +160,17 @@ namespace SimpleDroneGCS.Views
                     {
                         InitializePlanMap();
                         UpdateVehicleTypeDisplay();
+                        PopulateFlightModes();
 
                         if (_currentVehicleType == VehicleType.QuadPlane)
-                            
-                        if (_mavlinkService != null)
-                        {
-                            _mavlinkService.MissionProgressUpdated += (sender2, seq) =>
+
+                            if (_mavlinkService != null)
                             {
-                                HighlightMissionSeq(seq);
-                            };
-                        }
+                                _mavlinkService.MissionProgressUpdated += (sender2, seq) =>
+                                {
+                                    HighlightMissionSeq(seq);
+                                };
+                            }
                     }
                     catch (Exception ex)
                     {
@@ -181,6 +188,18 @@ namespace SimpleDroneGCS.Views
                         _droneUpdateTimer.Stop();
                         _droneUpdateTimer.Tick -= UpdateDronePosition;
                         _droneUpdateTimer = null;
+                    }
+                    if (_telemetryTimer != null)
+                    {
+                        _telemetryTimer.Stop();
+                        _telemetryTimer.Tick -= UpdateTelemetryUI;
+                        _telemetryTimer = null;
+                    }
+                    if (_connectionTimer != null)
+                    {
+                        _connectionTimer.Stop();
+                        _connectionTimer.Tick -= UpdateConnectionTimer;
+                        _connectionTimer = null;
                     }
                 }
                 catch { }
@@ -245,7 +264,7 @@ namespace SimpleDroneGCS.Views
                 PlanMap.Markers.Clear();
 
                 PlanMap.MouseMove += PlanMap_MouseMove;
-                PlanMap.OnMapZoomChanged += PlanMap_OnMapZoomChanged; 
+                PlanMap.OnMapZoomChanged += PlanMap_OnMapZoomChanged;
 
                 System.Diagnostics.Debug.WriteLine("Карта планирования инициализирована");
             }
@@ -257,7 +276,7 @@ namespace SimpleDroneGCS.Views
 
         private bool CheckInternetConnection()
         {
-            
+
             try
             {
                 using (var client = new System.Net.WebClient())
@@ -338,7 +357,7 @@ namespace SimpleDroneGCS.Views
 
         private void SetHomeAtPosition(double lat, double lon)
         {
-            
+
             if (_homePosition?.Marker != null)
             {
                 _homePosition.Marker.Shape = null;
@@ -419,7 +438,7 @@ namespace SimpleDroneGCS.Views
 
         private void AddMarkerToMap(WaypointItem waypoint)
         {
-            
+
             if (waypoint.Marker != null)
             {
                 waypoint.Marker.Shape = null;
@@ -429,7 +448,7 @@ namespace SimpleDroneGCS.Views
 
             if (waypoint.ShapeGrid != null)
             {
-                waypoint.ShapeGrid.Children.Clear();  
+                waypoint.ShapeGrid.Children.Clear();
                 waypoint.ShapeGrid = null;
             }
             waypoint.RadiusCircle = null;
@@ -474,11 +493,11 @@ namespace SimpleDroneGCS.Views
                 Height = radiusInPixels * 2,
                 Stroke = new SolidColorBrush(Color.FromArgb(200, 152, 240, 25)),
                 StrokeThickness = 2,
-                StrokeDashArray = new DoubleCollection { 4, 2 }, 
+                StrokeDashArray = new DoubleCollection { 4, 2 },
                 Fill = new SolidColorBrush(Color.FromArgb(40, 152, 240, 25)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                Visibility = Visibility.Collapsed  
+                Visibility = Visibility.Collapsed
             };
             grid.Children.Add(radiusCircle);
             waypoint.RadiusCircle = radiusCircle;
@@ -511,7 +530,7 @@ namespace SimpleDroneGCS.Views
             grid.ToolTip = CreateWaypointTooltip(waypoint);
             ToolTipService.SetInitialShowDelay(grid, 300);
             ToolTipService.SetShowDuration(grid, 10000);
-            
+
             grid.ToolTipOpening += (s, args) =>
             {
                 if (s is Grid g) g.ToolTip = CreateWaypointTooltip(waypoint);
@@ -597,7 +616,7 @@ namespace SimpleDroneGCS.Views
 
         private double MetersToPixels(double meters, double latitude, double zoom)
         {
-            
+
             double latRad = latitude * Math.PI / 180.0;
             double metersPerPixel = 40075017 * Math.Cos(latRad) / (256 * Math.Pow(2, zoom));
             return meters / metersPerPixel;
@@ -661,7 +680,7 @@ namespace SimpleDroneGCS.Views
 
         private void SelectWaypoint(WaypointItem wp)
         {
-            
+
             if (_selectedWaypoint != null && _selectedWaypoint != wp && _selectedWaypoint.RadiusCircle != null)
             {
                 _selectedWaypoint.RadiusCircle.Visibility = Visibility.Collapsed;
@@ -683,7 +702,7 @@ namespace SimpleDroneGCS.Views
             }
             else
             {
-                
+
                 if (wp.RadiusCircle != null)
                     wp.RadiusCircle.Visibility = Visibility.Visible;
                 if (_resizeHandles.ContainsKey(wp))
@@ -790,19 +809,19 @@ namespace SimpleDroneGCS.Views
 
         private void CreateResizeHandle(WaypointItem waypoint)
         {
-            
+
             if (_resizeHandles.ContainsKey(waypoint))
             {
                 var oldHandle = _resizeHandles[waypoint];
-                oldHandle.Shape = null;  
+                oldHandle.Shape = null;
                 PlanMap.Markers.Remove(oldHandle);
                 _resizeHandles.Remove(waypoint);
             }
 
             var handlePos = CalculatePointAtDistance(
                 waypoint.Latitude, waypoint.Longitude,
-                90, 
-                waypoint.Radius / 1000.0); 
+                90,
+                waypoint.Radius / 1000.0);
 
             var handle = new Ellipse
             {
@@ -859,13 +878,13 @@ namespace SimpleDroneGCS.Views
 
             PlanMap.Markers.Add(marker);
             _resizeHandles[waypoint] = marker;
-            
+
             handle.Visibility = Visibility.Collapsed;
         }
 
         private PointLatLng CalculatePointAtDistance(double lat, double lon, double bearingDeg, double distanceKm)
         {
-            const double R = 6371; 
+            const double R = 6371;
             double lat1 = lat * Math.PI / 180;
             double lon1 = lon * Math.PI / 180;
             double bearing = bearingDeg * Math.PI / 180;
@@ -880,7 +899,7 @@ namespace SimpleDroneGCS.Views
 
         private void RemoveWaypoint(WaypointItem waypoint)
         {
-            
+
             if (_resizeHandles.ContainsKey(waypoint))
             {
                 _resizeHandles[waypoint].Shape = null;
@@ -965,10 +984,10 @@ namespace SimpleDroneGCS.Views
 
             if (_waypoints.Count == 0)
             {
-                
+
                 if (_currentVehicleType == VehicleType.QuadPlane)
-                    
-                System.Diagnostics.Debug.WriteLine($"UpdateRoute() - Точек: 0, HOME: {_homePosition != null}");
+
+                    System.Diagnostics.Debug.WriteLine($"UpdateRoute() - Точек: 0, HOME: {_homePosition != null}");
                 UpdateStatistics();
                 return;
             }
@@ -980,7 +999,7 @@ namespace SimpleDroneGCS.Views
 
             if (isVTOL)
             {
-                
+
             }
 
             if (isVTOL && _startCircle != null)
@@ -989,7 +1008,7 @@ namespace SimpleDroneGCS.Views
                 var tangent = GetExternalTangentPoints(
                     _startCircle.Latitude, _startCircle.Longitude, _startCircle.Radius, _startCircle.Clockwise,
                     firstWp.Latitude, firstWp.Longitude, firstWp.Radius, firstWp.Clockwise);
-                entryPoints[0] = tangent.Item2;  
+                entryPoints[0] = tangent.Item2;
             }
             else if (_homePosition != null)
             {
@@ -1044,7 +1063,7 @@ namespace SimpleDroneGCS.Views
                 var tangent = GetExternalTangentPoints(
                     lastWp.Latitude, lastWp.Longitude, lastWp.Radius, lastWp.Clockwise,
                     _landingCircle.Latitude, _landingCircle.Longitude, _landingCircle.Radius, _landingCircle.Clockwise);
-                exitPoints[lastIdx] = tangent.Item1;  
+                exitPoints[lastIdx] = tangent.Item1;
             }
             else if (_homePosition != null && _waypoints.Count > 0)
             {
@@ -1080,7 +1099,7 @@ namespace SimpleDroneGCS.Views
 
             if (isVTOL)
             {
-                
+
             }
 
             System.Diagnostics.Debug.WriteLine($"UpdateRoute() - Точек: {_waypoints.Count}, HOME: {_homePosition != null}, VTOL: {isVTOL}");
@@ -1088,7 +1107,7 @@ namespace SimpleDroneGCS.Views
 
         private void DrawVtolSpecialPoints()
         {
-            
+
             var vtolLines = PlanMap.Markers
                 .Where(m => m.Tag?.ToString()?.StartsWith("vtol_line") == true ||
                             m.Tag?.ToString()?.StartsWith("vtol_arc") == true)
@@ -1099,8 +1118,8 @@ namespace SimpleDroneGCS.Views
             if (_landingCircle == null) InitializeLandingCircle();
             if (_startCircle == null || _landingCircle == null) return;
 
-            var cyan = Color.FromRgb(0, 168, 143);     
-            var orange = Color.FromRgb(255, 159, 26);  
+            var cyan = Color.FromRgb(0, 168, 143);
+            var orange = Color.FromRgb(255, 159, 26);
             var green = Color.FromRgb(152, 240, 25);
 
             if (_startCircle.Marker == null || !PlanMap.Markers.Contains(_startCircle.Marker))
@@ -1212,7 +1231,7 @@ namespace SimpleDroneGCS.Views
                     Opacity = 0.9
                 };
                 arcRoute.ZIndex = 48;
-                arcRoute.Tag = "vtol_arc"; 
+                arcRoute.Tag = "vtol_arc";
                 PlanMap.Markers.Add(arcRoute);
             }
         }
@@ -1263,15 +1282,15 @@ namespace SimpleDroneGCS.Views
             {
                 Width = 34,
                 Height = 34,
-                Fill = new SolidColorBrush(Color.FromArgb(89, 0, 0, 0)), 
+                Fill = new SolidColorBrush(Color.FromArgb(89, 0, 0, 0)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             grid.Children.Add(halo);
 
             var strokeColor = (label == "S")
-                ? Color.FromRgb(255, 255, 255)   
-                : Color.FromRgb(42, 22, 0);      
+                ? Color.FromRgb(255, 255, 255)
+                : Color.FromRgb(42, 22, 0);
 
             var centerPoint = new Ellipse
             {
@@ -1320,7 +1339,7 @@ namespace SimpleDroneGCS.Views
             {
                 if (e.ClickCount == 2)
                 {
-                    
+
                     string title = label == "S" ? Get("StartCircle") : Get("LandingCircle");
                     var dialog = new CircleEditDialog(title, wp.Radius, wp.Altitude, wp.AutoNext, wp.Clockwise);
                     dialog.Owner = OwnerWindow;
@@ -1386,8 +1405,8 @@ namespace SimpleDroneGCS.Views
             {
                 Background = new SolidColorBrush(Color.FromRgb(13, 23, 51)),
                 BorderBrush = new SolidColorBrush(label == "S"
-                    ? Color.FromRgb(250, 204, 21)  
-                    : Color.FromRgb(249, 115, 22)), 
+                    ? Color.FromRgb(250, 204, 21)
+                    : Color.FromRgb(249, 115, 22)),
                 BorderThickness = new Thickness(2),
                 Padding = new Thickness(10, 6, 10, 6)
             };
@@ -1427,7 +1446,7 @@ namespace SimpleDroneGCS.Views
                 path.StrokeDashArray = new DoubleCollection { 6, 3 };
             route.Shape = path;
             route.ZIndex = 45;
-            route.Tag = "vtol_line"; 
+            route.Tag = "vtol_line";
             PlanMap.Markers.Add(route);
         }
 
@@ -1446,7 +1465,7 @@ namespace SimpleDroneGCS.Views
 
             if (sameSide)
             {
-                
+
                 if (dist > Math.Abs(r1 - r2))
                 {
                     double sinAlpha = (r1 - r2) / dist;
@@ -1464,7 +1483,7 @@ namespace SimpleDroneGCS.Views
             }
             else
             {
-                
+
                 if (dist > (r1 + r2))
                 {
                     double sinAlpha = (r1 + r2) / dist;
@@ -1515,7 +1534,7 @@ namespace SimpleDroneGCS.Views
 
             if (isVTOL)
             {
-                
+
             }
 
             if (isVTOL && _startCircle != null)
@@ -1628,7 +1647,7 @@ namespace SimpleDroneGCS.Views
 
         private double CalculateDistanceLatLng(double lat1, double lon1, double lat2, double lon2)
         {
-            const double R = 6371000; 
+            const double R = 6371000;
             double dLat = (lat2 - lat1) * Math.PI / 180;
             double dLon = (lon2 - lon1) * Math.PI / 180;
             double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
@@ -1646,7 +1665,7 @@ namespace SimpleDroneGCS.Views
             {
                 foreach (var wp in _waypoints)
                 {
-                    wp.Radius = _waypointRadius; 
+                    wp.Radius = _waypointRadius;
                 }
 
                 RefreshMarkers();
@@ -1727,7 +1746,7 @@ namespace SimpleDroneGCS.Views
             }
 
             string distText = FormatDistance(totalDistance);
-            
+
             if (TotalDistanceOverlay != null)
                 TotalDistanceOverlay.Text = $"{Get("Route_Label")}: {distText}";
 
@@ -1769,18 +1788,21 @@ namespace SimpleDroneGCS.Views
         {
             Dispatcher.BeginInvoke(() =>
             {
-                
+
                 if (WaypointsListPanel == null) return;
+
+                bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
+                int wpOffset = isVtol ? (1 + 1 + 1 + (_startCircle != null ? 1 : 0)) : (1 + 1);
+
                 foreach (var child in WaypointsListPanel.Children)
                 {
                     if (child is Border border && border.Tag is int wpNum)
                     {
-                        bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
-                        int expectedSeq = isVtol ? wpNum + 3 : wpNum; 
+                        int expectedSeq = wpNum - 1 + wpOffset;
 
                         if (expectedSeq == seq)
                         {
-                            border.BorderBrush = new SolidColorBrush(Color.FromRgb(74, 222, 128)); 
+                            border.BorderBrush = new SolidColorBrush(Color.FromRgb(74, 222, 128));
                             border.BorderThickness = new Thickness(3);
                         }
                         else
@@ -1791,8 +1813,10 @@ namespace SimpleDroneGCS.Views
                     }
                 }
 
+                if (isVtol && LandingCircleCard != null)
                 {
-                    int landSeq = _waypoints.Count + 4;
+                    var fullMission = GetFullMission();
+                    int landSeq = fullMission.Count - 1;
                     LandingCircleCard.BorderThickness = new Thickness(seq == landSeq ? 3 : 2);
                 }
             });
@@ -1800,7 +1824,7 @@ namespace SimpleDroneGCS.Views
 
         private double CalculateDistance(WaypointItem wp1, WaypointItem wp2)
         {
-            const double R = 6371000; 
+            const double R = 6371000;
             double dLat = ToRadians(wp2.Latitude - wp1.Latitude);
             double dLon = ToRadians(wp2.Longitude - wp1.Longitude);
 
@@ -1824,7 +1848,7 @@ namespace SimpleDroneGCS.Views
 
             foreach (var wp in _waypoints)
             {
-                
+
                 if (wp.Number > 1)
                 {
                     WaypointsListPanel.Children.Add(new TextBlock
@@ -2022,8 +2046,8 @@ namespace SimpleDroneGCS.Views
                 wp.LoiterTurns,
                 wp.AutoNext,
                 wp.Clockwise,
-                wp.CommandType,  
-                isVtol           
+                wp.CommandType,
+                isVtol
             );
 
             dialog.Owner = Window.GetWindow(this);
@@ -2040,7 +2064,7 @@ namespace SimpleDroneGCS.Views
                 wp.LoiterTurns = dialog.LoiterTurns;
                 wp.AutoNext = dialog.AutoNext;
                 wp.Clockwise = dialog.Clockwise;
-                wp.CommandType = dialog.CommandType;  
+                wp.CommandType = dialog.CommandType;
 
                 if (positionChanged && wp.Marker != null)
                 {
@@ -2076,24 +2100,26 @@ namespace SimpleDroneGCS.Views
                 string mode = telem.FlightMode?.ToUpper() ?? "";
                 if (mode != "AUTO" && mode != "MISSION" && mode != "LOITER") return;
 
-                System.Diagnostics.Debug.WriteLine($"[REALTIME] Дрон в {mode}, обновляем миссию...");
+                // Save current seq BEFORE upload (upload resets seq to 0)
+                int currentSeq = _mavlinkService.CurrentMissionSeq;
 
-                bool success;
-                if (_currentVehicleType == VehicleType.QuadPlane && _startCircle != null && _landingCircle != null)
+                System.Diagnostics.Debug.WriteLine($"[REALTIME] Дрон в {mode} seq={currentSeq}, обновляем миссию...");
+
+                _mavlinkService.SavePlannedMission(GetFullMission());
+                bool success = await _mavlinkService.UploadPlannedMission();
+
+                if (success && currentSeq > 0)
                 {
-                    success = await _mavlinkService.UploadVtolMission(
-                        _homePosition, _startCircle, _waypoints.ToList(), _landingCircle,
-                        _vtolTakeoffAltitude, _vtolLandAltitude);
+                    await System.Threading.Tasks.Task.Delay(300);
+                    _mavlinkService.SetCurrentWaypoint((ushort)currentSeq);
+                    System.Diagnostics.Debug.WriteLine($"[REALTIME] ✅ Миссия обновлена, seq={currentSeq} восстановлен");
                 }
                 else
                 {
-                    _mavlinkService.SavePlannedMission(_waypoints.ToList());
-                    success = await _mavlinkService.UploadPlannedMission();
+                    System.Diagnostics.Debug.WriteLine(success
+                        ? "[REALTIME] ✅ Миссия обновлена"
+                        : "[REALTIME] ❌ Ошибка обновления");
                 }
-
-                System.Diagnostics.Debug.WriteLine(success
-                    ? "[REALTIME] ✅ Миссия обновлена"
-                    : "[REALTIME] ❌ Ошибка обновления");
             }
             catch (Exception ex)
             {
@@ -2105,10 +2131,11 @@ namespace SimpleDroneGCS.Views
         {
             if (_currentVehicleType == VehicleType.QuadPlane)
             {
-                
+
                 return new dynamic[]
                 {
             new { Name = Get("CmdShort_Waypoint"), Value = "WAYPOINT" },
+            new { Name = Get("CmdShort_Spline"), Value = "SPLINE_WP" },
             new { Name = Get("CmdShort_Loiter"), Value = "LOITER_UNLIM" },
             new { Name = Get("CmdShort_LoiterTime"), Value = "LOITER_TIME" },
             new { Name = Get("CmdShort_LoiterTurns"), Value = "LOITER_TURNS" },
@@ -2165,7 +2192,7 @@ namespace SimpleDroneGCS.Views
             };
 
             AddHomeMarkerToMap(_homePosition);
-            UpdateRoute(); 
+            UpdateRoute();
 
             MissionStore.SetHome((int)_currentVehicleType, _homePosition);
 
@@ -2180,7 +2207,7 @@ namespace SimpleDroneGCS.Views
 
             if (home.Marker != null)
             {
-                home.Marker.Shape = null;  
+                home.Marker.Shape = null;
                 PlanMap.Markers.Remove(home.Marker);
                 home.Marker = null;
             }
@@ -2271,7 +2298,7 @@ namespace SimpleDroneGCS.Views
 
         private void SetHomeButton_Click(object sender, RoutedEventArgs e)
         {
-            
+
             _isSettingHomeMode = true;
             PlanMap.Cursor = Cursors.Cross;
 
@@ -2321,7 +2348,7 @@ namespace SimpleDroneGCS.Views
             border.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(TextBox.BackgroundProperty));
             border.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(TextBox.BorderBrushProperty));
             border.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(TextBox.BorderThicknessProperty));
-            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(6)); 
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
 
             var scrollViewer = new FrameworkElementFactory(typeof(ScrollViewer));
             scrollViewer.Name = "PART_ContentHost";
@@ -2361,7 +2388,7 @@ namespace SimpleDroneGCS.Views
             }
             else if (textBox != null)
             {
-                
+
                 textBox.Text = wp?.Altitude.ToString("F0") ?? "100";
             }
         }
@@ -2387,7 +2414,7 @@ namespace SimpleDroneGCS.Views
                 _waypoints.Move(index, index - 1);
                 RenumberWaypoints();
                 UpdateRoute();
-                UpdateWaypointsList(); 
+                UpdateWaypointsList();
             }
         }
 
@@ -2402,7 +2429,7 @@ namespace SimpleDroneGCS.Views
                 _waypoints.Move(index, index + 1);
                 RenumberWaypoints();
                 UpdateRoute();
-                UpdateWaypointsList(); 
+                UpdateWaypointsList();
             }
         }
 
@@ -2427,7 +2454,7 @@ namespace SimpleDroneGCS.Views
 
         private void MissionScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            
+
         }
 
         private void RefreshMarkers()
@@ -2438,7 +2465,7 @@ namespace SimpleDroneGCS.Views
 
             foreach (var wp in _waypoints)
             {
-                
+
                 if (wp.ShapeGrid != null && wp.RadiusCircle != null)
                 {
                     double radiusInPixels = MetersToPixels(wp.Radius, wp.Latitude, PlanMap.Zoom);
@@ -2469,7 +2496,7 @@ namespace SimpleDroneGCS.Views
                 }
                 else
                 {
-                    
+
                     System.Diagnostics.Debug.WriteLine($"   WP{wp.Number}: нет сохраненных ссылок, пересоздаем");
 
                     if (wp.Marker != null)
@@ -2594,8 +2621,10 @@ namespace SimpleDroneGCS.Views
 
                     if (_currentVehicleType == VehicleType.QuadPlane && _mavlinkService.IsConnected)
                     {
-                        _mavlinkService.SetVTOLAutoTransition(true);
-                        System.Diagnostics.Debug.WriteLine($" VTOL: Q_OPTIONS=128 (автопереход после взлёта)");
+                        // VTOL transitions are handled explicitly in mission items
+                        // (VTOL_TRANSITION_FW / VTOL_TRANSITION_MC)
+                        // Do NOT overwrite Q_OPTIONS bitmask as it can disable safety settings
+                        System.Diagnostics.Debug.WriteLine($" VTOL: переходы заданы в миссии явно");
                     }
 
                     MissionStore.Set((int)_currentVehicleType, GetFullMission());
@@ -2633,7 +2662,7 @@ namespace SimpleDroneGCS.Views
                 );
                 System.Diagnostics.Debug.WriteLine($" Ошибка: {ex.Message}\n{ex.StackTrace}");
             }
-            
+
             if (_mavlinkService != null)
             {
                 System.Diagnostics.Debug.WriteLine(" Миссия передана для мониторинга на FlightDataView");
@@ -2704,98 +2733,119 @@ namespace SimpleDroneGCS.Views
 
                 if (isVtolMission)
                 {
-                    
+
                     var takeoff = items.FirstOrDefault(it => it.command == 84);
                     if (takeoff.z > 0) _vtolTakeoffAltitude = takeoff.z;
 
+                    var vtolLand = items.FirstOrDefault(it => it.command == 85);
+                    if (vtolLand.z > 0) _vtolLandAltitude = vtolLand.z;
+
                     var navItems = items.Where(it =>
                         it.seq > 0 &&
-                        (it.command == 16 || it.command == 17 || it.command == 18 || it.command == 19) &&
-                        (it.x != 0 || it.y != 0)
+                        (it.command == 16 || it.command == 17 || it.command == 18 || it.command == 19 ||
+                         it.command == 82 || it.command == 93 || it.command == 178 || it.command == 21) &&
+                        (it.x != 0 || it.y != 0 || it.command == 93 || it.command == 178)
                     ).ToList();
 
-                    if (navItems.Count >= 3)
+                    // Identify circle items DIRECTLY adjacent to VTOL transitions
+                    var transitionFw = items.FirstOrDefault(it => it.command == 3000 && it.param1 == 4);
+                    var transitionMcList = items.Where(it => it.command == 3000 && it.param1 == 3).ToList();
+                    var transitionMc = transitionMcList.Count > 0 ? transitionMcList[transitionMcList.Count - 1] : default;
+
+                    ushort startCircleSeq = 0;
+                    ushort landCircleSeq = 0;
+
+                    // Start circle: LOITER at exactly trans_fw.seq + 1
+                    if (transitionFw.command == 3000)
                     {
-                        
-                        var sItem = navItems.First();
-                        _startCircle = new WaypointItem
-                        {
-                            Number = 0,
-                            Latitude = sItem.x / 1e7,
-                            Longitude = sItem.y / 1e7,
-                            Altitude = sItem.z,
-                            Radius = Math.Max(150, Math.Abs(sItem.param3) > 0 ? Math.Abs(sItem.param3) : 150),
-                            Clockwise = sItem.param3 >= 0,
-                            CommandType = sItem.command == 18 ? "LOITER_TURNS" : "LOITER_UNLIM",
-                            AutoNext = sItem.autocontinue == 1,
-                            LoiterTurns = (int)sItem.param1
-                        };
+                        ushort expectedSeq = (ushort)(transitionFw.seq + 1);
+                        var candidate = navItems.FirstOrDefault(it => it.seq == expectedSeq);
+                        if (candidate.command == 17 || candidate.command == 18)
+                            startCircleSeq = expectedSeq;
+                    }
 
-                        var lItem = navItems.Last();
-                        _landingCircle = new WaypointItem
-                        {
-                            Number = 0,
-                            Latitude = lItem.x / 1e7,
-                            Longitude = lItem.y / 1e7,
-                            Altitude = lItem.z,
-                            Radius = Math.Max(150, Math.Abs(lItem.param3) > 0 ? Math.Abs(lItem.param3) : 150),
-                            Clockwise = lItem.param3 >= 0,
-                            CommandType = lItem.command == 18 ? "LOITER_TURNS" : "LOITER_UNLIM",
-                            AutoNext = lItem.autocontinue == 1,
-                            LoiterTurns = (int)lItem.param1
-                        };
+                    // Landing circle: LOITER at exactly trans_mc.seq - 1
+                    if (transitionMc.command == 3000)
+                    {
+                        ushort expectedSeq = (ushort)(transitionMc.seq - 1);
+                        var candidate = navItems.FirstOrDefault(it => it.seq == expectedSeq);
+                        if (candidate.command == 17 || candidate.command == 18)
+                            landCircleSeq = expectedSeq;
+                    }
 
-                        for (int w = 1; w < navItems.Count - 1; w++)
+                    // Don't count the same item as both circles
+                    if (startCircleSeq > 0 && startCircleSeq == landCircleSeq)
+                        landCircleSeq = 0;
+
+                    foreach (var nav in navItems)
+                    {
+                        // Extract circles instead of adding as regular waypoints
+                        if (nav.seq == startCircleSeq && startCircleSeq > 0)
                         {
-                            var nav = navItems[w];
-                            var wp = new WaypointItem
+                            _startCircle = new WaypointItem
                             {
-                                Number = _waypoints.Count + 1,
+                                Number = 0,
                                 Latitude = nav.x / 1e7,
                                 Longitude = nav.y / 1e7,
                                 Altitude = nav.z,
-                                Radius = Math.Abs(nav.param3) > 0 ? Math.Abs(nav.param3) : 80,
+                                Radius = Math.Abs(nav.param3) > 0 ? Math.Abs(nav.param3) : 150,
                                 Clockwise = nav.param3 >= 0,
-                                CommandType = ConvertMAVCmdToCommandType(nav.command),
+                                CommandType = "START_CIRCLE",
                                 AutoNext = nav.autocontinue == 1,
-                                Delay = (nav.command == 16 || nav.command == 93) ? nav.param1 : 0,
                                 LoiterTurns = (nav.command == 18) ? (int)nav.param1 : 0
                             };
-                            _waypoints.Add(wp);
-                            AddMarkerToMap(wp);
+                            continue;
                         }
-                    }
-                    else
-                    {
-                        foreach (var nav in navItems)
+
+                        if (nav.seq == landCircleSeq && landCircleSeq > 0)
                         {
-                            var wp = new WaypointItem
+                            _landingCircle = new WaypointItem
                             {
-                                Number = _waypoints.Count + 1,
+                                Number = -1,
                                 Latitude = nav.x / 1e7,
                                 Longitude = nav.y / 1e7,
                                 Altitude = nav.z,
-                                Radius = Math.Abs(nav.param3) > 0 ? Math.Abs(nav.param3) : 80,
+                                Radius = Math.Abs(nav.param3) > 0 ? Math.Abs(nav.param3) : 150,
                                 Clockwise = nav.param3 >= 0,
-                                CommandType = ConvertMAVCmdToCommandType(nav.command),
-                                AutoNext = nav.autocontinue == 1
+                                CommandType = "LANDING_CIRCLE",
+                                AutoNext = nav.autocontinue == 1,
+                                LoiterTurns = (nav.command == 18) ? (int)nav.param1 : 0
                             };
-                            _waypoints.Add(wp);
-                            AddMarkerToMap(wp);
+                            continue;
                         }
+
+                        var wp = new WaypointItem
+                        {
+                            Number = _waypoints.Count + 1,
+                            Latitude = nav.x / 1e7,
+                            Longitude = nav.y / 1e7,
+                            Altitude = nav.z,
+                            Radius = Math.Abs(nav.param3) > 0 ? Math.Abs(nav.param3) : 80,
+                            Clockwise = nav.param3 >= 0,
+                            CommandType = ConvertMAVCmdToCommandType(nav.command),
+                            AutoNext = nav.autocontinue == 1,
+                            Delay = nav.command == 178 ? nav.param2 : (nav.command == 16 || nav.command == 93 || nav.command == 19 || nav.command == 82) ? nav.param1 : 0,
+                            LoiterTurns = (nav.command == 18) ? (int)nav.param1 : 0
+                        };
+                        _waypoints.Add(wp);
+                        AddMarkerToMap(wp);
                     }
                 }
                 else
                 {
-                    
+
                     var takeoff = items.FirstOrDefault(it => it.command == 22);
                     if (takeoff.z > 0) _takeoffAltitude = takeoff.z;
+
+                    var rtlItem = items.FirstOrDefault(it => it.command == 20);
+                    if (rtlItem.z > 0) _rtlAltitude = rtlItem.z;
 
                     var navItems = items.Where(it =>
                         it.seq > 0 &&
                         it.command != 22 && it.command != 20 &&
-                        (it.command == 16 || it.command == 17 || it.command == 18 || it.command == 19 || it.command == 82) &&
-                        (it.x != 0 || it.y != 0)
+                        (it.command == 16 || it.command == 17 || it.command == 18 || it.command == 19 ||
+                         it.command == 82 || it.command == 93 || it.command == 178 || it.command == 21) &&
+                        (it.x != 0 || it.y != 0 || it.command == 93 || it.command == 178)
                     ).ToList();
 
                     foreach (var nav in navItems)
@@ -2810,7 +2860,7 @@ namespace SimpleDroneGCS.Views
                             Clockwise = nav.param3 >= 0,
                             CommandType = ConvertMAVCmdToCommandType(nav.command),
                             AutoNext = nav.autocontinue == 1,
-                            Delay = (nav.command == 16 || nav.command == 93) ? nav.param1 : 0,
+                            Delay = nav.command == 178 ? nav.param2 : (nav.command == 16 || nav.command == 93 || nav.command == 19 || nav.command == 82) ? nav.param1 : 0,
                             LoiterTurns = (nav.command == 18) ? (int)nav.param1 : 0
                         };
                         _waypoints.Add(wp);
@@ -2941,100 +2991,111 @@ namespace SimpleDroneGCS.Views
 
                 if (isVtolMission)
                 {
-                    
+
                     var takeoff = parsedItems.FirstOrDefault(p => p.cmd == 84);
                     if (takeoff.alt > 0) _vtolTakeoffAltitude = takeoff.alt;
 
+                    var vtolLand = parsedItems.FirstOrDefault(p => p.cmd == 85);
+                    if (vtolLand.alt > 0) _vtolLandAltitude = vtolLand.alt;
+
                     var navItems = parsedItems.Where(p =>
-                        p.seq > 0 && 
-                        (p.cmd == 16 || p.cmd == 17 || p.cmd == 18 || p.cmd == 19) &&
-                        (p.lat != 0 || p.lon != 0) 
+                        p.seq > 0 &&
+                        (p.cmd == 16 || p.cmd == 17 || p.cmd == 18 || p.cmd == 19 ||
+                         p.cmd == 82 || p.cmd == 93 || p.cmd == 178 || p.cmd == 21) &&
+                        (p.lat != 0 || p.lon != 0 || p.cmd == 93 || p.cmd == 178)
                     ).ToList();
 
-                    if (navItems.Count >= 3)
+                    // Identify circle items DIRECTLY adjacent to VTOL transitions
+                    var transFw = parsedItems.FirstOrDefault(p => p.cmd == 3000 && p.p1 == 4);
+                    var transMcList = parsedItems.Where(p => p.cmd == 3000 && p.p1 == 3).ToList();
+                    var transMc = transMcList.Count > 0 ? transMcList[transMcList.Count - 1] : default;
+
+                    int startCircleSeq = -1;
+                    int landCircleSeq = -1;
+
+                    // Start circle: LOITER at exactly transFw.seq + 1
+                    if (transFw.cmd == 3000)
                     {
-                        
-                        var sItem = navItems.First();
-                        _startCircle = new WaypointItem
-                        {
-                            Number = 0,
-                            Latitude = sItem.lat,
-                            Longitude = sItem.lon,
-                            Altitude = sItem.alt,
-                            Radius = Math.Max(150, Math.Abs(sItem.p3) > 0 ? Math.Abs(sItem.p3) : 150),
-                            Clockwise = sItem.p3 >= 0,
-                            CommandType = sItem.cmd == 18 ? "LOITER_TURNS" : "LOITER_UNLIM",
-                            AutoNext = sItem.autoCont == 1,
-                            LoiterTurns = (int)sItem.p1
-                        };
+                        int expected = transFw.seq + 1;
+                        var c = navItems.FirstOrDefault(p => p.seq == expected);
+                        if (c.cmd == 17 || c.cmd == 18) startCircleSeq = expected;
+                    }
+                    // Landing circle: LOITER at exactly transMc.seq - 1
+                    if (transMc.cmd == 3000)
+                    {
+                        int expected = transMc.seq - 1;
+                        var c = navItems.FirstOrDefault(p => p.seq == expected);
+                        if (c.cmd == 17 || c.cmd == 18) landCircleSeq = expected;
+                    }
+                    if (startCircleSeq >= 0 && startCircleSeq == landCircleSeq) landCircleSeq = -1;
 
-                        var lItem = navItems.Last();
-                        _landingCircle = new WaypointItem
+                    foreach (var nav in navItems)
+                    {
+                        if (nav.seq == startCircleSeq && startCircleSeq >= 0)
                         {
-                            Number = 0,
-                            Latitude = lItem.lat,
-                            Longitude = lItem.lon,
-                            Altitude = lItem.alt,
-                            Radius = Math.Max(150, Math.Abs(lItem.p3) > 0 ? Math.Abs(lItem.p3) : 150),
-                            Clockwise = lItem.p3 >= 0,
-                            CommandType = lItem.cmd == 18 ? "LOITER_TURNS" : "LOITER_UNLIM",
-                            AutoNext = lItem.autoCont == 1,
-                            LoiterTurns = (int)lItem.p1
-                        };
-
-                        for (int w = 1; w < navItems.Count - 1; w++)
-                        {
-                            var nav = navItems[w];
-                            var wp = new WaypointItem
+                            _startCircle = new WaypointItem
                             {
-                                Number = _waypoints.Count + 1,
+                                Number = 0,
                                 Latitude = nav.lat,
                                 Longitude = nav.lon,
                                 Altitude = nav.alt,
-                                Radius = Math.Abs(nav.p3) > 0 ? Math.Abs(nav.p3) : 80,
+                                Radius = Math.Abs(nav.p3) > 0 ? Math.Abs(nav.p3) : 150,
                                 Clockwise = nav.p3 >= 0,
-                                CommandType = ConvertMAVCmdToCommandType(nav.cmd),
+                                CommandType = "START_CIRCLE",
                                 AutoNext = nav.autoCont == 1,
-                                Delay = (nav.cmd == 16 || nav.cmd == 93) ? nav.p1 : 0,
                                 LoiterTurns = (nav.cmd == 18) ? (int)nav.p1 : 0
                             };
-                            _waypoints.Add(wp);
-                            AddMarkerToMap(wp);
+                            continue;
                         }
-
-                    }
-                    else
-                    {
-                        
-                        foreach (var nav in navItems)
+                        if (nav.seq == landCircleSeq && landCircleSeq >= 0)
                         {
-                            var wp = new WaypointItem
+                            _landingCircle = new WaypointItem
                             {
-                                Number = _waypoints.Count + 1,
+                                Number = -1,
                                 Latitude = nav.lat,
                                 Longitude = nav.lon,
                                 Altitude = nav.alt,
-                                Radius = Math.Abs(nav.p3) > 0 ? Math.Abs(nav.p3) : 80,
+                                Radius = Math.Abs(nav.p3) > 0 ? Math.Abs(nav.p3) : 150,
                                 Clockwise = nav.p3 >= 0,
-                                CommandType = ConvertMAVCmdToCommandType(nav.cmd),
-                                AutoNext = nav.autoCont == 1
+                                CommandType = "LANDING_CIRCLE",
+                                AutoNext = nav.autoCont == 1,
+                                LoiterTurns = (nav.cmd == 18) ? (int)nav.p1 : 0
                             };
-                            _waypoints.Add(wp);
-                            AddMarkerToMap(wp);
+                            continue;
                         }
+
+                        var wp = new WaypointItem
+                        {
+                            Number = _waypoints.Count + 1,
+                            Latitude = nav.lat,
+                            Longitude = nav.lon,
+                            Altitude = nav.alt,
+                            Radius = Math.Abs(nav.p3) > 0 ? Math.Abs(nav.p3) : 80,
+                            Clockwise = nav.p3 >= 0,
+                            CommandType = ConvertMAVCmdToCommandType(nav.cmd),
+                            AutoNext = nav.autoCont == 1,
+                            Delay = nav.cmd == 178 ? nav.p2 : (nav.cmd == 16 || nav.cmd == 93 || nav.cmd == 19 || nav.cmd == 82) ? nav.p1 : 0,
+                            LoiterTurns = (nav.cmd == 18) ? (int)nav.p1 : 0
+                        };
+                        _waypoints.Add(wp);
+                        AddMarkerToMap(wp);
                     }
                 }
                 else
                 {
-                    
+
                     var takeoff = parsedItems.FirstOrDefault(p => p.cmd == 22);
                     if (takeoff.alt > 0) _takeoffAltitude = takeoff.alt;
 
+                    var rtlItem = parsedItems.FirstOrDefault(p => p.cmd == 20);
+                    if (rtlItem.alt > 0) _rtlAltitude = rtlItem.alt;
+
                     var navItems = parsedItems.Where(p =>
                         p.seq > 0 &&
-                        p.cmd != 22 && p.cmd != 20 && 
-                        (p.cmd == 16 || p.cmd == 17 || p.cmd == 18 || p.cmd == 19 || p.cmd == 82) &&
-                        (p.lat != 0 || p.lon != 0)
+                        p.cmd != 22 && p.cmd != 20 &&
+                        (p.cmd == 16 || p.cmd == 17 || p.cmd == 18 || p.cmd == 19 ||
+                         p.cmd == 82 || p.cmd == 93 || p.cmd == 178 || p.cmd == 21) &&
+                        (p.lat != 0 || p.lon != 0 || p.cmd == 93 || p.cmd == 178)
                     ).ToList();
 
                     foreach (var nav in navItems)
@@ -3049,7 +3110,7 @@ namespace SimpleDroneGCS.Views
                             Clockwise = nav.p3 >= 0,
                             CommandType = ConvertMAVCmdToCommandType(nav.cmd),
                             AutoNext = nav.autoCont == 1,
-                            Delay = (nav.cmd == 16 || nav.cmd == 93) ? nav.p1 : 0,
+                            Delay = nav.cmd == 178 ? nav.p2 : (nav.cmd == 16 || nav.cmd == 93 || nav.cmd == 19 || nav.cmd == 82) ? nav.p1 : 0,
                             LoiterTurns = (nav.cmd == 18) ? (int)nav.p1 : 0
                         };
                         _waypoints.Add(wp);
@@ -3107,7 +3168,7 @@ namespace SimpleDroneGCS.Views
                 hint: Get("Msg_ActionIrreversible")
             ))
             {
-                
+
                 PlanMap.Markers.Clear();
 
                 _waypoints.Clear();
@@ -3155,7 +3216,9 @@ namespace SimpleDroneGCS.Views
 
                 System.Diagnostics.Debug.WriteLine($"  seq={i}: {wp.CommandType} (MAV_CMD={mavCmd}) p1={p1} at {wp.Latitude:F7}, {wp.Longitude:F7}, alt={wp.Altitude:F2}");
 
-                lines.Add($"{i}\t{current}\t{frame}\t{mavCmd}\t{p1}\t{p2}\t{p3}\t{p4}\t{wp.Latitude:F7}\t{wp.Longitude:F7}\t{wp.Altitude:F2}\t{autoContinue}");
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                lines.Add(string.Format(inv, "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8:F7}\t{9:F7}\t{10:F2}\t{11}",
+                    i, current, frame, mavCmd, p1, p2, p3, p4, wp.Latitude, wp.Longitude, wp.Altitude, autoContinue));
             }
 
             System.IO.File.WriteAllLines(fullPath, lines);
@@ -3166,23 +3229,27 @@ namespace SimpleDroneGCS.Views
 
         private (double p1, double p2, double p3, double p4) GetCommandParams(WaypointItem wp)
         {
-            
+
             double signedRadius = wp.Clockwise ? Math.Abs(wp.Radius) : -Math.Abs(wp.Radius);
 
             switch (wp.CommandType)
             {
                 case "VTOL_TRANSITION_FW":
-                    return (4, 0, 0, 0);  
+                    return (4, 0, 0, 0);
                 case "VTOL_TRANSITION_MC":
-                    return (3, 0, 0, 0);  
+                    return (3, 0, 0, 0);
                 case "LOITER_TIME":
-                    return (wp.Delay, 0, signedRadius, 0);  
+                    return (wp.Delay, 0, signedRadius, 0);
                 case "LOITER_TURNS":
-                    return (wp.LoiterTurns, 0, signedRadius, 0);  
+                    return (wp.LoiterTurns, 0, signedRadius, 0);
                 case "LOITER_UNLIM":
-                    return (0, 0, signedRadius, 0);  
+                    return (0, 0, signedRadius, 0);
+                case "CHANGE_SPEED":
+                    return (1, wp.Delay, -1, 0);
+                case "SPLINE_WP":
+                    return (wp.Delay, 0, 0, 0);
                 case "WAYPOINT":
-                    return (wp.Delay, 0, 0, 0);  
+                    return (wp.Delay, 0, 0, 0);
                 case "DELAY":
                     return (wp.Delay, 0, 0, 0);
                 default:
@@ -3211,9 +3278,9 @@ namespace SimpleDroneGCS.Views
                 case "SET_HOME": result = 179; break;
                 case "VTOL_TRANSITION_FW": result = 3000; break;
                 case "VTOL_TRANSITION_MC": result = 3000; break;
-                case "HOME": result = 16; break; 
-                case "START_CIRCLE": result = 17; break; 
-                case "LANDING_CIRCLE": result = 17; break; 
+                case "HOME": result = 16; break;
+                case "START_CIRCLE": result = 17; break;
+                case "LANDING_CIRCLE": result = 17; break;
                 default:
                     System.Diagnostics.Debug.WriteLine($"⚠️ Неизвестный тип команды: '{commandType}', использую WAYPOINT");
                     result = 16;
@@ -3241,7 +3308,7 @@ namespace SimpleDroneGCS.Views
                 System.Diagnostics.Debug.WriteLine($" Plan Map Zoom: {newZoom}");
             }
 
-            e.Handled = true; 
+            e.Handled = true;
         }
 
         private GMapMarker CreateDroneMarker(PointLatLng position)
@@ -3315,10 +3382,11 @@ namespace SimpleDroneGCS.Views
 
             if (telemetry.Armed && !_wasArmed)
             {
-                
-                if (telemetry.Latitude != 0 && telemetry.Longitude != 0 && telemetry.GpsFixType >= 2)
+
+                if (!_homeLockedFromArm && telemetry.Latitude != 0 && telemetry.Longitude != 0 && telemetry.GpsFixType >= 2)
                 {
                     SetHomeFromDronePosition(telemetry.Latitude, telemetry.Longitude);
+                    _homeLockedFromArm = true;
                 }
                 _wasArmed = true;
             }
@@ -3352,13 +3420,19 @@ namespace SimpleDroneGCS.Views
                 _droneMarker.Shape = null;
                 PlanMap.Markers.Remove(_droneMarker);
                 _droneMarker = null;
+                _homeLockedFromArm = false;
+                _lastDisplayedArmed = null;
+                _lastNextBtnVisible = null;
+                _lastDisplayedMode = null;
+                _lastGpsFixType = 255;
+                _lastSpeedLabelType = null;
             }
             UpdateDroneInfoPanel(telemetry);
         }
 
         private void UpdateDroneInfoPanel(Telemetry telemetry)
         {
-            
+
             if (telemetry.Latitude != 0 || telemetry.Longitude != 0)
             {
                 PlanDroneLatText.Text = telemetry.Latitude.ToString("F6");
@@ -3370,19 +3444,19 @@ namespace SimpleDroneGCS.Views
 
             if (_mavlinkService.HasHomePosition)
             {
-                
+
                 PlanHomeLatText.Text = _mavlinkService.HomeLat.Value.ToString("F6");
                 PlanHomeLonText.Text = _mavlinkService.HomeLon.Value.ToString("F6");
             }
             else if (_homePosition != null)
             {
-                
+
                 PlanHomeLatText.Text = _homePosition.Latitude.ToString("F6");
                 PlanHomeLonText.Text = _homePosition.Longitude.ToString("F6");
             }
             else
             {
-                
+
                 var home = MissionStore.GetHome((int)_currentVehicleType);
                 if (home != null)
                 {
@@ -3399,7 +3473,7 @@ namespace SimpleDroneGCS.Views
 
         private void SetHomeFromDronePosition(double lat, double lon)
         {
-            
+
             if (_homePosition?.Marker != null)
             {
                 _homePosition.Marker.Shape = null;
@@ -3446,7 +3520,7 @@ namespace SimpleDroneGCS.Views
 
             if (isVTOL)
             {
-                
+
                 mission.Add(new WaypointItem
                 {
                     Number = mission.Count,
@@ -3538,14 +3612,14 @@ namespace SimpleDroneGCS.Views
             }
             else
             {
-                
+
                 if (_homePosition != null)
                 {
                     mission.Add(new WaypointItem
                     {
                         Number = mission.Count,
-                        Latitude = _homePosition.Latitude,
-                        Longitude = _homePosition.Longitude,
+                        Latitude = 0,  // ArduCopter TAKEOFF: lat/lon ignored (vertical takeoff)
+                        Longitude = 0,
                         Altitude = _takeoffAltitude,
                         CommandType = "TAKEOFF"
                     });
@@ -3583,7 +3657,7 @@ namespace SimpleDroneGCS.Views
 
         private void SaveCurrentMissionForType()
         {
-            
+
             if (_waypoints.Count > 0)
             {
                 _missionsByType[_currentVehicleType] = _waypoints.Select(wp => new WaypointItem
@@ -3788,7 +3862,7 @@ namespace SimpleDroneGCS.Views
                 };
             }
 
-            UpdateRoute(); 
+            UpdateRoute();
             UpdateStatistics();
             UpdateWaypointsList();
 
@@ -3955,7 +4029,7 @@ namespace SimpleDroneGCS.Views
 
             try
             {
-                
+
                 SaveCurrentMissionForType();
 
                 VehicleManager.Instance.SetVehicleType(newType);
@@ -4020,7 +4094,7 @@ namespace SimpleDroneGCS.Views
         {
             if (_currentVehicleType == VehicleType.QuadPlane)
             {
-                
+
                 if (QuickModeBtn1 != null) { QuickModeBtn1.SetResourceReference(ContentControl.ContentProperty, "Mode_QHold"); QuickModeBtn1.Tag = "QLOITER"; }
                 if (QuickModeBtn2 != null) { QuickModeBtn2.SetResourceReference(ContentControl.ContentProperty, "Mode_QAltHold"); QuickModeBtn2.Tag = "QHOVER"; }
                 if (QuickModeBtn3 != null) { QuickModeBtn3.SetResourceReference(ContentControl.ContentProperty, "Execute"); QuickModeBtn3.Tag = "AUTO"; }
@@ -4029,7 +4103,7 @@ namespace SimpleDroneGCS.Views
             }
             else
             {
-                
+
                 if (QuickModeBtn1 != null) { QuickModeBtn1.SetResourceReference(ContentControl.ContentProperty, "Mode_Hold"); QuickModeBtn1.Tag = "LOITER"; }
                 if (QuickModeBtn2 != null) { QuickModeBtn2.SetResourceReference(ContentControl.ContentProperty, "Mode_AltHold"); QuickModeBtn2.Tag = "ALT_HOLD"; }
                 if (QuickModeBtn3 != null) { QuickModeBtn3.SetResourceReference(ContentControl.ContentProperty, "Execute"); QuickModeBtn3.Tag = "AUTO"; }
@@ -4040,7 +4114,7 @@ namespace SimpleDroneGCS.Views
 
         private void DownloadSRTM_Click(object sender, RoutedEventArgs e)
         {
-            
+
             var center = PlanMap.Position;
 
             var dialog = new UI.Dialogs.SRTMDownloadDialog(center.Lat, center.Lng);
@@ -4092,7 +4166,7 @@ namespace SimpleDroneGCS.Views
 
         private void PlanMap_OnMapZoomChanged()
         {
-            
+
             foreach (var wp in _waypoints)
             {
                 if (wp.ShapeGrid != null && wp.RadiusCircle != null)
@@ -4121,7 +4195,7 @@ namespace SimpleDroneGCS.Views
 
         private void PlanMap_MouseMove(object sender, MouseEventArgs e)
         {
-            
+
             if (_isRadiusDragging && _radiusDragWaypoint != null)
             {
                 var dragPoint = e.GetPosition(PlanMap);
@@ -4140,7 +4214,7 @@ namespace SimpleDroneGCS.Views
 
                 UpdateRadiusTooltip(dragLatLng, newRadius);
 
-                return; 
+                return;
             }
 
             var point = e.GetPosition(PlanMap);
@@ -4241,7 +4315,7 @@ namespace SimpleDroneGCS.Views
 
         private void OnTelemetryReceived(object sender, Telemetry telemetry)
         {
-            
+
         }
 
         private void UpdateTelemetryUI(object sender, EventArgs e)
@@ -4251,7 +4325,7 @@ namespace SimpleDroneGCS.Views
             var telemetry = _mavlinkService.CurrentTelemetry;
 
             if (AltitudeValue != null)
-                AltitudeValue.Text = $"{telemetry.Altitude:F1} м";
+                AltitudeValue.Text = $"{telemetry.RelativeAltitude:F1} м";
             if (AltitudeMslValue != null)
                 AltitudeMslValue.Text = $"{telemetry.Altitude:F1} м";
 
@@ -4259,19 +4333,27 @@ namespace SimpleDroneGCS.Views
             {
                 if (_currentVehicleType == VehicleType.QuadPlane)
                 {
-                    SecondarySpeedLabel.SetResourceReference(TextBlock.TextProperty, "Airspeed");
+                    if (_lastSpeedLabelType != VehicleType.QuadPlane)
+                    {
+                        SecondarySpeedLabel.SetResourceReference(TextBlock.TextProperty, "Airspeed");
+                        SecondarySpeedValue.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238));
+                        _lastSpeedLabelType = VehicleType.QuadPlane;
+                    }
                     SecondarySpeedValue.Text = $"{telemetry.Airspeed:F1} м/с";
-                    SecondarySpeedValue.Foreground = new SolidColorBrush(Color.FromRgb(34, 211, 238)); 
                 }
                 else
                 {
-                    SecondarySpeedLabel.SetResourceReference(TextBlock.TextProperty, "VertSpeed");
+                    if (_lastSpeedLabelType != VehicleType.Copter)
+                    {
+                        SecondarySpeedLabel.SetResourceReference(TextBlock.TextProperty, "VertSpeed");
+                        _lastSpeedLabelType = VehicleType.Copter;
+                    }
                     string sign = telemetry.ClimbRate >= 0 ? "+" : "";
                     SecondarySpeedValue.Text = $"{sign}{telemetry.ClimbRate:F1} м/с";
                     SecondarySpeedValue.Foreground = new SolidColorBrush(
-                        telemetry.ClimbRate > 0.5 ? Color.FromRgb(74, 222, 128) :    
-                        telemetry.ClimbRate < -0.5 ? Color.FromRgb(251, 146, 60) :   
-                        Color.FromRgb(156, 163, 175));                                
+                        telemetry.ClimbRate > 0.5 ? Color.FromRgb(74, 222, 128) :
+                        telemetry.ClimbRate < -0.5 ? Color.FromRgb(251, 146, 60) :
+                        Color.FromRgb(156, 163, 175));
                 }
             }
 
@@ -4310,21 +4392,25 @@ namespace SimpleDroneGCS.Views
         {
             if (GpsIndicator == null || GpsStatusText == null) return;
 
-            if (telemetry.GpsFixType >= 3)
+            byte category = (byte)(telemetry.GpsFixType >= 3 ? 3 : telemetry.GpsFixType >= 2 ? 2 : 0);
+            if (_lastGpsFixType == category) return;
+            _lastGpsFixType = category;
+
+            if (category >= 3)
             {
-                GpsIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94)); 
+                GpsIndicator.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94));
                 GpsStatusText.Text = "GPS OK";
                 GpsStatusText.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
             }
-            else if (telemetry.GpsFixType >= 2)
+            else if (category >= 2)
             {
-                GpsIndicator.Fill = new SolidColorBrush(Color.FromRgb(251, 191, 36)); 
+                GpsIndicator.Fill = new SolidColorBrush(Color.FromRgb(251, 191, 36));
                 GpsStatusText.Text = "GPS 2D";
                 GpsStatusText.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36));
             }
             else
             {
-                GpsIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); 
+                GpsIndicator.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
                 GpsStatusText.Text = "NO GPS";
                 GpsStatusText.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
             }
@@ -4332,7 +4418,7 @@ namespace SimpleDroneGCS.Views
 
         private void UpdateMotorValues(Telemetry telemetry)
         {
-            
+
             if (MultirotorValue != null)
             {
                 int avgMotor = (telemetry.Motor1Percent + telemetry.Motor2Percent + telemetry.Motor3Percent + telemetry.Motor4Percent) / 4;
@@ -4346,17 +4432,21 @@ namespace SimpleDroneGCS.Views
             if (FlightModeOverlay == null || FlightModeOverlayText == null) return;
 
             string mode = telemetry.FlightMode?.ToUpper() ?? "UNKNOWN";
+
+            if (_lastDisplayedMode == mode) return;
+            _lastDisplayedMode = mode;
+
             FlightModeOverlay.Visibility = Visibility.Visible;
             FlightModeOverlayText.Text = mode;
 
             Color dotColor = mode switch
             {
-                "AUTO" or "GUIDED" or "QRTL" => Color.FromRgb(74, 222, 128),   
-                "STABILIZE" or "QSTABILIZE" or "QHOVER" or "QLOITER" or "FBWA" 
-                    => Color.FromRgb(250, 204, 21),                              
-                "LAND" or "QLAND" or "RTL" => Color.FromRgb(251, 146, 60),      
-                "UNKNOWN" => Color.FromRgb(107, 114, 128),                       
-                _ => Color.FromRgb(96, 165, 250)                                 
+                "AUTO" or "GUIDED" or "QRTL" => Color.FromRgb(74, 222, 128),
+                "STABILIZE" or "QSTABILIZE" or "QHOVER" or "QLOITER" or "FBWA"
+                    => Color.FromRgb(250, 204, 21),
+                "LAND" or "QLAND" or "RTL" => Color.FromRgb(251, 146, 60),
+                "UNKNOWN" => Color.FromRgb(107, 114, 128),
+                _ => Color.FromRgb(96, 165, 250)
             };
 
             if (FlightModeIndicator != null)
@@ -4366,6 +4456,9 @@ namespace SimpleDroneGCS.Views
         private void UpdateArmButton(Telemetry telemetry)
         {
             if (ArmButton == null) return;
+
+            if (_lastDisplayedArmed == telemetry.Armed) return;
+            _lastDisplayedArmed = telemetry.Armed;
 
             if (telemetry.Armed)
             {
@@ -4387,6 +4480,9 @@ namespace SimpleDroneGCS.Views
 
             string mode = telemetry.FlightMode?.ToUpper() ?? "";
             bool show = telemetry.Armed && (mode == "AUTO" || mode == "LOITER" || mode == "GUIDED");
+
+            if (_lastNextBtnVisible == show) return;
+            _lastNextBtnVisible = show;
 
             NextWaypointBtn.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -4417,6 +4513,7 @@ namespace SimpleDroneGCS.Views
         {
             if (FlightModeCombo == null) return;
 
+            FlightModeCombo.SelectionChanged -= FlightModeCombo_SelectionChanged;
             FlightModeCombo.Items.Clear();
             FlightModeCombo.Items.Add(new ComboBoxItem { Content = Get("FlightModes"), IsSelected = true });
 
@@ -4450,7 +4547,33 @@ namespace SimpleDroneGCS.Views
             }
 
             bool isArmed = _mavlinkService.CurrentTelemetry.Armed;
-            _mavlinkService.SetArm(!isArmed, true);
+
+            if (isArmed)
+            {
+                // Disarming - check if drone is flying
+                double alt = _mavlinkService.CurrentTelemetry.RelativeAltitude;
+                if (alt > 1.0)
+                {
+                    // Drone is in the air - DANGEROUS! Require confirmation
+                    if (!AppMessageBox.ShowConfirm(
+                        Get("Msg_ForceDisarmInFlight"),
+                        owner: OwnerWindow,
+                        subtitle: Get("Msg_Warning")))
+                    {
+                        return;
+                    }
+                    _mavlinkService.SetArm(false, true); // force disarm (user confirmed)
+                }
+                else
+                {
+                    _mavlinkService.SetArm(false, false); // normal disarm on ground
+                }
+            }
+            else
+            {
+                // Arming - force is OK (bypasses pre-arm checks if user wants)
+                _mavlinkService.SetArm(true, true);
+            }
         }
 
         private void QuickMode_Click(object sender, RoutedEventArgs e)
@@ -4533,19 +4656,17 @@ namespace SimpleDroneGCS.Views
 
                 if (isVtol)
                 {
-                    
+
                     if (_homePosition == null) { AppMessageBox.ShowError(Get("Msg_SetHome"), owner: OwnerWindow); return; }
-                    
-                    uploadSuccess = await _mavlinkService.UploadVtolMission(
-                        _homePosition, _startCircle, _waypoints.ToList(), _landingCircle,
-                        _vtolTakeoffAltitude, _vtolLandAltitude);
                 }
                 else
                 {
-                    
-                    _mavlinkService.SavePlannedMission(_waypoints.ToList());
-                    uploadSuccess = await _mavlinkService.UploadPlannedMission();
+                    // Copter also needs HOME for proper TAKEOFF item
+                    if (_homePosition == null) { AppMessageBox.ShowError(Get("Msg_SetHome"), owner: OwnerWindow); return; }
                 }
+
+                _mavlinkService.SavePlannedMission(GetFullMission());
+                uploadSuccess = await _mavlinkService.UploadPlannedMission();
 
                 if (!uploadSuccess)
                 {
@@ -4589,12 +4710,12 @@ namespace SimpleDroneGCS.Views
             }
             else
             {
-                
+
                 baseLat = PlanMap.Position.Lat;
                 baseLon = PlanMap.Position.Lng;
             }
 
-            var pos = CalculatePointAtDistance(baseLat, baseLon, 45, 0.3); 
+            var pos = CalculatePointAtDistance(baseLat, baseLon, 45, 0.3);
             _startCircle = new WaypointItem
             {
                 Number = 0,
@@ -4603,7 +4724,7 @@ namespace SimpleDroneGCS.Views
                 Altitude = _vtolTakeoffAltitude,
                 Radius = 150,
                 CommandType = "START_CIRCLE",
-                AutoNext = false, 
+                AutoNext = false,
                 LoiterTurns = 1,
                 Clockwise = true,
                 Delay = 0
@@ -4625,7 +4746,7 @@ namespace SimpleDroneGCS.Views
                 baseLon = PlanMap.Position.Lng;
             }
 
-            var pos = CalculatePointAtDistance(baseLat, baseLon, 225, 0.3); 
+            var pos = CalculatePointAtDistance(baseLat, baseLon, 225, 0.3);
             _landingCircle = new WaypointItem
             {
                 Number = -1,
@@ -4634,7 +4755,7 @@ namespace SimpleDroneGCS.Views
                 Altitude = _vtolLandAltitude,
                 Radius = 150,
                 CommandType = "LANDING_CIRCLE",
-                AutoNext = false, 
+                AutoNext = false,
                 LoiterTurns = 1,
                 Clockwise = true,
                 Delay = 0
@@ -4663,10 +4784,13 @@ namespace SimpleDroneGCS.Views
 
                 if (!_isMissionFrozen)
                 {
-                    
+
                     int currentSeq = _mavlinkService.CurrentMissionSeq;
 
-                    if (currentSeq <= 2)
+                    // Copter: HOME(0), TAKEOFF(1), WPs(2+) → block seq <= 1
+                    // VTOL: HOME(0), TAKEOFF(1), TRANSITION_FW(2), WPs(3+) → block seq <= 2
+                    int minFreezeSeq = (_currentVehicleType == VehicleType.QuadPlane) ? 3 : 2;
+                    if (currentSeq < minFreezeSeq)
                     {
                         ShowStatusMessage(Get("Msg_CantFreezeTakeoff"));
                         return;
@@ -4674,10 +4798,10 @@ namespace SimpleDroneGCS.Views
 
                     if (_currentVehicleType == VehicleType.QuadPlane)
                     {
-                        
-                        int totalItems = _waypoints.Count + 7; 
-                        int transitionMcSeq = totalItems - 2;  
-                        int landSeq = totalItems - 1;          
+
+                        int totalItems = GetFullMission().Count;
+                        int transitionMcSeq = totalItems - 2;
+                        int landSeq = totalItems - 1;
 
                         if (currentSeq >= transitionMcSeq)
                         {
@@ -4686,13 +4810,16 @@ namespace SimpleDroneGCS.Views
                         }
                     }
 
+                    // Note: freeze is only allowed during FW phase (seq 3..transitionMcSeq-1)
+                    // CantFreezeTakeoff blocks seq<=2, CantFreezeLanding blocks seq>=transitionMcSeq
+                    // So plane LOITER is always correct here (even for VTOL)
                     _mavlinkService.SetFlightMode("LOITER");
                     _isMissionFrozen = true;
 
                     if (sender is Button btn)
                     {
                         btn.Content = Get("Msg_ResumeMission");
-                        btn.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(22, 163, 74)); 
+                        btn.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(22, 163, 74));
                     }
 
                     System.Diagnostics.Debug.WriteLine($"[FREEZE] Миссия заморожена на seq={currentSeq}");
@@ -4700,32 +4827,18 @@ namespace SimpleDroneGCS.Views
                 }
                 else
                 {
-                    
+
                     int currentSeq = _mavlinkService.CurrentMissionSeq;
 
-                    if (_currentVehicleType == VehicleType.QuadPlane && _startCircle != null && _landingCircle != null)
-                    {
-                        
-                        if (_homePosition == null) { ShowStatusMessage(Get("Msg_NoHomePos")); return; }
-
-                        bool success = await _mavlinkService.UploadVtolMission(
-                            _homePosition, _startCircle, _waypoints.ToList(), _landingCircle,
-                            _vtolTakeoffAltitude, _vtolLandAltitude);
-
-                        if (!success) { ShowStatusMessage(Get("Msg_UploadError")); return; }
-                    }
-                    else
-                    {
-                        
-                        _mavlinkService.SavePlannedMission(_waypoints.ToList());
-                        bool success = await _mavlinkService.UploadPlannedMission();
-                        if (!success) { ShowStatusMessage(Get("Msg_UploadError")); return; }
-                    }
+                    _mavlinkService.SavePlannedMission(GetFullMission());
+                    bool success = await _mavlinkService.UploadPlannedMission();
+                    if (!success) { ShowStatusMessage(Get("Msg_UploadError")); return; }
 
                     await System.Threading.Tasks.Task.Delay(500);
 
-                    ushort nextSeq = (ushort)(currentSeq + 1);
-                    _mavlinkService.SetCurrentWaypoint(nextSeq);
+                    // Resume to the SAME waypoint the drone was heading to when frozen
+                    ushort resumeSeq = (ushort)currentSeq;
+                    _mavlinkService.SetCurrentWaypoint(resumeSeq);
 
                     await System.Threading.Tasks.Task.Delay(300);
                     _mavlinkService.SetFlightMode("AUTO");
@@ -4735,11 +4848,11 @@ namespace SimpleDroneGCS.Views
                     if (sender is Button btn)
                     {
                         btn.Content = Get("Msg_FreezeMission");
-                        btn.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)); 
+                        btn.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235));
                     }
 
-                    System.Diagnostics.Debug.WriteLine($"[RESUME] Миссия продолжена с seq={nextSeq}");
-                    ShowStatusMessage(Fmt("Msg_MissionResumed", nextSeq));
+                    System.Diagnostics.Debug.WriteLine($"[RESUME] Миссия продолжена с seq={resumeSeq}");
+                    ShowStatusMessage(Fmt("Msg_MissionResumed", resumeSeq));
                 }
             }
             catch (Exception ex)
@@ -4856,7 +4969,7 @@ namespace SimpleDroneGCS.Views
         }
 
         private bool _autoNext = true;
-        
+
         public bool AutoNext
         {
             get => _autoNext;
@@ -4864,7 +4977,7 @@ namespace SimpleDroneGCS.Views
         }
 
         private bool _clockwise = true;
-        
+
         public bool Clockwise
         {
             get => _clockwise;

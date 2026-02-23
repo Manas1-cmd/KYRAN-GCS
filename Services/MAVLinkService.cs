@@ -17,25 +17,25 @@ using static SimpleDroneGCS.Helpers.Loc;
 
 namespace SimpleDroneGCS.Services
 {
-    
+
     public class MAVLinkService
     {
         private SerialPort _serialPort;
-        
+
         private System.Net.Sockets.UdpClient _udpClient;
         private System.Net.IPEndPoint _remoteEndPoint;
         private bool _isUdpMode;
         private CancellationTokenSource _udpCts;
-        private bool _udpWaitingForFirstPacket; 
-        private bool _heartbeatReceived = false; 
-        
+        private bool _udpWaitingForFirstPacket;
+        private bool _heartbeatReceived = false;
+
         private CancellationTokenSource _cts;
         private MavlinkParse _parser;
         private byte _packetSequence = 0;
         private DispatcherTimer _heartbeatTimer;
         private DispatcherTimer _telemetryRequestTimer;
         private DateTime _connectionStartTime = DateTime.MinValue;
-        
+
         private List<WaypointItem> _plannedMission = null;
         public bool HasPlannedMission => _plannedMission != null && _plannedMission.Count > 0;
         public int PlannedMissionCount => _plannedMission?.Count ?? 0;
@@ -74,14 +74,14 @@ namespace SimpleDroneGCS.Services
         public event EventHandler<string> ErrorOccurred;
         public event EventHandler<bool> ConnectionStatusChanged_Bool;
         public event EventHandler TelemetryReceived;
-        public event EventHandler<string> MessageReceived; 
+        public event EventHandler<string> MessageReceived;
         public event Action<string> OnStatusTextReceived;
         public event EventHandler<int> MissionProgressUpdated;
-        
+
         public event Action<byte, byte, byte[], float, float, float> OnMagCalProgress;
-        
+
         public event Action<byte, byte, float, float, float, float> OnMagCalReport;
-        
+
         public int CurrentMissionSeq { get; private set; } = 0;
 
         public long TotalBytesReceived { get; private set; }
@@ -110,7 +110,7 @@ namespace SimpleDroneGCS.Services
                 var localEndPoint = new IPEndPoint(IPAddress.Parse(localIp), localPort);
                 _udpClient = new UdpClient(localEndPoint);
                 _isUdpMode = true;
-                _udpWaitingForFirstPacket = true; 
+                _udpWaitingForFirstPacket = true;
                 IsConnected = true;
                 _connectionStartTime = DateTime.Now;
                 DroneStatus.IsConnected = true;
@@ -147,7 +147,7 @@ namespace SimpleDroneGCS.Services
                 _udpClient = new UdpClient(localEndPoint);
                 _remoteEndPoint = new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
                 _isUdpMode = true;
-                _udpWaitingForFirstPacket = false; 
+                _udpWaitingForFirstPacket = false;
                 IsConnected = true;
                 _connectionStartTime = DateTime.Now;
                 DroneStatus.IsConnected = true;
@@ -280,7 +280,7 @@ namespace SimpleDroneGCS.Services
                 Task.Run(() => ReadLoop(_cts.Token));
 
                 IsConnected = true;
-                _connectionStartTime = DateTime.Now; 
+                _connectionStartTime = DateTime.Now;
                 DroneStatus.IsConnected = true;
                 DroneStatus.ConnectionPort = portName;
                 DroneStatus.BaudRate = baudRate;
@@ -325,6 +325,12 @@ namespace SimpleDroneGCS.Services
             DroneStatus.IsConnected = false;
             DroneStatus.LastHeartbeat = DateTime.MinValue;
 
+            HomeLat = null;
+            HomeLon = null;
+            HomeAlt = null;
+            CurrentMissionSeq = 0;
+            CurrentTelemetry = new Telemetry();
+
             _heartbeatTimer?.Stop();
             _telemetryRequestTimer?.Stop();
             _cts?.Cancel();
@@ -367,8 +373,27 @@ namespace SimpleDroneGCS.Services
             {
                 Interval = TimeSpan.FromMilliseconds(HEARTBEAT_INTERVAL_MS)
             };
-            _heartbeatTimer.Tick += (s, e) => SendHeartbeat();
+            _heartbeatTimer.Tick += (s, e) =>
+            {
+                SendHeartbeat();
+                CheckConnectionTimeout();
+            };
             _heartbeatTimer.Start();
+        }
+
+        private void CheckConnectionTimeout()
+        {
+            if (!IsConnected || !_heartbeatReceived) return;
+
+            if (DroneStatus.LastHeartbeat != DateTime.MinValue &&
+                (DateTime.Now - DroneStatus.LastHeartbeat).TotalSeconds > 5)
+            {
+                Debug.WriteLine("[MAVLink] ⚠️ Потеря связи: нет heartbeat > 5 сек");
+                ErrorOccurred?.Invoke(this, Get("Msg_ConnectionLost"));
+                ConnectionStatusChanged?.Invoke(this, Get("Msg_ConnectionLost"));
+                ConnectionStatusChanged_Bool?.Invoke(this, false);
+                Disconnect();
+            }
         }
 
         private void StartTelemetryRequestTimer()
@@ -381,7 +406,7 @@ namespace SimpleDroneGCS.Services
             _telemetryRequestTimer.Start();
         }
 
-        private byte _vehicleMavType = (byte)MAVLink.MAV_TYPE.QUADROTOR; 
+        private byte _vehicleMavType = (byte)MAVLink.MAV_TYPE.QUADROTOR;
 
         private void SendHeartbeat()
         {
@@ -393,7 +418,7 @@ namespace SimpleDroneGCS.Services
 
             if (_isUdpMode && _remoteEndPoint == null)
             {
-                
+
                 return;
             }
 
@@ -428,7 +453,7 @@ namespace SimpleDroneGCS.Services
 
             try
             {
-                
+
                 RequestDataStream(MAVLink.MAV_DATA_STREAM.ALL, 10, true);
                 RequestDataStream(MAVLink.MAV_DATA_STREAM.POSITION, 5, true);
                 RequestDataStream(MAVLink.MAV_DATA_STREAM.EXTRA1, 10, true);
@@ -567,7 +592,7 @@ namespace SimpleDroneGCS.Services
             var home = (MAVLink.mavlink_home_position_t)msg.data;
             HomeLat = home.latitude / 1e7;
             HomeLon = home.longitude / 1e7;
-            HomeAlt = home.altitude / 1000.0; 
+            HomeAlt = home.altitude / 1000.0;
 
             System.Diagnostics.Debug.WriteLine($"[MAVLink] HOME: {HomeLat:F6}, {HomeLon:F6}, Alt: {HomeAlt:F1}m");
         }
@@ -660,11 +685,11 @@ namespace SimpleDroneGCS.Services
                         ProcessMissionItemInt(msg);
                         break;
 
-                    case (MAVLink.MAVLINK_MSG_ID)191: 
+                    case (MAVLink.MAVLINK_MSG_ID)191:
                         ProcessMagCalProgress(msg);
                         break;
 
-                    case (MAVLink.MAVLINK_MSG_ID)192: 
+                    case (MAVLink.MAVLINK_MSG_ID)192:
                         ProcessMagCalReport(msg);
                         break;
                 }
@@ -717,8 +742,8 @@ namespace SimpleDroneGCS.Services
             var pos = (MAVLink.mavlink_global_position_int_t)msg.data;
             CurrentTelemetry.Latitude = pos.lat / 1e7;
             CurrentTelemetry.Longitude = pos.lon / 1e7;
-            CurrentTelemetry.Altitude = pos.alt / 1000.0; 
-            CurrentTelemetry.RelativeAltitude = pos.relative_alt / 1000.0; 
+            CurrentTelemetry.Altitude = pos.alt / 1000.0;
+            CurrentTelemetry.RelativeAltitude = pos.relative_alt / 1000.0;
             CurrentTelemetry.Speed = Math.Sqrt(pos.vx * pos.vx + pos.vy * pos.vy) / 100.0;
             CurrentTelemetry.ClimbRate = -pos.vz / 100.0;
         }
@@ -772,7 +797,7 @@ namespace SimpleDroneGCS.Services
                 OnMagCalProgress?.Invoke(
                     progress.compass_id,
                     progress.completion_pct,
-                    progress.completion_mask,   
+                    progress.completion_mask,
                     progress.direction_x,
                     progress.direction_y,
                     progress.direction_z
@@ -792,7 +817,7 @@ namespace SimpleDroneGCS.Services
                 var report = (MAVLink.mavlink_mag_cal_report_t)msg.data;
                 OnMagCalReport?.Invoke(
                     report.compass_id,
-                    report.cal_status,   
+                    report.cal_status,
                     report.fitness,
                     report.ofs_x,
                     report.ofs_y,
@@ -871,17 +896,17 @@ namespace SimpleDroneGCS.Services
 
         private void ProcessRcChannels(MAVLink.MAVLinkMessage msg)
         {
-            
+
         }
 
         private void ProcessRawImu(MAVLink.MAVLinkMessage msg)
         {
-            
+
         }
 
         private void ProcessScaledPressure(MAVLink.MAVLinkMessage msg)
         {
-            
+
         }
 
         private void ProcessBatteryStatus(MAVLink.MAVLinkMessage msg)
@@ -899,17 +924,17 @@ namespace SimpleDroneGCS.Services
 
         private string GetFlightModeName(uint customMode)
         {
-            
+
             byte mavType = DroneStatus.Type;
-            bool isCopter = (mavType == 2 || mavType == 3 || mavType == 4 || 
+            bool isCopter = (mavType == 2 || mavType == 3 || mavType == 4 ||
                             mavType == 13 || mavType == 14 || mavType == 15);
-            
+
             if (mavType == 0)
                 isCopter = VehicleManager.Instance.CurrentVehicleType == VehicleType.Copter;
 
             if (isCopter)
             {
-                
+
                 switch (customMode)
                 {
                     case 0: return "STABILIZE";
@@ -934,9 +959,9 @@ namespace SimpleDroneGCS.Services
                     default: return $"MODE_{customMode}";
                 }
             }
-            else 
+            else
             {
-                
+
                 switch (customMode)
                 {
                     case 0: return "MANUAL";
@@ -960,7 +985,7 @@ namespace SimpleDroneGCS.Services
                     case 21: return "QRTL";
                     case 22: return "QAUTOTUNE";
                     case 23: return "QACRO";
-                    case 25: return "THERMAL";
+                    case 24: return "THERMAL";
                     default: return $"MODE_{customMode}";
                 }
             }
@@ -991,7 +1016,7 @@ namespace SimpleDroneGCS.Services
                 command = (ushort)MAVLink.MAV_CMD.COMPONENT_ARM_DISARM,
                 confirmation = 0,
                 param1 = arm ? 1 : 0,
-                param2 = force ? 21196 : 0,  
+                param2 = force ? 21196 : 0,
                 param3 = 0,
                 param4 = 0,
                 param5 = 0,
@@ -1018,8 +1043,8 @@ namespace SimpleDroneGCS.Services
                 target_component = (byte)DroneStatus.ComponentId,
                 command = (ushort)MAVLink.MAV_CMD.COMPONENT_ARM_DISARM,
                 confirmation = 0,
-                param1 = 1, 
-                param2 = 21196, 
+                param1 = 1,
+                param2 = 21196,
                 param3 = 0,
                 param4 = 0,
                 param5 = 0,
@@ -1052,13 +1077,13 @@ namespace SimpleDroneGCS.Services
                 target_component = (byte)DroneStatus.ComponentId,
                 command = (ushort)MAVLink.MAV_CMD.TAKEOFF,
                 confirmation = 0,
-                param1 = 0, 
-                param2 = 0, 
-                param3 = 0, 
-                param4 = 0, 
-                param5 = 0, 
-                param6 = 0, 
-                param7 = (float)altitude 
+                param1 = 0,
+                param2 = 0,
+                param3 = 0,
+                param4 = 0,
+                param5 = 0,
+                param6 = 0,
+                param7 = (float)altitude
             };
 
             SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
@@ -1074,19 +1099,31 @@ namespace SimpleDroneGCS.Services
                 return;
             }
 
+            try
+            {
+                var vehicleType = VehicleManager.Instance.CurrentVehicleType;
+                if (vehicleType == VehicleType.QuadPlane)
+                {
+                    SetMode(20); // QLAND for VTOL
+                    System.Diagnostics.Debug.WriteLine("[MAVLink] QLAND (mode=20) для VTOL");
+                    return;
+                }
+            }
+            catch { }
+
             var cmd = new MAVLink.mavlink_command_long_t
             {
                 target_system = (byte)DroneStatus.SystemId,
                 target_component = (byte)DroneStatus.ComponentId,
                 command = (ushort)MAVLink.MAV_CMD.LAND,
                 confirmation = 0,
-                param1 = 0, 
-                param2 = 0, 
-                param3 = 0, 
-                param4 = 0, 
-                param5 = 0, 
-                param6 = 0, 
-                param7 = 0 
+                param1 = 0,
+                param2 = 0,
+                param3 = 0,
+                param4 = 0,
+                param5 = 0,
+                param6 = 0,
+                param7 = 0
             };
 
             SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
@@ -1134,14 +1171,20 @@ namespace SimpleDroneGCS.Services
                 return;
             }
 
-            SetMode(4);
+            try
+            {
+                var vehicleType = VehicleManager.Instance.CurrentVehicleType;
+                uint guidedMode = (vehicleType == VehicleType.Copter) ? 4u : 15u;
+                SetMode(guidedMode);
+            }
+            catch { SetMode(4); }
 
             var posTarget = new MAVLink.mavlink_set_position_target_global_int_t
             {
                 target_system = (byte)DroneStatus.SystemId,
                 target_component = (byte)DroneStatus.ComponentId,
                 coordinate_frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT_INT,
-                type_mask = 0b0000111111111000, 
+                type_mask = 0b0000111111111000,
                 lat_int = (int)(latitude * 1e7),
                 lon_int = (int)(longitude * 1e7),
                 alt = (float)altitude
@@ -1156,7 +1199,13 @@ namespace SimpleDroneGCS.Services
         {
             if (!IsConnected) return;
 
-            SetMode(17);
+            try
+            {
+                var vehicleType = VehicleManager.Instance.CurrentVehicleType;
+                uint brakeMode = (vehicleType == VehicleType.Copter) ? 17u : 12u;
+                SetMode(brakeMode);
+            }
+            catch { SetMode(17); }
         }
 
         public void SetFlightMode(string modeName)
@@ -1274,16 +1323,16 @@ namespace SimpleDroneGCS.Services
             {
                 var msg = new MAVLink.mavlink_command_long_t
                 {
-                    target_system = (byte)DroneStatus.SystemId,        
-                    target_component = (byte)DroneStatus.ComponentId,  
+                    target_system = (byte)DroneStatus.SystemId,
+                    target_component = (byte)DroneStatus.ComponentId,
                     command = (ushort)MAVLink.MAV_CMD.PREFLIGHT_CALIBRATION,
                     confirmation = 0,
-                    param1 = gyro ? 1 : 0,           
-                    param2 = 0,                      
-                    param3 = barometer ? 1 : 0,      
-                    param4 = radioTrim ? 4 : 0,      
-                    param5 = accelerometer ? 1 : 0,  
-                    param6 = compassMot ? 1 : 0,     
+                    param1 = gyro ? 1 : 0,
+                    param2 = 0,
+                    param3 = barometer ? 1 : 0,
+                    param4 = radioTrim ? 4 : 0,
+                    param5 = accelerometer ? 1 : 0,
+                    param6 = compassMot ? 1 : 0,
                     param7 = 0
                 };
 
@@ -1368,7 +1417,7 @@ namespace SimpleDroneGCS.Services
                 target_component = (byte)DroneStatus.ComponentId,
                 command = (ushort)MAVLink.MAV_CMD.DO_SET_HOME,
                 confirmation = 0,
-                param1 = useCurrentLocation ? 1 : 0, 
+                param1 = useCurrentLocation ? 1 : 0,
                 param2 = 0,
                 param3 = 0,
                 param4 = 0,
@@ -1429,14 +1478,15 @@ namespace SimpleDroneGCS.Services
 
             try
             {
-                
+
                 _missionItemsToUpload = new List<MAVLink.mavlink_mission_item_int_t>();
 
                 _missionItemsToUpload.Add(CreateHomeWaypoint(waypoints[0]));
 
-                for (int i = 0; i < waypoints.Count; i++)
+                int startIdx = (waypoints.Count > 0 && waypoints[0].CommandType == "HOME") ? 1 : 0;
+                for (int i = startIdx; i < waypoints.Count; i++)
                 {
-                    _missionItemsToUpload.Add(ConvertToMissionItem(waypoints[i], i + 1));
+                    _missionItemsToUpload.Add(ConvertToMissionItem(waypoints[i], _missionItemsToUpload.Count));
                 }
 
                 ClearMission();
@@ -1462,10 +1512,14 @@ namespace SimpleDroneGCS.Services
 
                 if (completedTask == timeoutTask)
                 {
-                    
+
                     System.Diagnostics.Debug.WriteLine("⚠️ Mission handshake timeout, fallback to sequential send");
-                    await FallbackSequentialUpload();
-                    return true;
+                    bool fallbackResult = await FallbackSequentialUpload();
+                    if (!fallbackResult)
+                    {
+                        ErrorOccurred?.Invoke(this, Get("Msg_FcRejectedMission"));
+                    }
+                    return fallbackResult;
                 }
 
                 bool result = _missionUploadTcs.Task.Result;
@@ -1493,9 +1547,9 @@ namespace SimpleDroneGCS.Services
             }
         }
 
-        private async Task FallbackSequentialUpload()
+        private async Task<bool> FallbackSequentialUpload()
         {
-            if (_missionItemsToUpload == null) return;
+            if (_missionItemsToUpload == null) return false;
 
             for (int i = 0; i < _missionItemsToUpload.Count; i++)
             {
@@ -1504,6 +1558,19 @@ namespace SimpleDroneGCS.Services
                 System.Diagnostics.Debug.WriteLine($"📍 seq={i}: fallback send");
                 await Task.Delay(200);
             }
+
+            // Wait for MISSION_ACK from FC after sending all items
+            _missionUploadTcs = new TaskCompletionSource<bool>();
+            var ackTimeout = Task.Delay(5000);
+            var ackResult = await Task.WhenAny(_missionUploadTcs.Task, ackTimeout);
+
+            if (ackResult == ackTimeout)
+            {
+                System.Diagnostics.Debug.WriteLine("⚠️ Fallback: no MISSION_ACK received");
+                return false;
+            }
+
+            return _missionUploadTcs.Task.Result;
         }
 
         private void ProcessMissionRequestInt(MAVLink.MAVLinkMessage msg)
@@ -1563,7 +1630,7 @@ namespace SimpleDroneGCS.Services
                 {
                     target_system = (byte)DroneStatus.SystemId,
                     target_component = (byte)DroneStatus.ComponentId,
-                    mission_type = 0 
+                    mission_type = 0
                 };
                 SendMessage(request, MAVLink.MAVLINK_MSG_ID.MISSION_REQUEST_LIST);
                 System.Diagnostics.Debug.WriteLine("[DOWNLOAD] Отправлен MISSION_REQUEST_LIST");
@@ -1602,7 +1669,7 @@ namespace SimpleDroneGCS.Services
 
             if (count.count == 0)
             {
-                
+
                 SendMissionAck(MAVLink.MAV_MISSION_RESULT.MAV_MISSION_ACCEPTED);
                 _missionDownloadTcs?.TrySetResult(_downloadedMissionItems);
                 return;
@@ -1626,14 +1693,14 @@ namespace SimpleDroneGCS.Services
 
             if (received >= _missionDownloadExpectedCount)
             {
-                
+
                 SendMissionAck(MAVLink.MAV_MISSION_RESULT.MAV_MISSION_ACCEPTED);
                 _missionDownloadTcs?.TrySetResult(_downloadedMissionItems);
                 System.Diagnostics.Debug.WriteLine($"[DOWNLOAD] ✅ Миссия скачана: {received} элементов");
             }
             else
             {
-                
+
                 RequestMissionItem((ushort)received);
             }
         }
@@ -1660,15 +1727,15 @@ namespace SimpleDroneGCS.Services
                 mission_type = 0
             };
             SendMessage(ack, MAVLink.MAVLINK_MSG_ID.MISSION_ACK);
-        }        
-        
+        }
+
         public async Task<bool> ModifyWaypointInFlight(WaypointItem wp, int missionSeq)
         {
             if (!IsConnected) return false;
 
             try
             {
-                
+
                 var item = ConvertToMissionItem(wp, missionSeq);
                 _missionItemsToUpload = new List<MAVLink.mavlink_mission_item_int_t> { item };
                 _missionUploadTcs = new TaskCompletionSource<bool>();
@@ -1690,7 +1757,7 @@ namespace SimpleDroneGCS.Services
 
                 if (completedTask == timeoutTask)
                 {
-                    
+
                     SendMissionItem(item);
                     System.Diagnostics.Debug.WriteLine("⚠️ Partial write timeout, sent item directly");
                     return true;
@@ -1732,9 +1799,9 @@ namespace SimpleDroneGCS.Services
                 target_system = (byte)DroneStatus.SystemId,
                 target_component = (byte)DroneStatus.ComponentId,
                 seq = 0,
-                frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
+                frame = (byte)MAVLink.MAV_FRAME.GLOBAL,  // HOME = absolute altitude (MSL)
                 command = (ushort)MAVLink.MAV_CMD.WAYPOINT,
-                current = 1, 
+                current = 0, // HOME seq=0 current should be 0
                 autocontinue = 1,
                 param1 = 0,
                 param2 = 0,
@@ -1750,17 +1817,19 @@ namespace SimpleDroneGCS.Services
         private MAVLink.mavlink_mission_item_int_t ConvertToMissionItem(WaypointItem wp, int sequence)
         {
             ushort mavCmd;
-            
-            if (!wp.AutoNext)
+
+            bool isNavCommand = wp.CommandType == "WAYPOINT" || wp.CommandType == "SPLINE_WP";
+
+            if (!wp.AutoNext && isNavCommand)
             {
-                mavCmd = (ushort)MAVLink.MAV_CMD.LOITER_UNLIM;  
+                mavCmd = (ushort)MAVLink.MAV_CMD.LOITER_UNLIM;
             }
-            
-            else if (wp.LoiterTurns > 0)
+
+            else if (wp.LoiterTurns > 0 && isNavCommand)
             {
-                mavCmd = 18;  
+                mavCmd = 18;
             }
-            
+
             else
             {
                 mavCmd = ConvertCommandTypeToMAVCmd(wp.CommandType);
@@ -1775,46 +1844,54 @@ namespace SimpleDroneGCS.Services
 
             if (mavCmd == (ushort)MAVLink.MAV_CMD.LOITER_UNLIM)
             {
-                param3 = signedRadius;  
+                param3 = signedRadius;
             }
-            
+
             else if (mavCmd == 18)
             {
-                param1 = (float)wp.LoiterTurns;  
-                param3 = signedRadius;           
+                param1 = (float)wp.LoiterTurns;
+                param3 = signedRadius;
             }
             else
             {
-                
+
                 switch (wp.CommandType)
                 {
                     case "VTOL_TRANSITION_FW":
-                        param1 = 4;  
+                        param1 = 4;
                         break;
                     case "VTOL_TRANSITION_MC":
-                        param1 = 3;  
+                        param1 = 3;
                         break;
                     case "DELAY":
-                        param1 = (float)wp.Delay;  
+                        param1 = (float)wp.Delay;
                         break;
                     case "LOITER_TIME":
-                        param1 = (float)wp.Delay;  
-                        param3 = signedRadius;     
+                        param1 = (float)wp.Delay;
+                        param3 = signedRadius;
                         break;
                     case "LOITER_TURNS":
-                        param1 = (float)wp.LoiterTurns;  
-                        param3 = signedRadius;           
+                        param1 = (float)wp.LoiterTurns;
+                        param3 = signedRadius;
                         break;
                     case "LOITER_UNLIM":
-                        param3 = signedRadius;  
+                        param3 = signedRadius;
+                        break;
+                    case "CHANGE_SPEED":
+                        param1 = 1;
+                        param2 = (float)wp.Delay;
+                        param3 = -1;
                         break;
                     case "WAYPOINT":
-                        param1 = (float)wp.Delay;  
-                        param2 = 0;  
+                        param1 = (float)wp.Delay;
+                        param2 = 0;
+                        break;
+                    case "SPLINE_WP":
+                        param1 = (float)wp.Delay;
                         break;
                     case "VTOL_TAKEOFF":
                     case "VTOL_LAND":
-                        
+
                         break;
                     default:
                         param1 = (float)wp.Delay;
@@ -1829,8 +1906,8 @@ namespace SimpleDroneGCS.Services
                 seq = (ushort)sequence,
                 frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
                 command = mavCmd,
-                current = 0, 
-                autocontinue = (byte)(wp.AutoNext ? 1 : 0), 
+                current = 0,
+                autocontinue = (byte)(wp.AutoNext ? 1 : 0),
                 param1 = param1,
                 param2 = param2,
                 param3 = param3,
@@ -1846,20 +1923,21 @@ namespace SimpleDroneGCS.Services
         {
             switch (commandType)
             {
-                case "WAYPOINT": return (ushort)MAVLink.MAV_CMD.WAYPOINT;               
-                case "LOITER_UNLIM": return (ushort)MAVLink.MAV_CMD.LOITER_UNLIM;       
-                case "LOITER_TURNS": return 18;                                          
-                case "LOITER_TIME": return (ushort)MAVLink.MAV_CMD.LOITER_TIME;         
-                case "RETURN_TO_LAUNCH": return (ushort)MAVLink.MAV_CMD.RETURN_TO_LAUNCH; 
-                case "LAND": return (ushort)MAVLink.MAV_CMD.LAND;                       
-                case "TAKEOFF": return (ushort)MAVLink.MAV_CMD.TAKEOFF;                 
-                case "VTOL_TAKEOFF": return 84;                                          
-                case "VTOL_LAND": return 85;                                             
-                case "VTOL_TRANSITION_FW": return 3000;                                  
-                case "VTOL_TRANSITION_MC": return 3000;                                  
-                case "DELAY": return (ushort)MAVLink.MAV_CMD.DELAY;                     
-                case "CHANGE_SPEED": return (ushort)MAVLink.MAV_CMD.DO_CHANGE_SPEED;    
-                case "SET_HOME": return (ushort)MAVLink.MAV_CMD.DO_SET_HOME;            
+                case "WAYPOINT": return (ushort)MAVLink.MAV_CMD.WAYPOINT;
+                case "LOITER_UNLIM": return (ushort)MAVLink.MAV_CMD.LOITER_UNLIM;
+                case "LOITER_TURNS": return 18;
+                case "LOITER_TIME": return (ushort)MAVLink.MAV_CMD.LOITER_TIME;
+                case "RETURN_TO_LAUNCH": return (ushort)MAVLink.MAV_CMD.RETURN_TO_LAUNCH;
+                case "LAND": return (ushort)MAVLink.MAV_CMD.LAND;
+                case "TAKEOFF": return (ushort)MAVLink.MAV_CMD.TAKEOFF;
+                case "VTOL_TAKEOFF": return 84;
+                case "VTOL_LAND": return 85;
+                case "VTOL_TRANSITION_FW": return 3000;
+                case "VTOL_TRANSITION_MC": return 3000;
+                case "DELAY": return (ushort)MAVLink.MAV_CMD.DELAY;
+                case "CHANGE_SPEED": return (ushort)MAVLink.MAV_CMD.DO_CHANGE_SPEED;
+                case "SPLINE_WP": return 82;
+                case "SET_HOME": return (ushort)MAVLink.MAV_CMD.DO_SET_HOME;
                 default: return (ushort)MAVLink.MAV_CMD.WAYPOINT;
             }
         }
@@ -1873,13 +1951,13 @@ namespace SimpleDroneGCS.Services
         {
             if (!IsConnected) return;
 
-            uint autoMode = 3; 
+            uint autoMode = 3;
             try
             {
                 var vehicleType = VehicleManager.Instance.CurrentVehicleType;
                 if (vehicleType == VehicleType.QuadPlane)
                 {
-                    autoMode = 10; 
+                    autoMode = 10;
                 }
             }
             catch { }
@@ -1892,8 +1970,8 @@ namespace SimpleDroneGCS.Services
                 target_component = (byte)DroneStatus.ComponentId,
                 command = (ushort)MAVLink.MAV_CMD.MISSION_START,
                 confirmation = 0,
-                param1 = 0, 
-                param2 = 0, 
+                param1 = 0,
+                param2 = 0,
                 param3 = 0,
                 param4 = 0,
                 param5 = 0,
@@ -1910,7 +1988,16 @@ namespace SimpleDroneGCS.Services
         {
             if (!IsConnected) return;
 
-            SetMode(5); 
+            try
+            {
+                var vehicleType = VehicleManager.Instance.CurrentVehicleType;
+                uint loiterMode = (vehicleType == VehicleType.Copter) ? 5u : 12u;
+                SetMode(loiterMode);
+            }
+            catch
+            {
+                SetMode(5);
+            }
 
             System.Diagnostics.Debug.WriteLine("[MAVLink] Миссия приостановлена");
         }
@@ -1955,11 +2042,11 @@ namespace SimpleDroneGCS.Services
                     target_component = (byte)DroneStatus.ComponentId,
                     seq = (ushort)seq++,
                     frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = 84, 
+                    command = 84,
                     current = 0,
                     autocontinue = 1,
                     param1 = 0,
-                    param2 = 1, 
+                    param2 = 1,
                     x = (int)(home.Latitude * 1e7),
                     y = (int)(home.Longitude * 1e7),
                     z = (float)takeoffAltitude,
@@ -1972,11 +2059,13 @@ namespace SimpleDroneGCS.Services
                     target_component = (byte)DroneStatus.ComponentId,
                     seq = (ushort)seq++,
                     frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = 3000, 
+                    command = 3000,
                     current = 0,
                     autocontinue = 1,
-                    param1 = 4, 
-                    x = 0, y = 0, z = 0,
+                    param1 = 4,
+                    x = 0,
+                    y = 0,
+                    z = 0,
                     mission_type = 0
                 });
 
@@ -1998,8 +2087,10 @@ namespace SimpleDroneGCS.Services
                     command = 3000,
                     current = 0,
                     autocontinue = 1,
-                    param1 = 3, 
-                    x = 0, y = 0, z = 0,
+                    param1 = 3,
+                    x = 0,
+                    y = 0,
+                    z = 0,
                     mission_type = 0
                 });
 
@@ -2009,7 +2100,7 @@ namespace SimpleDroneGCS.Services
                     target_component = (byte)DroneStatus.ComponentId,
                     seq = (ushort)seq++,
                     frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = 85, 
+                    command = 85,
                     current = 0,
                     autocontinue = 0,
                     param1 = 0,
@@ -2057,17 +2148,17 @@ namespace SimpleDroneGCS.Services
 
             if (!wp.AutoNext)
             {
-                command = 17; 
+                command = 17;
                 param1 = 0;
             }
             else if (wp.LoiterTurns > 0)
             {
-                command = 18; 
+                command = 18;
                 param1 = wp.LoiterTurns;
             }
             else
             {
-                command = 16; 
+                command = 16;
                 param1 = (float)wp.Delay;
             }
 
@@ -2143,9 +2234,9 @@ namespace SimpleDroneGCS.Services
                         TotalPacketsSent++;
                         DroneStatus.PacketsSent++;
                     }
-                    
+
                 }
-                
+
                 else if (_serialPort != null && _serialPort.IsOpen)
                 {
                     _serialPort.Write(packet, 0, packet.Length);
