@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
 using SimpleDroneGCS.Services;
+using static SimpleDroneGCS.Helpers.Loc;
 
 namespace SimpleDroneGCS.UI.Dialogs
 {
@@ -14,6 +15,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         private int _elapsedSeconds = 0;
         private bool _calibrating = false;
         private bool _completed = false;
+        private bool _isClosed = false;
 
         public GyroCalibrationDialog(MAVLinkService mavlinkService)
         {
@@ -35,11 +37,11 @@ namespace SimpleDroneGCS.UI.Dialogs
             _elapsedSeconds = 0;
 
             StartButton.IsEnabled = false;
-            StartButton.Content = "ИДЁТ...";
-            InstructionText.Text = "Калибровка гироскопа...\nНе двигайте дрон!";
+            StartButton.Content = Get("GyroCalib_GoingBtn");
+            InstructionText.Text = Get("GyroCalib_InProgress");
             WarningText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-            WarningText.Text = "⚠ НЕ ТРОГАЙТЕ ДРОН!";
-            ProgressText.Text = "Калибровка...";
+            WarningText.Text = Get("GyroCalib_DontTouch");
+            ProgressText.Text = Get("GyroCalib_Calibrating");
 
             _mavlink.SendPreflightCalibration(gyro: true);
 
@@ -52,12 +54,12 @@ namespace SimpleDroneGCS.UI.Dialogs
             _elapsedSeconds++;
             double progress = Math.Min(100, _elapsedSeconds * 20);
             CalibProgress.Value = progress;
-            ProgressText.Text = $"{_elapsedSeconds} сек...";
+            ProgressText.Text = Fmt("GyroCalib_Seconds", _elapsedSeconds);
 
             if (_elapsedSeconds >= 15 && !_completed)
             {
                 _timer.Stop();
-                ShowResult(false, "Таймаут — нет ответа от дрона");
+                ShowResult(false, Get("GyroCalib_Timeout"));
             }
         }
 
@@ -65,6 +67,8 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             Dispatcher.BeginInvoke(() =>
             {
+                if (_isClosed) return;
+                
                 StatusText.Text = text;
                 Debug.WriteLine($"[GyroCalib] StatusText: {text}");
 
@@ -80,7 +84,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                 }
                 else if (lower.Contains("calibrat"))
                 {
-                    ProgressText.Text = "Идёт калибровка...";
+                    ProgressText.Text = Get("GyroCalib_CalibInProgress");
                 }
             });
         }
@@ -95,33 +99,34 @@ namespace SimpleDroneGCS.UI.Dialogs
             if (success)
             {
                 CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
-                InstructionText.Text = "Калибровка завершена!";
+                InstructionText.Text = Get("GyroCalib_SuccessInstruction");
                 InstructionText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
-                WarningText.Text = "✓ Гироскоп откалиброван";
+                WarningText.Text = Get("GyroCalib_SuccessWarning");
                 WarningText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
-                ProgressText.Text = "УСПЕХ";
+                ProgressText.Text = Get("GyroCalib_SuccessStatus");
                 ProgressText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
             }
             else
             {
                 CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-                InstructionText.Text = "Калибровка не удалась";
+                InstructionText.Text = Get("GyroCalib_ErrorInstruction");
                 InstructionText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-                WarningText.Text = "✗ Попробуйте снова";
+                WarningText.Text = Get("GyroCalib_ErrorWarning");
                 WarningText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-                ProgressText.Text = "ОШИБКА";
+                ProgressText.Text = Get("GyroCalib_ErrorStatus");
                 ProgressText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
             }
 
             StatusText.Text = message;
             StartButton.IsEnabled = true;
-            StartButton.Content = success ? "ГОТОВО" : "ПОВТОРИТЬ";
+            StartButton.Content = success ? Get("GyroCalib_DoneBtn") : Get("GyroCalib_RetryBtn");
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
         protected override void OnClosed(EventArgs e)
         {
+            _isClosed=true;
             _timer.Stop();
             _mavlink.OnStatusTextReceived -= OnStatusText;
             base.OnClosed(e);

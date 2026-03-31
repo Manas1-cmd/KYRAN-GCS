@@ -1,6 +1,9 @@
 ﻿using SimpleDroneGCS.Controls;
+using SimpleDroneGCS.Models;
 using SimpleDroneGCS.Services;
 using SimpleDroneGCS.UI.Dialogs;
+using System.ComponentModel;
+using System.Windows.Media.Animation;
 using SimpleDroneGCS.Views;
 using System;
 using System.Collections.Generic;
@@ -28,6 +31,7 @@ namespace SimpleDroneGCS
         private CameraWindow _cameraWindow;
 
         public MAVLinkService MAVLink { get; private set; }
+        private FlightLogService _flightLogService;
 
         public MainWindow()
         {
@@ -36,7 +40,106 @@ namespace SimpleDroneGCS
             System.Diagnostics.Debug.WriteLine("[MainWindow] InitializeComponent completed");
 
             InitializeMAVLink();
+            InitializeNotifications();
             NavigateToPage(FlightPlanButton);
+        }
+
+        private void InitializeNotifications()
+        {
+            var svc = NotificationService.Instance;
+            NotificationPanel.ItemsSource = svc.Toasts;
+            HistoryList.ItemsSource = svc.History;
+
+            svc.PropertyChanged += OnNotificationServicePropertyChanged;
+            svc.History.CollectionChanged += (_, _) => UpdateHistoryEmpty();
+        }
+
+        private void OnNotificationServicePropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(INotificationService.HasUnread)
+                               or nameof(INotificationService.UnreadLabel))
+            {
+                Dispatcher.BeginInvoke(UpdateBellBadge);
+            }
+        }
+
+        private void UpdateBellBadge()
+        {
+            var svc = NotificationService.Instance;
+            BellBadge.Visibility = svc.HasUnread ? Visibility.Visible : Visibility.Collapsed;
+            BellBadgeText.Text = svc.UnreadLabel;
+        }
+
+        private void UpdateHistoryEmpty()
+        {
+            if (HistoryEmptyText == null) return;
+            HistoryEmptyText.Visibility = NotificationService.Instance.History.Count == 0
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+
+        private bool _historyAnimating = false;
+        private bool _historyOpen = false;
+
+        private void BellButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_historyAnimating) return; 
+
+            if (_historyOpen) CloseHistory();
+            else OpenHistory();
+        }
+
+        private void OpenHistory()
+        {
+            _historyOpen = true;
+            _historyAnimating = true;
+            HistoryPanel.Visibility = Visibility.Visible;
+
+            NotificationService.Instance.MarkAllRead();
+            UpdateBellBadge();
+            UpdateHistoryEmpty();
+
+            AnimateHistoryPanel(from: 272, to: 0, onComplete: () => _historyAnimating = false);
+        }
+
+        private void CloseHistory()
+        {
+            _historyAnimating = true;
+            AnimateHistoryPanel(from: 0, to: 272, onComplete: () =>
+            {
+                _historyOpen = false;
+                _historyAnimating = false;
+                HistoryPanel.Visibility = Visibility.Collapsed;
+            });
+        }
+
+        private void AnimateHistoryPanel(double from, double to, Action onComplete = null)
+        {
+            var anim = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = new CubicEase
+                {
+                    EasingMode = to == 0 ? EasingMode.EaseOut : EasingMode.EaseIn
+                }
+            };
+            if (onComplete != null)
+                anim.Completed += (_, _) => onComplete();
+
+            HistorySlide.BeginAnimation(TranslateTransform.XProperty, anim);
+        }
+
+        private void HistoryClose_Click(object sender, RoutedEventArgs e) => CloseHistory();
+
+        private void HistoryClear_Click(object sender, RoutedEventArgs e)
+        {
+            NotificationService.Instance.ClearHistory();
+            UpdateBellBadge();
+        }
+
+        private void DismissNotification_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { Tag: NotificationToast toast })
+                NotificationService.Instance.DismissToast(toast);
         }
 
         private void InitializeMAVLink()
@@ -44,6 +147,12 @@ namespace SimpleDroneGCS
             MAVLink = new MAVLinkService();
             MAVLink.ConnectionStatusChanged_Bool += OnConnectionStatusChanged;
             MAVLink.TelemetryReceived += OnTelemetryReceived;
+            MAVLink.ErrorOccurred += (s, msg) => NotificationService.Instance.Error(msg);
+            MAVLink.OnStatusTextReceived += (msg) => NotificationService.Instance.Info(msg);
+            MAVLink.ConnectionStatusChanged += (s, msg) => NotificationService.Instance.Info(msg);
+
+            _flightLogService = new FlightLogService(NotificationService.Instance);
+            _flightLogService.Attach(MAVLink);
         }
 
         private void OnConnectionStatusChanged(object sender, bool isConnected)
@@ -76,19 +185,40 @@ namespace SimpleDroneGCS
         {
             try
             {
-                var dialog = new UdpConnectionDialog();
-                dialog.Owner = this;
-                dialog.ShowDialog();
+                var result = AppMessageBox.ShowYesNoCancel(
+                    "Выберите тип подключения:",
+                    owner: this,
+                    yesText: "UDP",
+                    noText: "COM порт"
+                );
 
-                if (dialog.IsConfirmed)
+                if (result == AppMessageBoxResult.Yes)
                 {
-                    if (!string.IsNullOrEmpty(dialog.HostIp) && dialog.HostPort.HasValue)
+                    var dialog = new UdpConnectionDialog();
+                    dialog.Owner = this;
+                    dialog.ShowDialog();
+
+                    if (dialog.IsConfirmed)
                     {
-                        MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort, dialog.HostIp, dialog.HostPort.Value);
+                        if (!string.IsNullOrEmpty(dialog.HostIp) && dialog.HostPort.HasValue)
+                        {
+                            MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort, dialog.HostIp, dialog.HostPort.Value);
+                        }
+                        else
+                        {
+                            MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort);
+                        }
                     }
-                    else
+                }
+                else if (result == AppMessageBoxResult.No)
+                {
+                    var dialog = new ComPortDialog();
+                    dialog.Owner = this;
+                    dialog.ShowDialog();
+
+                    if (dialog.IsConfirmed)
                     {
-                        MAVLink.ConnectUDP(dialog.LocalIp, dialog.LocalPort);
+                        MAVLink.Connect(dialog.SelectedPort, dialog.SelectedBaudRate);
                     }
                 }
             }
@@ -204,7 +334,7 @@ namespace SimpleDroneGCS
 
             if (AppMessageBox.ShowConfirm(Get("Msg_ReturnHome"), owner: this, subtitle: Get("MsgBox_Confirm")))
             {
-                MAVLink.SendRTL();
+                MAVLink.ReturnToLaunch();
             }
         }
 
@@ -212,6 +342,7 @@ namespace SimpleDroneGCS
         {
 
             MAVLink?.Disconnect();
+            _flightLogService?.Detach();
             base.OnClosed(e);
         }
 

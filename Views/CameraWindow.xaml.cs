@@ -112,6 +112,7 @@ namespace SimpleDroneGCS.Views
             if (_cameraService == null) return;
 
             bool ok = await _cameraService.ConnectAsync();
+            if (!IsLoaded) return;
             if (ok)
             {
                 UpdateStatus(Get("Connected"));
@@ -143,6 +144,7 @@ namespace SimpleDroneGCS.Views
                 ConnectButton.IsEnabled = false;
 
                 bool ok = await _cameraService.ConnectAsync();
+                if (!IsLoaded) return;
 
                 ConnectButton.IsEnabled = true;
                 if (ok)
@@ -317,7 +319,7 @@ namespace SimpleDroneGCS.Views
                 var media = new Media(_libVLC, url, FromType.FromLocation);
                 media.AddOption(":network-caching=150");
                 media.AddOption(":rtsp-tcp");
-                media.AddOption($":sout=#file{{dst={file}}}");
+                media.AddOption($":sout=#file{{dst='{file}'}}");
                 media.AddOption(":sout-keep");
 
                 _recordPlayer.Play(media);

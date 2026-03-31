@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using SimpleDroneGCS.Services;
+using static SimpleDroneGCS.Helpers.Loc;
 
 namespace SimpleDroneGCS.UI.Dialogs
 {
@@ -75,7 +76,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         private void UpdateSectorVisual(int sectorIndex, bool covered)
         {
             if (sectorIndex < 0 || sectorIndex >= _sectorDots.Count) return;
-            if (_sectorsCovered[sectorIndex]) return; 
+            if (_sectorsCovered[sectorIndex]) return;
 
             _sectorsCovered[sectorIndex] = covered;
             var dot = _sectorDots[sectorIndex];
@@ -122,12 +123,12 @@ namespace SimpleDroneGCS.UI.Dialogs
             for (int i = 0; i < 80; i++) _sectorsCovered[i] = false;
 
             StartButton.IsEnabled = false;
-            StartButton.Content = "ИДЁТ...";
+            StartButton.Content = Get("CompassCalib_GoingBtn");
             AcceptButton.IsEnabled = false;
             AcceptButton.Opacity = 0.4;
 
-            StatusText.Text = "Отправка DO_START_MAG_CAL...";
-            InstructionText.Text = "Медленно вращайте\nдрон во всех\nнаправлениях.\n\nПокройте всю\nсферу зелёным!";
+            StatusText.Text = Get("CompassCalib_Sending");
+            InstructionText.Text = Get("CompassCalib_Rotate");
 
             _mavlink.SendCommandLong(42424,
                 param1: 0, param2: 0, param3: 0, param4: 0, param5: 0);
@@ -149,10 +150,10 @@ namespace SimpleDroneGCS.UI.Dialogs
 
                 int covered = 0;
                 foreach (bool s in _sectorsCovered) if (s) covered++;
-                CoverageText.Text = $"{covered} / 80 секций";
+                CoverageText.Text = Fmt("CompassCalib_SectionsCount", covered);
                 CompassIdText.Text = $"MAG #{compassId + 1}";
 
-                StatusText.Text = $"Калибровка... {completionPct}%";
+                StatusText.Text = Fmt("CompassCalib_InProgress", completionPct);
                 StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFAA00"));
 
                 if (completionPct > 80)
@@ -171,7 +172,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                 _calibrating = false;
                 _completed = true;
 
-                bool success = calStatus == 4; 
+                bool success = calStatus == 4;
 
                 CalibProgress.Value = 100;
                 CenterPercent.Text = success ? "✓" : "✗";
@@ -179,7 +180,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                 if (success)
                 {
                     CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
-                    StatusText.Text = "Калибровка завершена! Нажмите ПРИНЯТЬ.";
+                    StatusText.Text = Get("CompassCalib_SuccessStatus");
                     StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
 
                     FitnessText.Text = $"{fitness:F1}";
@@ -187,7 +188,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                         (Color)ColorConverter.ConvertFromString(fitness < 25 ? "#98F019" : fitness < 50 ? "#FFAA00" : "#FF4444"));
 
                     DroneStatusText.Text = $"Offsets: X={ofsX:F1}  Y={ofsY:F1}  Z={ofsZ:F1}  |  Fitness={fitness:F1}";
-                    InstructionText.Text = "Калибровка\nуспешна!\n\nНажмите\nПРИНЯТЬ";
+                    InstructionText.Text = Get("CompassCalib_SuccessInstruction");
 
                     AcceptButton.IsEnabled = true;
                     AcceptButton.Opacity = 1.0;
@@ -195,12 +196,12 @@ namespace SimpleDroneGCS.UI.Dialogs
                 else
                 {
                     CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-                    StatusText.Text = $"Ошибка калибровки (статус: {calStatus})";
+                    StatusText.Text = Fmt("CompassCalib_ErrorStatus", calStatus);
                     StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-                    InstructionText.Text = "Ошибка!\n\nПопробуйте\nещё раз.";
+                    InstructionText.Text = Get("CompassCalib_ErrorInstruction");
 
                     StartButton.IsEnabled = true;
-                    StartButton.Content = "ПОВТОРИТЬ";
+                    StartButton.Content = Get("CompassCalib_RetryBtn");
                 }
 
                 Debug.WriteLine($"[CompassCalib] Report: status={calStatus}, fitness={fitness}");
@@ -209,12 +210,12 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private void AcceptButton_Click(object sender, RoutedEventArgs e)
         {
-            
+
             _mavlink.SendCommandLong(42425, param1: 0);
 
-            StatusText.Text = "Калибровка сохранена!";
+            StatusText.Text = Get("CompassCalib_Saved");
             AcceptButton.IsEnabled = false;
-            AcceptButton.Content = "СОХРАНЕНО";
+            AcceptButton.Content = Get("CompassCalib_SavedBtn");
             Debug.WriteLine("[CompassCalib] Calibration accepted");
         }
 
@@ -229,7 +230,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             if (_elapsedSeconds >= 120 && !_completed)
             {
                 _timer.Stop();
-                StatusText.Text = "Таймаут 120 сек — калибровка отменена";
+                StatusText.Text = Get("CompassCalib_Timeout");
                 StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
 
                 _mavlink.SendCommandLong(42426);
@@ -243,7 +244,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             if (_calibrating)
             {
-                _mavlink.SendCommandLong(42426); 
+                _mavlink.SendCommandLong(42426);
                 Debug.WriteLine("[CompassCalib] Cancelled");
             }
             Close();

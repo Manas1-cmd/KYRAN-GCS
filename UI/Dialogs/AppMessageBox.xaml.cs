@@ -131,7 +131,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             => Show(owner, Get("MsgBox_Confirm"), message, AppMessageBoxType.Confirm,
                     okText: Get("MsgBox_Yes"), cancelText: Get("MsgBox_No"), showCancel: true, subtitle: subtitle, hint: hint);
         public static AppMessageBoxResult ShowYesNoCancel(string message, Window owner = null,
-            string subtitle = null, string yesText = "Да", string noText = "Нет", string cancelText = null)
+    string subtitle = null, string yesText = "Да", string noText = "Нет", string cancelText = null)
         {
             var dlg = new AppMessageBox(Get("MsgBox_Choose"), message, AppMessageBoxType.Confirm,
                 yesText ?? Get("MsgBox_Yes"), cancelText ?? Get("MsgBox_Cancel"), showCancel: true, subtitle: subtitle)
@@ -146,14 +146,30 @@ namespace SimpleDroneGCS.UI.Dialogs
             var noButton = new System.Windows.Controls.Button
             {
                 Content = noText,
-                Style = dlg.CancelButton.Style,
-                Margin = new Thickness(8, 0, 0, 0),
-                MinWidth = 80
+                Template = dlg.CancelButton.Template,
+                Background = dlg.CancelButton.Background,
+                Foreground = dlg.CancelButton.Foreground,
+                BorderBrush = dlg.CancelButton.BorderBrush,
+                BorderThickness = dlg.CancelButton.BorderThickness,
+                Width = 140,
+                Height = 44,
+                Margin = new Thickness(0, 14, 10, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
             };
             noButton.Click += dlg.No_Click;
 
-            var panel = (System.Windows.Controls.StackPanel)dlg.OkButton.Parent;
-            panel.Children.Insert(1, noButton);
+            var grid = (System.Windows.Controls.Grid)dlg.OkButton.Parent;
+            grid.ColumnDefinitions.Clear();
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            System.Windows.Controls.Grid.SetColumn(noButton, 1);
+            System.Windows.Controls.Grid.SetColumn(dlg.CancelButton, 2);
+            System.Windows.Controls.Grid.SetColumn(dlg.OkButton, 3);
+
+            grid.Children.Add(noButton);
 
             dlg.ShowDialog();
             return dlg.Result;

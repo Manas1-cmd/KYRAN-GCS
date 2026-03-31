@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SimpleDroneGCS.Services
 {
-    
+
     public class Z30TCameraService : IDisposable
     {
 
@@ -14,6 +14,7 @@ namespace SimpleDroneGCS.Services
         private NetworkStream _stream;
         private CancellationTokenSource _cts;
 
+        private readonly object _sendLock = new();
         private bool _isConnected;
         private bool _isRecording;
         private bool _isTracking;
@@ -55,7 +56,7 @@ namespace SimpleDroneGCS.Services
 
         private static byte[] BuildPacket(byte cmd, byte dataLen, params byte[] data)
         {
-            int total = 4 + 1 + 1 + dataLen + 2; 
+            int total = 4 + 1 + 1 + dataLen + 2;
             byte[] pkt = new byte[total];
 
             pkt[0] = 0x33; pkt[1] = 0x33; pkt[2] = 0x02; pkt[3] = 0x03;
@@ -125,33 +126,32 @@ namespace SimpleDroneGCS.Services
         {
             byte[] buffer = new byte[1024];
             bool firstData = true;
-
-            while (!token.IsCancellationRequested && _isConnected)
+            try
             {
-                try
+                while (!token.IsCancellationRequested && _isConnected && _stream != null)
                 {
-                    if (_stream?.DataAvailable == true)
+                    int n = await _stream.ReadAsync(buffer, 0, buffer.Length, token);
+                    if (n == 0) break; 
+                    if (firstData)
                     {
-                        int n = await _stream.ReadAsync(buffer, 0, buffer.Length, token);
-                        if (n > 0)
-                        {
-                            if (firstData)
-                            {
-                                Debug.WriteLine($"[Z30T] ★ Первые данные от камеры! ({n} байт)");
-                                firstData = false;
-                            }
-                            ParseResponse(buffer, n);
-                        }
+                        Debug.WriteLine($"[Z30T] ★ Первые данные от камеры! ({n} байт)");
+                        firstData = false;
                     }
-                    else
-                    {
-                        await Task.Delay(50, token);
-                    }
+                    ParseResponse(buffer, n);
                 }
-                catch (OperationCanceledException) { break; }
-                catch (Exception ex)
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Z30T] RX error: {ex.Message}");
+            }
+            finally
+            {
+                if (_isConnected)
                 {
-                    Debug.WriteLine($"[Z30T] RX error: {ex.Message}");
+                    _isConnected = false;
+                    StatusChanged?.Invoke("Соединение потеряно");
+                    Debug.WriteLine("[Z30T] Connection lost in ReceiveLoop");
                 }
             }
         }
@@ -172,7 +172,7 @@ namespace SimpleDroneGCS.Services
                 {
                     try
                     {
-                        
+
                         int rawYaw = BitConverter.ToInt16(data, i + 6);
                         int rawPitch = BitConverter.ToInt16(data, i + 8);
                         int rawRoll = BitConverter.ToInt16(data, i + 10);
@@ -209,7 +209,11 @@ namespace SimpleDroneGCS.Services
             if (!_isConnected || _stream == null) return false;
             try
             {
-                _stream.Write(packet, 0, packet.Length);
+                lock (_sendLock)
+                {
+                    if (_stream == null) return false;
+                    _stream.Write(packet, 0, packet.Length);
+                }
                 Debug.WriteLine($"[Z30T] TX: {BitConverter.ToString(packet)}");
                 return true;
             }
@@ -226,25 +230,16 @@ namespace SimpleDroneGCS.Services
             int yawSpeed = Clamp(yaw * 10, -1000, 1000);
             int pitchSpeed = Clamp(pitch * 10, -1000, 1000);
 
-            if (yaw != 0)
-            {
-                byte lo = (byte)(yawSpeed & 0xFF);
-                byte hi = (byte)((yawSpeed >> 8) & 0xFF);
-                Send(BuildPacket(0x07, 0x02, lo, hi));
-            }
-
-            if (pitch != 0)
-            {
-                byte lo = (byte)(pitchSpeed & 0xFF);
-                byte hi = (byte)((pitchSpeed >> 8) & 0xFF);
-                Send(BuildPacket(0x08, 0x02, lo, hi));
-            }
+            byte yLo = (byte)(yawSpeed & 0xFF), yHi = (byte)((yawSpeed >> 8) & 0xFF);
+            byte pLo = (byte)(pitchSpeed & 0xFF), pHi = (byte)((pitchSpeed >> 8) & 0xFF);
+            Send(BuildPacket(0x07, 0x02, yLo, yHi));
+            Send(BuildPacket(0x08, 0x02, pLo, pHi));
         }
 
         public void StopGimbal()
         {
-            Send(BuildPacket(0x07, 0x02, 0x00, 0x00)); 
-            Send(BuildPacket(0x08, 0x02, 0x00, 0x00)); 
+            Send(BuildPacket(0x07, 0x02, 0x00, 0x00));
+            Send(BuildPacket(0x08, 0x02, 0x00, 0x00));
         }
 
         public void ReturnToCenter()
@@ -419,9 +414,27 @@ namespace SimpleDroneGCS.Services
             if (_isLaserOn) ToggleLaser();
         }
 
-        public void LRFMeasureSingle() => ToggleLaser();
-        public void LRFMeasureContinuous() => LaserOn();
-        public void LRFStop() => LaserOff();
+        public void LRFMeasureSingle()
+        {
+            Send(BuildPacket(0x33, 0x01, 0x01)); 
+            Debug.WriteLine("[Z30T] LRF: одиночный замер");
+        }
+
+        public void LRFMeasureContinuous()
+        {
+            Send(BuildPacket(0x33, 0x01, 0x02));
+            _isLaserOn = true;
+            StatusChanged?.Invoke("🔴 LRF: непрерывный замер");
+            Debug.WriteLine("[Z30T] LRF: непрерывный замер");
+        }
+
+        public void LRFStop()
+        {
+            Send(BuildPacket(0x33, 0x01, 0x00)); 
+            _isLaserOn = false;
+            StatusChanged?.Invoke("LRF: остановлен");
+            Debug.WriteLine("[Z30T] LRF: остановлен");
+        }
 
         public void SetFillLight(bool on)
         {
@@ -455,12 +468,15 @@ namespace SimpleDroneGCS.Services
         public void NextTempGear()
         {
             if (_tempGear >= 3)
-                _tempGear = 0; 
-            else
-                SetTempGear(_tempGear + 1);
-
-            if (_tempGear == 0)
+            {
+                Send(BuildPacket(0x70, 0x01, 0x00)); 
+                _tempGear = 0;
                 StatusChanged?.Invoke("🌡 Температура: ВЫКЛ");
+            }
+            else
+            {
+                SetTempGear(_tempGear + 1);
+            }
         }
 
         public void MeasureTemperature() => NextTempGear();

@@ -9,7 +9,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 {
     public class WaypointEditDialog : Window
     {
-        
+
         public double Latitude { get; private set; }
         public double Longitude { get; private set; }
         public double Altitude { get; private set; }
@@ -18,18 +18,20 @@ namespace SimpleDroneGCS.UI.Dialogs
         public int LoiterTurns { get; private set; }
         public bool AutoNext { get; private set; }
         public bool Clockwise { get; private set; }
-        public string CommandType { get; private set; }  
+        public string CommandType { get; private set; }
+        public double Speed { get; private set; }
 
-        private TextBox _latBox, _lngBox, _altBox, _radBox, _delayBox, _turnsBox;
+        private TextBox _latBox, _lngBox, _altBox, _radBox, _delayBox, _turnsBox, _speedBox;
+        private StackPanel _latRow, _lngRow, _altRow, _radRow, _delayRow, _turnsRow, _dirRow, _dirHintRow;
         private CheckBox _autoNextBox;
         private Border _cwButton, _ccwButton;
-        private ComboBox _commandCombo;  
+        private ComboBox _commandCombo;
         private bool _isClockwise;
-        private bool _isVtol;  
+        private bool _isVtol;
 
         public WaypointEditDialog(int waypointNumber, double lat, double lng, double alt,
-                                  double radius, double delay, int turns, bool autoNext, bool clockwise,
-                                  string commandType = "WAYPOINT", bool isVtol = false)  
+                                  double radius, double delay, int turns, double speed, bool autoNext, bool clockwise,
+                                  string commandType = "WAYPOINT", bool isVtol = false)
         {
             Latitude = lat;
             Longitude = lng;
@@ -39,13 +41,14 @@ namespace SimpleDroneGCS.UI.Dialogs
             LoiterTurns = turns;
             AutoNext = autoNext;
             Clockwise = clockwise;
-            CommandType = commandType;  
+            CommandType = commandType;
+            Speed = speed;
             _isClockwise = clockwise;
-            _isVtol = isVtol;  
+            _isVtol = isVtol;
 
             Title = Fmt("WpEdit_Title", waypointNumber);
             Width = 450;
-            Height = 720;  
+            Height = 720;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
             Background = new SolidColorBrush(Color.FromRgb(10, 14, 26));
@@ -171,26 +174,43 @@ namespace SimpleDroneGCS.UI.Dialogs
             }
             _commandCombo.SelectedIndex = selIdx;
 
+            _commandCombo.SelectionChanged += (s, e) =>
+            {
+                if (_commandCombo.SelectedItem is ComboBoxItem ci)
+                    UpdateFieldVisibility(ci.Tag?.ToString() ?? "WAYPOINT");
+            };
             cmdPanel.Children.Add(_commandCombo);
             mainStack.Children.Add(cmdPanel);
 
             _latBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow(Get("WpEdit_Latitude"), Latitude.ToString("F7"), _latBox));
+            _latRow = CreateInputRow(Get("WpEdit_Latitude"), Latitude.ToString("F7"), _latBox);
+            mainStack.Children.Add(_latRow);
 
             _lngBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow(Get("WpEdit_Longitude"), Longitude.ToString("F7"), _lngBox));
+            _lngRow = CreateInputRow(Get("WpEdit_Longitude"), Longitude.ToString("F7"), _lngBox);
+            mainStack.Children.Add(_lngRow);
 
             _altBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow(Get("WpEdit_AltitudeM"), Altitude.ToString("F0"), _altBox));
+            _altRow = CreateInputRow(Get("WpEdit_AltitudeM"), Altitude.ToString("F0"), _altBox);
+            mainStack.Children.Add(_altRow);
 
             _radBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow(Get("WpEdit_RadiusM"), Radius.ToString("F0"), _radBox));
+            _radRow = CreateInputRow(Get("WpEdit_RadiusM"), Radius.ToString("F0"), _radBox);
+            mainStack.Children.Add(_radRow);
 
             _delayBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow(Get("WpEdit_DelayS"), Delay.ToString("F0"), _delayBox));
+            _delayRow = CreateInputRow(Get("WpEdit_DelayS"), Delay.ToString("F0"), _delayBox);
+            mainStack.Children.Add(_delayRow);
+
+            _speedBox = new TextBox();
+            var speedRow = CreateInputRow(Get("WpEdit_SpeedMS"), Speed.ToString("F0"), _speedBox);
+            speedRow.Name = "SpeedRow";
+            speedRow.Visibility = CommandType == "CHANGE_SPEED" ? Visibility.Visible : Visibility.Collapsed;
+            mainStack.Children.Add(speedRow);
 
             _turnsBox = new TextBox();
-            mainStack.Children.Add(CreateInputRow(Get("WpEdit_Turns"), LoiterTurns.ToString(), _turnsBox));
+            _turnsRow = CreateInputRow(Get("WpEdit_Turns"), LoiterTurns.ToString(), _turnsBox);
+            mainStack.Children.Add(_turnsRow);
 
             var directionPanel = new StackPanel
             {
@@ -216,7 +236,8 @@ namespace SimpleDroneGCS.UI.Dialogs
             _ccwButton.Margin = new Thickness(8, 0, 0, 0);
             directionPanel.Children.Add(_ccwButton);
 
-            mainStack.Children.Add(directionPanel);
+            _dirRow = directionPanel;
+            mainStack.Children.Add(_dirRow);
 
             var dirHintPanel = new Border
             {
@@ -232,7 +253,9 @@ namespace SimpleDroneGCS.UI.Dialogs
                 FontSize = 10,
                 TextWrapping = TextWrapping.Wrap
             };
-            mainStack.Children.Add(dirHintPanel);
+            _dirHintRow = new StackPanel();
+            _dirHintRow.Children.Add(dirHintPanel);
+            mainStack.Children.Add(_dirHintRow);
 
             var autoPanel = new StackPanel
             {
@@ -290,6 +313,32 @@ namespace SimpleDroneGCS.UI.Dialogs
             };
 
             UpdateDirectionButtons();
+            UpdateFieldVisibility(CommandType);
+        }
+
+        private void UpdateFieldVisibility(string cmd)
+        {
+            bool hasAlt = cmd != "RETURN_TO_LAUNCH";
+            bool hasRadius = cmd is "LOITER_UNLIM" or "LOITER_TIME" or "LOITER_TURNS";
+            bool hasDelay = cmd is "WAYPOINT" or "LOITER_TIME" or "DELAY" or "SPLINE_WP";
+            bool hasTurns = cmd == "LOITER_TURNS";
+            bool hasDirection = cmd is "LOITER_UNLIM" or "LOITER_TIME" or "LOITER_TURNS";
+            bool hasSpeed = cmd == "CHANGE_SPEED";
+
+            void Set(StackPanel row, bool visible)
+            {
+                if (row != null) row.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            Set(_altRow, hasAlt);
+            Set(_radRow, hasRadius);
+            Set(_delayRow, hasDelay);
+            Set(_turnsRow, hasTurns);
+            Set(_dirRow, hasDirection);
+            Set(_dirHintRow, hasDirection);
+
+            if (_speedBox?.Parent is StackPanel sp)
+                sp.Visibility = hasSpeed ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private Border CreateDirectionButton(string text, bool isCw)
@@ -425,16 +474,22 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private void SaveButton_Click(object sender, MouseButtonEventArgs e)
         {
-            if (!double.TryParse(_latBox.Text.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double lat) ||
-                !double.TryParse(_lngBox.Text.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double lng) ||
-                !double.TryParse(_altBox.Text, out double alt) ||
-                !double.TryParse(_radBox.Text, out double rad) ||
-                !double.TryParse(_delayBox.Text, out double delay) ||
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var ns = System.Globalization.NumberStyles.Float;
+
+            if (!double.TryParse(_latBox.Text.Replace(',', '.'), ns, inv, out double lat) ||
+                !double.TryParse(_lngBox.Text.Replace(',', '.'), ns, inv, out double lng) ||
+                !double.TryParse(_altBox.Text.Replace(',', '.'), ns, inv, out double alt) ||
+                !double.TryParse(_radBox.Text.Replace(',', '.'), ns, inv, out double rad) ||
+                !double.TryParse(_delayBox.Text.Replace(',', '.'), ns, inv, out double delay) ||
                 !int.TryParse(_turnsBox.Text, out int turns))
             {
                 MessageBox.Show(Get("WpEdit_ValidationError"), Get("Error"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            double.TryParse(_speedBox.Text.Replace(',', '.'), ns, inv, out double speed);
+            if (speed <= 0) speed = 10;
 
             if (lat < -90 || lat > 90)
             {
@@ -453,6 +508,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             Radius = Math.Max(5, Math.Min(500, rad));
             Delay = Math.Max(0, delay);
             LoiterTurns = Math.Max(0, turns);
+            Speed = Math.Max(1, speed);
             AutoNext = _autoNextBox.IsChecked ?? true;
             Clockwise = _isClockwise;
 

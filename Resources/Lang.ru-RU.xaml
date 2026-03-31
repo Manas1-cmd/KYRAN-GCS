@@ -10,7 +10,6 @@
     <sys:String x:Key="Save">Сохранить</sys:String>
     <sys:String x:Key="Start">НАЧАТЬ</sys:String>
     <sys:String x:Key="Next">ДАЛЕЕ ▶</sys:String>
-    <sys:String x:Key="Execute">Выполнить</sys:String>
     <sys:String x:Key="Download">Скачать</sys:String>
     <sys:String x:Key="Error">Ошибка</sys:String>
     <sys:String x:Key="Ready">Готов</sys:String>
@@ -23,7 +22,7 @@
     <sys:String x:Key="OnOff">Вкл/Выкл</sys:String>
 
     <!-- ==================== MAIN WINDOW ==================== -->
-    <sys:String x:Key="AppTitle">SQK GCS - Professional</sys:String>
+    <sys:String x:Key="AppTitle">SQK GCS - v 1.0</sys:String>
     <sys:String x:Key="Nav_Mission">МИССИЯ</sys:String>
     <sys:String x:Key="Nav_Camera">КАМЕРА</sys:String>
     <sys:String x:Key="Nav_Land">ПОСАДКА</sys:String>
@@ -315,6 +314,7 @@
     <sys:String x:Key="WpEdit_RadiusM">Радиус (м):</sys:String>
     <sys:String x:Key="WpEdit_DelayS">Задержка (с):</sys:String>
     <sys:String x:Key="WpEdit_Turns">Кругов:</sys:String>
+    <sys:String x:Key="WpEdit_SpeedMS">Скорость (м/с):</sys:String>
     <sys:String x:Key="WpEdit_Direction">Направление:</sys:String>
     <sys:String x:Key="WpEdit_DirHint">🔄 CW = по часовой стрелке, CCW = против часовой</sys:String>
     <sys:String x:Key="WpEdit_AutoNext">Автопереход к следующей точке</sys:String>
@@ -450,6 +450,7 @@
     <sys:String x:Key="Msg_ArmFailed">Не удалось активировать дрон</sys:String>
     <sys:String x:Key="Msg_MissionActivated">Миссия активирована!</sys:String>
     <sys:String x:Key="Msg_DroneNotArmed">Дрон не активирован</sys:String>
+    <sys:String x:Key="Msg_RestartMissionConfirm">Перезапустить миссию с начала? Дрон вернётся к точке HOME и выполнит маршрут заново.</sys:String>
     <sys:String x:Key="Msg_DroneLastWaypoint">Дрон уже на последней точке миссии</sys:String>
     <sys:String x:Key="Msg_ClickMapHome">Кликните на карте для установки HOME.</sys:String>
     <sys:String x:Key="Msg_HomeSetupSub">Установка HOME</sys:String>
@@ -465,7 +466,7 @@
     <sys:String x:Key="Msg_ClearAllWaypoints">Удалить все точки маршрута?</sys:String>
     <sys:String x:Key="Msg_ActionIrreversible">Действие необратимо.</sys:String>
     <sys:String x:Key="Msg_VtolSequence">Взлёт → самолёт → точки → коптер → посадка</sys:String>
-    <sys:String x:Key="Msg_ActivateVtolMission">Активировать VTOL миссию из {0} точек?&#x0a;&#x0a;ВЗЛЁТ → СТАРТ → WPs → ПОСАДКА&#x0a;&#x0a;⚠️ Дрон взлетит автоматически!</sys:String>
+    <sys:String x:Key="Msg_ActivateVtolMission">Активировать VTOL миссию из {0} точек?&#x0a;&#x0a;ВЗЛЁТ → WPs → ПОСАДКА&#x0a;&#x0a;⚠️ Дрон взлетит автоматически!</sys:String>
     <sys:String x:Key="Msg_ActivateCopterMission">Активировать миссию из {0} точек?&#x0a;&#x0a;⚠️ Дрон взлетит автоматически!</sys:String>
     <sys:String x:Key="Route_Label">Маршрут</sys:String>
     <sys:String x:Key="FromWP_Label">От</sys:String>
@@ -509,4 +510,169 @@
     <sys:String x:Key="Stats_Packets">Пакетов</sys:String>
     <sys:String x:Key="Stats_Sent">Отправлено</sys:String>
     <sys:String x:Key="Stats_Errors">Ошибок</sys:String>
+    <!-- Compass calibration - dynamic states -->
+    <sys:String x:Key="CompassCalib_Sending">Отправка DO_START_MAG_CAL...</sys:String>
+    <sys:String x:Key="CompassCalib_Rotate">Медленно вращайте&#x0a;дрон во всех&#x0a;направлениях.&#x0a;&#x0a;Покройте всю&#x0a;сферу зелёным!</sys:String>
+    <sys:String x:Key="CompassCalib_InProgress">Калибровка... {0}%</sys:String>
+    <sys:String x:Key="CompassCalib_SectionsCount">{0} / 80 секций</sys:String>
+    <sys:String x:Key="CompassCalib_SuccessStatus">Калибровка завершена! Нажмите ПРИНЯТЬ.</sys:String>
+    <sys:String x:Key="CompassCalib_SuccessInstruction">Калибровка&#x0a;успешна!&#x0a;&#x0a;Нажмите&#x0a;ПРИНЯТЬ</sys:String>
+    <sys:String x:Key="CompassCalib_ErrorStatus">Ошибка калибровки (статус: {0})</sys:String>
+    <sys:String x:Key="CompassCalib_ErrorInstruction">Ошибка!&#x0a;&#x0a;Попробуйте&#x0a;ещё раз.</sys:String>
+    <sys:String x:Key="CompassCalib_Timeout">Таймаут 120 сек — калибровка отменена</sys:String>
+    <sys:String x:Key="CompassCalib_Saved">Калибровка сохранена!</sys:String>
+    <sys:String x:Key="CompassCalib_SavedBtn">СОХРАНЕНО</sys:String>
+    <sys:String x:Key="CompassCalib_RetryBtn">ПОВТОРИТЬ</sys:String>
+    <sys:String x:Key="CompassCalib_GoingBtn">ИДЁТ...</sys:String>
+    <!-- Gyro calibration - dynamic states -->
+    <sys:String x:Key="GyroCalib_InProgress">Калибровка гироскопа...&#x0a;Не двигайте дрон!</sys:String>
+    <sys:String x:Key="GyroCalib_DontTouch">⚠ НЕ ТРОГАЙТЕ ДРОН!</sys:String>
+    <sys:String x:Key="GyroCalib_Calibrating">Калибровка...</sys:String>
+    <sys:String x:Key="GyroCalib_CalibInProgress">Идёт калибровка...</sys:String>
+    <sys:String x:Key="GyroCalib_Seconds">{0} сек...</sys:String>
+    <sys:String x:Key="GyroCalib_SuccessInstruction">Калибровка завершена!</sys:String>
+    <sys:String x:Key="GyroCalib_SuccessWarning">✓ Гироскоп откалиброван</sys:String>
+    <sys:String x:Key="GyroCalib_ErrorInstruction">Калибровка не удалась</sys:String>
+    <sys:String x:Key="GyroCalib_ErrorWarning">✗ Попробуйте снова</sys:String>
+    <sys:String x:Key="GyroCalib_DoneBtn">ГОТОВО</sys:String>
+    <sys:String x:Key="GyroCalib_RetryBtn">ПОВТОРИТЬ</sys:String>
+    <sys:String x:Key="GyroCalib_GoingBtn">ИДЁТ...</sys:String>
+    <sys:String x:Key="GyroCalib_SuccessStatus">УСПЕХ</sys:String>
+    <sys:String x:Key="GyroCalib_ErrorStatus">ОШИБКА</sys:String>
+    <sys:String x:Key="GyroCalib_Timeout">Таймаут — нет ответа от дрона</sys:String>
+    <sys:String x:Key="Msg_NoGpsActivateWarning">⚠️ GPS НЕ ГОТОВ (нет фиксации)!&#x0a;&#x0a;После взлёта дрон может автоматически перейти в режим RTL (возврат домой).&#x0a;&#x0a;Всё равно активировать миссию?</sys:String>
+    <!-- Accel calibration - dynamic states -->
+    <sys:String x:Key="AccelCalib_Waiting">Ожидание ответа от дрона...</sys:String>
+    <sys:String x:Key="AccelCalib_Collecting">Дрон собирает данные... не двигайте!</sys:String>
+    <sys:String x:Key="AccelCalib_Done">Калибровка завершена!</sys:String>
+    <sys:String x:Key="AccelCalib_NextBtn">ДАЛЕЕ ▶</sys:String>
+    <sys:String x:Key="AccelCalib_DoneBtn">ГОТОВО ✓</sys:String>
+    <sys:String x:Key="AccelCalib_RetryBtn">ПОВТОР ↺</sys:String>
+    <sys:String x:Key="AccelCalib_SetDrone">Установите дрон: {0}</sys:String>
+    <!-- AccelCalib positions -->
+    <sys:String x:Key="AccelPos_0_Title">РОВНО</sys:String>
+    <sys:String x:Key="AccelPos_0_Desc">Поставьте дрон РОВНО на стол&#x0a;колёсами/ножками вниз</sys:String>
+    <sys:String x:Key="AccelPos_0_Hint">Стандартное положение</sys:String>
+    <sys:String x:Key="AccelPos_1_Title">НА ЛЕВЫЙ БОК</sys:String>
+    <sys:String x:Key="AccelPos_1_Desc">Наклоните дрон НА ЛЕВЫЙ БОК&#x0a;(левая сторона вниз)</sys:String>
+    <sys:String x:Key="AccelPos_1_Hint">Левый бок касается стола</sys:String>
+    <sys:String x:Key="AccelPos_2_Title">НА ПРАВЫЙ БОК</sys:String>
+    <sys:String x:Key="AccelPos_2_Desc">Наклоните дрон НА ПРАВЫЙ БОК&#x0a;(правая сторона вниз)</sys:String>
+    <sys:String x:Key="AccelPos_2_Hint">Правый бок касается стола</sys:String>
+    <sys:String x:Key="AccelPos_3_Title">НОС ВНИЗ</sys:String>
+    <sys:String x:Key="AccelPos_3_Desc">Поставьте дрон НОСОМ ВНИЗ&#x0a;(передняя часть вниз)</sys:String>
+    <sys:String x:Key="AccelPos_3_Hint">Нос касается стола</sys:String>
+    <sys:String x:Key="AccelPos_4_Title">НОС ВВЕРХ</sys:String>
+    <sys:String x:Key="AccelPos_4_Desc">Поставьте дрон НОСОМ ВВЕРХ&#x0a;(задняя часть вниз)</sys:String>
+    <sys:String x:Key="AccelPos_4_Hint">Хвост касается стола</sys:String>
+    <sys:String x:Key="AccelPos_5_Title">ВВЕРХ НОГАМИ</sys:String>
+    <sys:String x:Key="AccelPos_5_Desc">Переверните дрон ВВЕРХ НОГАМИ&#x0a;(крышка вниз)</sys:String>
+    <sys:String x:Key="AccelPos_5_Hint">Дрон перевёрнут</sys:String>
+    <sys:String x:Key="AccelCalib_StepTitle">Шаг {0}/6: {1}</sys:String>
+    <sys:String x:Key="AccelCalib_SuccessTitle">КАЛИБРОВКА ЗАВЕРШЕНА!</sys:String>
+    <sys:String x:Key="AccelCalib_SuccessDesc">Акселерометр откалиброван успешно</sys:String>
+    <sys:String x:Key="AccelCalib_ErrorTitle">ОШИБКА КАЛИБРОВКИ</sys:String>
+    <sys:String x:Key="AccelCalib_CloseBtn">ЗАКРЫТЬ</sys:String>
+    <sys:String x:Key="AccelCalib_GoingBtn">ИДЁТ...</sys:String>
+
+    <!-- Notifications -->
+    <sys:String x:Key="Notif_HeartbeatLost">Нет ответа от дрона</sys:String>
+    <sys:String x:Key="Notif_HeartbeatBack">Связь восстановлена</sys:String>
+    <sys:String x:Key="Notif_BatteryLow">Батарея: {0}% — низкий заряд</sys:String>
+    <sys:String x:Key="Notif_BatteryCrit">Батарея: {0}% — СРОЧНО НА ПОСАДКУ!</sys:String>
+    <sys:String x:Key="Notif_GpsLost">GPS сигнал потерян</sys:String>
+    <sys:String x:Key="Notif_Gps2D">GPS: 2D фикс ({0} спутн.)</sys:String>
+    <sys:String x:Key="Notif_GpsOk">GPS OK — {0} спутников</sys:String>
+    <sys:String x:Key="Notif_Armed">Дрон ARMED — моторы активны</sys:String>
+    <sys:String x:Key="Notif_Disarmed">Дрон DISARMED</sys:String>
+    <sys:String x:Key="Notif_ModeChanged">Режим: {0}</sys:String>
+    <sys:String x:Key="Notif_AltDrop">Потеря высоты: {0} м/с</sys:String>
+    <sys:String x:Key="Notif_ToFixedWing">Переход: самолётный режим</sys:String>
+    <sys:String x:Key="Notif_ToMulticopter">Переход: мультикоптерный режим</sys:String>
+    <sys:String x:Key="Notif_RtlToQrtl">RTL → QRTL: автоматическое переключение для VTOL</sys:String>
+    <sys:String x:Key="Notif_History_Title">ЖУРНАЛ СОБЫТИЙ</sys:String>
+    <sys:String x:Key="Notif_History_Empty">Событий нет</sys:String>
+    <sys:String x:Key="Notif_History_Clear">Очистить</sys:String>
+    <sys:String x:Key="Notif_History_Unread">{0} новых</sys:String>
+    <sys:String x:Key="Notif_WaypointReached">Точка {0} из {1}</sys:String>
+    <sys:String x:Key="Notif_MissionComplete">Миссия завершена</sys:String>
+    <sys:String x:Key="Notif_MissionStarted">Миссия запущена</sys:String>
+    <sys:String x:Key="Msg_ArmFailedPrearm">Дрон не прошёл предполётные проверки. Проверьте журнал событий.</sys:String>
+    <sys:String x:Key="Msg_ArmForceConfirm">Предполётные проверки не пройдены. Принудительно активировать дрон?</sys:String>
+    <sys:String x:Key="Msg_ResumeNotArmed">Невозможно продолжить миссию: дрон разармлен.</sys:String>
+    <sys:String x:Key="Msg_NextWpVtolDanger">Нельзя пропустить точку: дрон переходит на посадку.</sys:String>
+    <sys:String x:Key="Msg_RealtimeUpdateSkipped">Обновление миссии пропущено: дрон слишком близко к текущей точке.</sys:String>
+
+    <!-- Flight Log -->
+    <sys:String x:Key="Log_Started">📋 Лог запущен: {0}</sys:String>
+    <sys:String x:Key="Log_Saved">💾 Лог сохранён: {0}</sys:String>
+    <sys:String x:Key="Log_Stopped">⚠️ Лог остановлен: {0}</sys:String>
+    <sys:String x:Key="Log_SizeLimit">Лог: достигнут лимит 50 МБ, запись остановлена</sys:String>
+    <sys:String x:Key="Log_ErrorCreate">Ошибка создания лога: {0}</sys:String>
+
+    <!-- Preflight Checklist -->
+    <sys:String x:Key="Preflight_Title">ПРЕДПОЛЁТНАЯ ПРОВЕРКА</sys:String>
+    <sys:String x:Key="Preflight_Cancel">ОТМЕНА</sys:String>
+    <sys:String x:Key="Preflight_Refresh">ОБНОВИТЬ</sys:String>
+    <sys:String x:Key="Preflight_Arm">ARM</sys:String>
+    <sys:String x:Key="Preflight_ForceArm">ПРИНУДИТЕЛЬНО</sys:String>
+
+    <sys:String x:Key="Preflight_Check_GPS">GPS Fix</sys:String>
+    <sys:String x:Key="Preflight_Check_Sats">Спутники</sys:String>
+    <sys:String x:Key="Preflight_Check_BattPct">Заряд батареи</sys:String>
+    <sys:String x:Key="Preflight_Check_BattV">Напряжение</sys:String>
+    <sys:String x:Key="Preflight_Check_Mode">Режим полёта</sys:String>
+    <sys:String x:Key="Preflight_Check_EKF">EKF / AHRS</sys:String>
+    <sys:String x:Key="Preflight_Check_Motors">Тест моторов</sys:String>
+
+    <sys:String x:Key="Preflight_Val_3DFix">3D Fix</sys:String>
+    <sys:String x:Key="Preflight_Val_2DFix">2D Fix — нет 3D</sys:String>
+    <sys:String x:Key="Preflight_Val_NoFix">Нет фиксации</sys:String>
+    <sys:String x:Key="Preflight_Val_SatsLow">{0} — нужно ≥6</sys:String>
+    <sys:String x:Key="Preflight_Val_BattUnknown">Нет данных</sys:String>
+    <sys:String x:Key="Preflight_Val_BattLow">{0} — нужно ≥20%</sys:String>
+    <sys:String x:Key="Preflight_Val_VoltUnknown">Нет данных</sys:String>
+    <sys:String x:Key="Preflight_Val_VoltLow">{0} — проверьте</sys:String>
+    <sys:String x:Key="Preflight_Val_UnknownMode">Неизвестен</sys:String>
+    <sys:String x:Key="Preflight_Val_EkfOk">Активен</sys:String>
+    <sys:String x:Key="Preflight_Val_EkfWarn">Ожидание GPS</sys:String>
+    <sys:String x:Key="Preflight_Val_MotorDone">Пройден</sys:String>
+
+    <sys:String x:Key="Preflight_MotorTest_Btn">Запустить тест</sys:String>
+    <sys:String x:Key="Preflight_MotorTest_Confirm">Тест моторов выполнен успешно?</sys:String>
+    <sys:String x:Key="Preflight_MotorTest_ConfirmSub">Подтвердите что все моторы вращаются в правильном направлении</sys:String>
+
+    <sys:String x:Key="Preflight_Status_Ready">✓ Все проверки пройдены — ARM разрешён</sys:String>
+    <sys:String x:Key="Preflight_Status_Warn">⚠ Предупреждения — ARM возможен с осторожностью</sys:String>
+    <sys:String x:Key="Preflight_Status_Fail">✗ Критические ошибки — ARM заблокирован</sys:String>
+    <sys:String x:Key="Preflight_Subtitle">ПРЕДПОЛЁТНАЯ ПРОВЕРКА СИСТЕМ</sys:String>
+
+    <!-- Motor Test Dialog -->
+    <sys:String x:Key="MotorTest_Config">МОТОРОВ</sys:String>
+    <sys:String x:Key="MotorTest_ConfigChanged">Конфигурация: {0} моторов</sys:String>
+    <sys:String x:Key="MotorTest_Title">ТЕСТ МОТОРОВ</sys:String>
+    <sys:String x:Key="MotorTest_BtnLabel">МОТОРЫ</sys:String>
+    <sys:String x:Key="MotorTest_Subtitle">MAV_CMD_DO_MOTOR_TEST</sys:String>
+    <sys:String x:Key="MotorTest_Warning">УБЕДИТЕСЬ ЧТО ПРОПЕЛЛЕРЫ СНЯТЫ!</sys:String>
+    <sys:String x:Key="MotorTest_ArmedWarning">ДРОН ЗААРМЛЕН — ТЕСТ ЗАБЛОКИРОВАН</sys:String>
+    <sys:String x:Key="MotorTest_Throttle">ГАЗ</sys:String>
+    <sys:String x:Key="MotorTest_ThrottleRange">(5–30%)</sys:String>
+    <sys:String x:Key="MotorTest_Duration">ДЛИТЕЛЬНОСТЬ</sys:String>
+    <sys:String x:Key="MotorTest_DurationRange">(1–5 сек)</sys:String>
+    <sys:String x:Key="MotorTest_SecSuffix">с</sys:String>
+    <sys:String x:Key="MotorTest_Pusher">Толкающий мотор (Pusher)</sys:String>
+    <sys:String x:Key="MotorTest_TestMotor">ТЕСТ</sys:String>
+    <sys:String x:Key="MotorTest_TestAll">▶ ТЕСТ ВСЕХ</sys:String>
+    <sys:String x:Key="MotorTest_Stop">■ СТОП</sys:String>
+    <sys:String x:Key="MotorTest_Close">ЗАКРЫТЬ</sys:String>
+    <sys:String x:Key="MotorTest_StatusReady">Готов к тестированию</sys:String>
+    <sys:String x:Key="MotorTest_Testing">Тестируется мотор #{0}...</sys:String>
+    <sys:String x:Key="MotorTest_Done">Мотор #{0} — PWM ОК (визуально проверьте вращение)</sys:String>
+    <sys:String x:Key="MotorTest_Failed">Мотор #{0} — ОТКЛОНЁН ФК</sys:String>
+    <sys:String x:Key="MotorTest_AckTimeout">Мотор #{0} — нет ответа от ФК (продолжаем)</sys:String>
+    <sys:String x:Key="MotorTest_Layout">СХЕМА МОТОРОВ (вид сверху) • ✓ = ФК выдал PWM</sys:String>
+    <sys:String x:Key="MotorTest_AllDone">Все моторы протестированы — визуально проверьте вращение</sys:String>
+    <sys:String x:Key="MotorTest_Stopped">Тест остановлен</sys:String>
+    <sys:String x:Key="MotorTest_StoppedArmed">Тест прерван — дрон заармлен!</sys:String>
+    <sys:String x:Key="Preflight_Val_MotorSkipped">Пропущено</sys:String>
 </ResourceDictionary>

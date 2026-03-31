@@ -10,7 +10,6 @@
     <sys:String x:Key="Save">Сақтау</sys:String>
     <sys:String x:Key="Start">БАСТАУ</sys:String>
     <sys:String x:Key="Next">КЕЛЕСІ ▶</sys:String>
-    <sys:String x:Key="Execute">Орындау</sys:String>
     <sys:String x:Key="Download">Жүктеу</sys:String>
     <sys:String x:Key="Error">Қате</sys:String>
     <sys:String x:Key="Ready">Дайын</sys:String>
@@ -23,7 +22,7 @@
     <sys:String x:Key="OnOff">Қосу/Өшіру</sys:String>
 
     <!-- ==================== НЕГІЗГІ ТЕРЕЗЕ / MAIN WINDOW ==================== -->
-    <sys:String x:Key="AppTitle">SQK GCS - Professional</sys:String>
+    <sys:String x:Key="AppTitle">SQK GCS - v 1.0</sys:String>
     <sys:String x:Key="Nav_Mission">МИССИЯ</sys:String>
     <sys:String x:Key="Nav_Camera">КАМЕРА</sys:String>
     <sys:String x:Key="Nav_Land">ҚОНУ</sys:String>
@@ -35,7 +34,7 @@
     <sys:String x:Key="SelectDroneType">Дрон Түрін Таңдаңыз</sys:String>
     <sys:String x:Key="Multicopter">МУЛЬТИКОПТЕР</sys:String>
     <sys:String x:Key="Multicopter_Desc">Тік ұшақ схемасы бойынша жасалған, үш және одан көп көтеру винттері бар ұшу аппараты</sys:String>
-    <sys:String x:Key="VTOL">ТҰҚҰА</sys:String>
+    <sys:String x:Key="VTOL">ТҰТҚҰ</sys:String>
     <sys:String x:Key="VTOL_Desc">Тік Ұшу және Қону Ұшақ Аппараты</sys:String>
     <sys:String x:Key="VTOL_Feature">Қашықтық + Маневрлік</sys:String>
     <sys:String x:Key="VehicleChangeHint">Көлік түрін кейін «Параметрлер» → «Көлік конфигурациясы» бөлімінде өзгертуге болады.</sys:String>
@@ -315,6 +314,7 @@
     <sys:String x:Key="WpEdit_RadiusM">Радиус (м):</sys:String>
     <sys:String x:Key="WpEdit_DelayS">Кідіріс (с):</sys:String>
     <sys:String x:Key="WpEdit_Turns">Айналым:</sys:String>
+    <sys:String x:Key="WpEdit_SpeedMS">Жылдамдық (м/с):</sys:String>
     <sys:String x:Key="WpEdit_Direction">Бағыт:</sys:String>
     <sys:String x:Key="WpEdit_DirHint">🔄 CW = сағат тілімен, CCW = сағат тіліне қарсы</sys:String>
     <sys:String x:Key="WpEdit_AutoNext">Келесі нүктеге автоөту</sys:String>
@@ -450,6 +450,7 @@
     <sys:String x:Key="Msg_ArmFailed">Дронды белсендіру мүмкін болмады</sys:String>
     <sys:String x:Key="Msg_MissionActivated">Миссия белсендірілді!</sys:String>
     <sys:String x:Key="Msg_DroneNotArmed">Дрон белсендірілмеген</sys:String>
+    <sys:String x:Key="Msg_RestartMissionConfirm">Миссияны басынан қайта бастау керек пе? Дрон HOME нүктесіне оралып, маршрутты қайта орындайды.</sys:String>
     <sys:String x:Key="Msg_DroneLastWaypoint">Дрон миссияның соңғы нүктесінде</sys:String>
     <sys:String x:Key="Msg_ClickMapHome">HOME орнату үшін картаны басыңыз.</sys:String>
     <sys:String x:Key="Msg_HomeSetupSub">HOME орнату</sys:String>
@@ -465,7 +466,7 @@
     <sys:String x:Key="Msg_ClearAllWaypoints">Барлық маршрут нүктелерін жою?</sys:String>
     <sys:String x:Key="Msg_ActionIrreversible">Әрекет қайтарылмайды.</sys:String>
     <sys:String x:Key="Msg_VtolSequence">Ұшу → ұшақ → нүктелер → коптер → қону</sys:String>
-    <sys:String x:Key="Msg_ActivateVtolMission">VTOL миссияны {0} нүктемен белсендіру?&#x0a;&#x0a;ҰШУ → СТАРТ → WPs → ҚОНУ&#x0a;&#x0a;⚠️ Дрон автоматты ұшады!</sys:String>
+    <sys:String x:Key="Msg_ActivateVtolMission">VTOL миссияны {0} нүктемен белсендіру?&#x0a;&#x0a;ҰШЫП ШЫҒУ → WPs → ҚОНУ&#x0a;&#x0a;⚠️ Дрон автоматты ұшады!</sys:String>
     <sys:String x:Key="Msg_ActivateCopterMission">Миссияны {0} нүктемен белсендіру?&#x0a;&#x0a;⚠️ Дрон автоматты ұшады!</sys:String>
     <sys:String x:Key="Route_Label">Маршрут</sys:String>
     <sys:String x:Key="FromWP_Label">WP-ден</sys:String>
@@ -509,4 +510,169 @@
     <sys:String x:Key="Stats_Packets">Пакеттер</sys:String>
     <sys:String x:Key="Stats_Sent">Жіберілді</sys:String>
     <sys:String x:Key="Stats_Errors">Қателер</sys:String>
+    <!-- Compass calibration - dynamic states (kk) -->
+    <sys:String x:Key="CompassCalib_Sending">DO_START_MAG_CAL жіберілуде...</sys:String>
+    <sys:String x:Key="CompassCalib_Rotate">Дронды баяу&#x0a;барлық бағытта&#x0a;айналдырыңыз.&#x0a;&#x0a;Бүкіл сфераны&#x0a;жасылмен жабыңыз!</sys:String>
+    <sys:String x:Key="CompassCalib_InProgress">Калибрлеу... {0}%</sys:String>
+    <sys:String x:Key="CompassCalib_SectionsCount">{0} / 80 секция</sys:String>
+    <sys:String x:Key="CompassCalib_SuccessStatus">Калибрлеу аяқталды! ҚАБЫЛДАУ басыңыз.</sys:String>
+    <sys:String x:Key="CompassCalib_SuccessInstruction">Калибрлеу&#x0a;сәтті!&#x0a;&#x0a;ҚАБЫЛДАУ&#x0a;басыңыз</sys:String>
+    <sys:String x:Key="CompassCalib_ErrorStatus">Калибрлеу қатесі (күй: {0})</sys:String>
+    <sys:String x:Key="CompassCalib_ErrorInstruction">Қате!&#x0a;&#x0a;Қайта&#x0a;көріңіз.</sys:String>
+    <sys:String x:Key="CompassCalib_Timeout">120 сек таймаут — калибрлеу тоқтатылды</sys:String>
+    <sys:String x:Key="CompassCalib_Saved">Калибрлеу сақталды!</sys:String>
+    <sys:String x:Key="CompassCalib_SavedBtn">САҚТАЛДЫ</sys:String>
+    <sys:String x:Key="CompassCalib_RetryBtn">ҚАЙТАЛАУ</sys:String>
+    <sys:String x:Key="CompassCalib_GoingBtn">ЖҮРІП ЖАТЫР...</sys:String>
+    <!-- Gyro calibration - dynamic states (kk) -->
+    <sys:String x:Key="GyroCalib_InProgress">Гироскоп калибрлеу...&#x0a;Дронды қозғалтпаңыз!</sys:String>
+    <sys:String x:Key="GyroCalib_DontTouch">⚠ ДРОНДЫ ҚОЗҒАЛТПАҢЫЗ!</sys:String>
+    <sys:String x:Key="GyroCalib_Calibrating">Калибрлеу...</sys:String>
+    <sys:String x:Key="GyroCalib_CalibInProgress">Калибрлеу жүріп жатыр...</sys:String>
+    <sys:String x:Key="GyroCalib_Seconds">{0} сек...</sys:String>
+    <sys:String x:Key="GyroCalib_SuccessInstruction">Калибрлеу аяқталды!</sys:String>
+    <sys:String x:Key="GyroCalib_SuccessWarning">✓ Гироскоп калибрленді</sys:String>
+    <sys:String x:Key="GyroCalib_ErrorInstruction">Калибрлеу сәтсіз</sys:String>
+    <sys:String x:Key="GyroCalib_ErrorWarning">✗ Қайта көріңіз</sys:String>
+    <sys:String x:Key="GyroCalib_DoneBtn">ДАЙЫН</sys:String>
+    <sys:String x:Key="GyroCalib_RetryBtn">ҚАЙТАЛАУ</sys:String>
+    <sys:String x:Key="GyroCalib_GoingBtn">ЖҮРІП ЖАТЫР...</sys:String>
+    <sys:String x:Key="GyroCalib_SuccessStatus">СӘТТІ</sys:String>
+    <sys:String x:Key="GyroCalib_ErrorStatus">ҚАТЕ</sys:String>
+    <sys:String x:Key="GyroCalib_Timeout">Таймаут — дроннан жауап жоқ</sys:String>
+    <sys:String x:Key="Msg_NoGpsActivateWarning">⚠️ GPS ДАЙЫН ЕМЕС (фиксация жоқ)!&#x0a;&#x0a;Ұшқаннан кейін дрон автоматты RTL режиміне (үйге оралу) өтуі мүмкін.&#x0a;&#x0a;Бәрібір миссияны белсендіру керек пе?</sys:String>
+    <!-- Accel calibration - dynamic states (kk) -->
+    <sys:String x:Key="AccelCalib_Waiting">Дроннан жауап күтілуде...</sys:String>
+    <sys:String x:Key="AccelCalib_Collecting">Дрон деректер жинайды... қозғалтпаңыз!</sys:String>
+    <sys:String x:Key="AccelCalib_Done">Калибрлеу аяқталды!</sys:String>
+    <sys:String x:Key="AccelCalib_NextBtn">КЕЛЕСІ ▶</sys:String>
+    <sys:String x:Key="AccelCalib_DoneBtn">ДАЙЫН ✓</sys:String>
+    <sys:String x:Key="AccelCalib_RetryBtn">ҚАЙТАЛАУ ↺</sys:String>
+    <sys:String x:Key="AccelCalib_SetDrone">Дронды орнатыңыз: {0}</sys:String>
+    <!-- AccelCalib positions (kk) -->
+    <sys:String x:Key="AccelPos_0_Title">ТЕГІС</sys:String>
+    <sys:String x:Key="AccelPos_0_Desc">Дронды үстелге ТЕГІС қойыңыз&#x0a;доңғалақтарымен/аяқтарымен төмен</sys:String>
+    <sys:String x:Key="AccelPos_0_Hint">Стандартты жағдай</sys:String>
+    <sys:String x:Key="AccelPos_1_Title">СОЛ ЖАҚҚА</sys:String>
+    <sys:String x:Key="AccelPos_1_Desc">Дронды СОЛ ЖАҚҚА еңкейтіңіз&#x0a;(сол жағы төмен)</sys:String>
+    <sys:String x:Key="AccelPos_1_Hint">Сол жағы үстелге тиеді</sys:String>
+    <sys:String x:Key="AccelPos_2_Title">ОҢ ЖАҚҚА</sys:String>
+    <sys:String x:Key="AccelPos_2_Desc">Дронды ОҢ ЖАҚҚА еңкейтіңіз&#x0a;(оң жағы төмен)</sys:String>
+    <sys:String x:Key="AccelPos_2_Hint">Оң жағы үстелге тиеді</sys:String>
+    <sys:String x:Key="AccelPos_3_Title">МҰР ТӨМЕН</sys:String>
+    <sys:String x:Key="AccelPos_3_Desc">Дронды МҰРНЫМЕН ТӨМЕН қойыңыз&#x0a;(алдыңғы бөлігі төмен)</sys:String>
+    <sys:String x:Key="AccelPos_3_Hint">Мұрны үстелге тиеді</sys:String>
+    <sys:String x:Key="AccelPos_4_Title">МҰР ЖОҒАРЫ</sys:String>
+    <sys:String x:Key="AccelPos_4_Desc">Дронды МҰРНЫМЕН ЖОҒАРЫ қойыңыз&#x0a;(артқы бөлігі төмен)</sys:String>
+    <sys:String x:Key="AccelPos_4_Hint">Құйрығы үстелге тиеді</sys:String>
+    <sys:String x:Key="AccelPos_5_Title">ТӨҢКЕРУ</sys:String>
+    <sys:String x:Key="AccelPos_5_Desc">Дронды ТӨҢКЕРІҢІЗ&#x0a;(қақпағы төмен)</sys:String>
+    <sys:String x:Key="AccelPos_5_Hint">Дрон төңкерілген</sys:String>
+    <sys:String x:Key="AccelCalib_StepTitle">Қадам {0}/6: {1}</sys:String>
+    <sys:String x:Key="AccelCalib_SuccessTitle">КАЛИБРЛЕУ АЯҚТАЛДЫ!</sys:String>
+    <sys:String x:Key="AccelCalib_SuccessDesc">Акселерометр сәтті калибрленді</sys:String>
+    <sys:String x:Key="AccelCalib_ErrorTitle">КАЛИБРЛЕУ ҚАТЕСІ</sys:String>
+    <sys:String x:Key="AccelCalib_CloseBtn">ЖАБУ</sys:String>
+    <sys:String x:Key="AccelCalib_GoingBtn">ЖҮРІП ЖАТЫР...</sys:String>
+
+    <!-- Notifications -->
+    <sys:String x:Key="Notif_HeartbeatLost">Дроннан жауап жоқ</sys:String>
+    <sys:String x:Key="Notif_HeartbeatBack">Байланыс қалпына келді</sys:String>
+    <sys:String x:Key="Notif_BatteryLow">Батарея: {0}% — заряд төмен</sys:String>
+    <sys:String x:Key="Notif_BatteryCrit">Батарея: {0}% — ШҰҒЫЛ ҚОНУ!</sys:String>
+    <sys:String x:Key="Notif_GpsLost">GPS сигналы жоғалды</sys:String>
+    <sys:String x:Key="Notif_Gps2D">GPS: 2D фикс ({0} жерсерік)</sys:String>
+    <sys:String x:Key="Notif_GpsOk">GPS OK — {0} жерсерік</sys:String>
+    <sys:String x:Key="Notif_Armed">Дрон ARMED — моторлар белсенді</sys:String>
+    <sys:String x:Key="Notif_Disarmed">Дрон DISARMED</sys:String>
+    <sys:String x:Key="Notif_ModeChanged">Режим: {0}</sys:String>
+    <sys:String x:Key="Notif_AltDrop">Биіктік жоғалуы: {0} м/с</sys:String>
+    <sys:String x:Key="Notif_ToFixedWing">Өту: ұшақ режимі</sys:String>
+    <sys:String x:Key="Notif_ToMulticopter">Өту: мультикоптер режимі</sys:String>
+    <sys:String x:Key="Notif_RtlToQrtl">RTL → QRTL: VTOL үшін автоматты ауысу</sys:String>
+    <sys:String x:Key="Notif_History_Title">ОҚИҒАЛАР ЖУРНАЛЫ</sys:String>
+    <sys:String x:Key="Notif_History_Empty">Оқиғалар жоқ</sys:String>
+    <sys:String x:Key="Notif_History_Clear">Тазалау</sys:String>
+    <sys:String x:Key="Notif_History_Unread">{0} жаңа</sys:String>
+    <sys:String x:Key="Notif_WaypointReached">{1} нүктенің {0}-і</sys:String>
+    <sys:String x:Key="Notif_MissionComplete">Миссия аяқталды</sys:String>
+    <sys:String x:Key="Notif_MissionStarted">Миссия іске қосылды</sys:String>
+    <sys:String x:Key="Msg_ArmFailedPrearm">Дрон ұшу алды тексерулерден өтпеді. Оқиғалар журналын тексеріңіз.</sys:String>
+    <sys:String x:Key="Msg_ArmForceConfirm">Ұшу алды тексерулер өтпеді. Дронды мәжбүрлеп белсендіру керек пе?</sys:String>
+    <sys:String x:Key="Msg_ResumeNotArmed">Миссияны жалғастыру мүмкін емес: дрон сөндірілген.</sys:String>
+    <sys:String x:Key="Msg_NextWpVtolDanger">Нүктені өткізіп жіберу мүмкін емес: дрон қонуға өтуде.</sys:String>
+    <sys:String x:Key="Msg_RealtimeUpdateSkipped">Миссия жаңартуы өткізілді: дрон ағымдағы нүктеге тым жақын.</sys:String>
+
+    <!-- Flight Log -->
+    <sys:String x:Key="Log_Started">📋 Журнал басталды: {0}</sys:String>
+    <sys:String x:Key="Log_Saved">💾 Журнал сақталды: {0}</sys:String>
+    <sys:String x:Key="Log_Stopped">⚠️ Журнал тоқтатылды: {0}</sys:String>
+    <sys:String x:Key="Log_SizeLimit">Журнал: 50 МБ шегіне жетті, жазу тоқтатылды</sys:String>
+    <sys:String x:Key="Log_ErrorCreate">Журнал жасау қатесі: {0}</sys:String>
+
+    <!-- Preflight Checklist -->
+    <sys:String x:Key="Preflight_Title">ҰШУАЛДЫ ТЕКСЕРУ</sys:String>
+    <sys:String x:Key="Preflight_Cancel">БОЛДЫРМАУ</sys:String>
+    <sys:String x:Key="Preflight_Refresh">ЖАҢАРТУ</sys:String>
+    <sys:String x:Key="Preflight_Arm">ARM</sys:String>
+    <sys:String x:Key="Preflight_ForceArm">МӘЖБҮРЛЕП</sys:String>
+
+    <sys:String x:Key="Preflight_Check_GPS">GPS Fix</sys:String>
+    <sys:String x:Key="Preflight_Check_Sats">Спутниктер</sys:String>
+    <sys:String x:Key="Preflight_Check_BattPct">Батарея заряды</sys:String>
+    <sys:String x:Key="Preflight_Check_BattV">Кернеу</sys:String>
+    <sys:String x:Key="Preflight_Check_Mode">Ұшу режимі</sys:String>
+    <sys:String x:Key="Preflight_Check_EKF">EKF / AHRS</sys:String>
+    <sys:String x:Key="Preflight_Check_Motors">Мотор тесті</sys:String>
+
+    <sys:String x:Key="Preflight_Val_3DFix">3D Fix</sys:String>
+    <sys:String x:Key="Preflight_Val_2DFix">2D Fix — 3D жоқ</sys:String>
+    <sys:String x:Key="Preflight_Val_NoFix">Фиксация жоқ</sys:String>
+    <sys:String x:Key="Preflight_Val_SatsLow">{0} — ≥6 керек</sys:String>
+    <sys:String x:Key="Preflight_Val_BattUnknown">Деректер жоқ</sys:String>
+    <sys:String x:Key="Preflight_Val_BattLow">{0} — ≥20% керек</sys:String>
+    <sys:String x:Key="Preflight_Val_VoltUnknown">Деректер жоқ</sys:String>
+    <sys:String x:Key="Preflight_Val_VoltLow">{0} — тексеріңіз</sys:String>
+    <sys:String x:Key="Preflight_Val_UnknownMode">Белгісіз</sys:String>
+    <sys:String x:Key="Preflight_Val_EkfOk">Белсенді</sys:String>
+    <sys:String x:Key="Preflight_Val_EkfWarn">GPS күтуде</sys:String>
+    <sys:String x:Key="Preflight_Val_MotorDone">Өтті</sys:String>
+
+    <sys:String x:Key="Preflight_MotorTest_Btn">Тест іске қосу</sys:String>
+    <sys:String x:Key="Preflight_MotorTest_Confirm">Мотор тесті сәтті өтті ме?</sys:String>
+    <sys:String x:Key="Preflight_MotorTest_ConfirmSub">Барлық моторлар дұрыс бағытта айналатынын растаңыз</sys:String>
+
+    <sys:String x:Key="Preflight_Status_Ready">✓ Барлық тексерулер өтті — ARM рұқсат</sys:String>
+    <sys:String x:Key="Preflight_Status_Warn">⚠ Ескертулер бар — ARM абайлап рұқсат</sys:String>
+    <sys:String x:Key="Preflight_Status_Fail">✗ Критикалық қателер — ARM бұғатталған</sys:String>
+    <sys:String x:Key="Preflight_Subtitle">ЖҮЙЕЛЕРДІ ҰШУАЛДЫ ТЕКСЕРУ</sys:String>
+
+    <!-- Motor Test Dialog -->
+    <sys:String x:Key="MotorTest_Config">ҚОЗҒАЛТҚЫШ</sys:String>
+    <sys:String x:Key="MotorTest_ConfigChanged">Конфигурация: {0} қозғалтқыш</sys:String>
+    <sys:String x:Key="MotorTest_Title">ҚОЗҒАЛТҚЫШ ТЕСТІ</sys:String>
+    <sys:String x:Key="MotorTest_BtnLabel">МОТОРЛАР</sys:String>
+    <sys:String x:Key="MotorTest_Subtitle">MAV_CMD_DO_MOTOR_TEST</sys:String>
+    <sys:String x:Key="MotorTest_Warning">ПРОПЕЛЛЕРЛЕР АЛЫНҒАНЫНА КӨЗІҢІЗДІ ЖЕТКІЗІҢІЗ!</sys:String>
+    <sys:String x:Key="MotorTest_ArmedWarning">ДРОН АРМИНДАЛҒАН — ТЕСТ БҰҒАТТАЛҒАН</sys:String>
+    <sys:String x:Key="MotorTest_Throttle">ГАЗ</sys:String>
+    <sys:String x:Key="MotorTest_ThrottleRange">(5–30%)</sys:String>
+    <sys:String x:Key="MotorTest_Duration">ҰЗАҚТЫҒЫ</sys:String>
+    <sys:String x:Key="MotorTest_DurationRange">(1–5 сек)</sys:String>
+    <sys:String x:Key="MotorTest_SecSuffix">с</sys:String>
+    <sys:String x:Key="MotorTest_Pusher">Итергіш қозғалтқыш (Pusher)</sys:String>
+    <sys:String x:Key="MotorTest_TestMotor">ТЕСТ</sys:String>
+    <sys:String x:Key="MotorTest_TestAll">▶ БАРЛЫҒЫН ТЕКСЕРУ</sys:String>
+    <sys:String x:Key="MotorTest_Stop">■ ТОҚТАТУ</sys:String>
+    <sys:String x:Key="MotorTest_Close">ЖАБУ</sys:String>
+    <sys:String x:Key="MotorTest_StatusReady">Тестілеуге дайын</sys:String>
+    <sys:String x:Key="MotorTest_Testing">#{0} қозғалтқыш тексерілуде...</sys:String>
+    <sys:String x:Key="MotorTest_Done">#{0} қозғалтқыш — PWM ОК (айналуды көзбен тексеріңіз)</sys:String>
+    <sys:String x:Key="MotorTest_Failed">#{0} қозғалтқыш — ҰШУ КОНТРОЛЛЕРІ ҚАБЫЛДАМАДЫ</sys:String>
+    <sys:String x:Key="MotorTest_AckTimeout">#{0} қозғалтқыш — ҰК жауабы жоқ (жалғастырамыз)</sys:String>
+    <sys:String x:Key="MotorTest_Layout">ҚОЗҒАЛТҚЫШ СХЕМАСЫ (жоғарыдан) • ✓ = ҰК PWM берді</sys:String>
+    <sys:String x:Key="MotorTest_AllDone">Барлық қозғалтқыштар тексерілді — айналуды көзбен тексеріңіз</sys:String>
+    <sys:String x:Key="MotorTest_Stopped">Тест тоқтатылды</sys:String>
+    <sys:String x:Key="MotorTest_StoppedArmed">Тест үзілді — дрон арминдалған!</sys:String>
+    <sys:String x:Key="Preflight_Val_MotorSkipped">Өткізілді</sys:String>
 </ResourceDictionary>

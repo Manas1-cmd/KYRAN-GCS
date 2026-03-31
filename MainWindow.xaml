@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SimpleDroneGCS.Controls"
+        xmlns:local2="clr-namespace:SimpleDroneGCS.Helpers"
         Title="{DynamicResource AppTitle}" 
         Height="900" Width="1600"
         MinWidth="1200"
@@ -161,6 +162,36 @@
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
 
+                                <!-- Колокол с бейджем непрочитанных -->
+                                <Grid Margin="0,0,10,0" VerticalAlignment="Center">
+                                    <Button x:Name="BellButton"
+                                            Style="{StaticResource NavButtonStyle}"
+                                            Width="38" Height="38"
+                                            Click="BellButton_Click"
+                                            ToolTip="{DynamicResource Notif_History_Title}">
+                                        <TextBlock Text="🔔" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </Button>
+                                    <!-- Бейдж непрочитанных -->
+                                    <Border x:Name="BellBadge"
+                                            Background="#EF4444"
+                                            CornerRadius="7"
+                                            MinWidth="14" Height="14"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            Margin="0,0,0,0"
+                                            Visibility="Collapsed"
+                                            Panel.ZIndex="1">
+                                        <TextBlock x:Name="BellBadgeText"
+                                                   Text="0"
+                                                   FontSize="8"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Margin="3,1"/>
+                                    </Border>
+                                </Grid>
+
                                 <local:LanguageToggle Margin="0,0,12,0"/>
 
                                 <Border Background="#0D1733"
@@ -198,12 +229,197 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    
+
                     <Frame x:Name="MainFrame" 
                            Grid.Row="1"
                            NavigationUIVisibility="Hidden"
                            Background="Transparent"/>
                 </Grid>
+
+                <!-- NOTIFICATION TOASTS — нижний правый, со слайд-анимацией -->
+                <ItemsControl x:Name="NotificationPanel"
+                              VerticalAlignment="Bottom"
+                              HorizontalAlignment="Right"
+                              Margin="0,0,14,14"
+                              Width="268"
+                              Panel.ZIndex="100">
+                    <ItemsControl.Resources>
+                        <local2:StringToBrushConverter x:Key="StrBrush"/>
+                    </ItemsControl.Resources>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="0,0,0,5"
+                                    Background="#0D1733"
+                                    BorderBrush="#1E3A5F"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Opacity="0">
+                                <Border.RenderTransform>
+                                    <TranslateTransform X="40"/>
+                                </Border.RenderTransform>
+                                <Border.Triggers>
+                                    <EventTrigger RoutedEvent="Border.Loaded">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation
+                                                    Storyboard.TargetProperty="Opacity"
+                                                    From="0" To="1" Duration="0:0:0.18"/>
+                                                <DoubleAnimation
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                    From="40" To="0" Duration="0:0:0.18"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Border.Triggers>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="20"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Background="{Binding AccentColor, Converter={StaticResource StrBrush}}"
+                                            CornerRadius="6,0,0,6"/>
+                                    <StackPanel Grid.Column="1" Margin="9,7,4,7">
+                                        <TextBlock Text="{Binding Message}"
+                                                   Foreground="White"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding TimeLabel}"
+                                                   Foreground="#4A6080"
+                                                   FontSize="9"
+                                                   Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="2"
+                                            Content="×"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="#4A6080"
+                                            FontSize="14"
+                                            Cursor="Hand"
+                                            VerticalAlignment="Top"
+                                            Margin="0,3,3,0"
+                                            Tag="{Binding}"
+                                            Click="DismissNotification_Click"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- ЖУРНАЛ СОБЫТИЙ -->
+                <Border x:Name="HistoryPanel"
+                      HorizontalAlignment="Right"
+                      Width="272"
+                      Panel.ZIndex="200"
+                      Visibility="Collapsed"
+                      Background="#08111F"
+                      BorderBrush="#1E3A5F"
+                      BorderThickness="1,0,0,0">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="HistorySlide" X="272"/>
+                    </Border.RenderTransform>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="46"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Заголовок -->
+                        <Border Grid.Row="0"
+                                    Background="#0D1733"
+                                    BorderBrush="#1E3A5F"
+                                    BorderThickness="0,0,0,1">
+                            <Grid Margin="12,0">
+                                <TextBlock Text="{DynamicResource Notif_History_Title}"
+                                               Foreground="#98F019"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               VerticalAlignment="Center"/>
+                                <Button Content="✕"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="#4A6080"
+                                            FontSize="14"
+                                            Cursor="Hand"
+                                            HorizontalAlignment="Right"
+                                            Click="HistoryClose_Click"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Список событий -->
+                        <ScrollViewer Grid.Row="1"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <ItemsControl x:Name="HistoryList">
+                                    <ItemsControl.Resources>
+                                        <local2:StringToBrushConverter x:Key="StrBrush2"/>
+                                    </ItemsControl.Resources>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="#0D1733"
+                                                        BorderThickness="0,0,0,1"
+                                                        Padding="0">
+                                                <Grid Margin="0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0"
+                                                                Background="{Binding AccentColor, Converter={StaticResource StrBrush2}}"/>
+                                                    <StackPanel Grid.Column="1" Margin="10,7,8,7">
+                                                        <TextBlock Text="{Binding Message}"
+                                                                       Foreground="#D0D8E8"
+                                                                       FontSize="11"
+                                                                       TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding TimeLabel}"
+                                                                       Foreground="#3A5070"
+                                                                       FontSize="9"
+                                                                       Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- Пусто -->
+                                <TextBlock x:Name="HistoryEmptyText"
+                                               Text="{DynamicResource Notif_History_Empty}"
+                                               Foreground="#3A5070"
+                                               FontSize="12"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,40,0,0"
+                                               Visibility="Collapsed"/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Кнопка очистить -->
+                        <Border Grid.Row="2"
+                                    Background="#0D1733"
+                                    BorderBrush="#1E3A5F"
+                                    BorderThickness="0,1,0,0"
+                                    Padding="12,8">
+                            <Button Content="{DynamicResource Notif_History_Clear}"
+                                        Background="Transparent"
+                                        BorderBrush="#2A4361"
+                                        BorderThickness="1"
+                                        Foreground="#4A6080"
+                                        FontSize="11"
+                                        Cursor="Hand"
+                                        Padding="12,5"
+                                        HorizontalAlignment="Stretch"
+                                        Click="HistoryClear_Click"/>
+                        </Border>
+                    </Grid>
+                </Border>
 
                 <Grid x:Name="LoadingOverlay" 
                       Visibility="Collapsed" 
@@ -216,7 +432,7 @@
                             BorderBrush="#2A4361"
                             BorderThickness="2">
                         <StackPanel HorizontalAlignment="Center">
-                            
+
                             <Border x:Name="SpinnerBorder" 
                                     Width="50" Height="50" 
                                     CornerRadius="25"

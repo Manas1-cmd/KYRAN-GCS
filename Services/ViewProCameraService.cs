@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SimpleDroneGCS.Services
 {
-    
+
     public class ViewProCameraService : IDisposable
     {
 
@@ -26,7 +26,7 @@ namespace SimpleDroneGCS.Services
         private const byte A1_HOME = 0x04;
         private const byte A1_TRACKING = 0x06;
         private const byte A1_ANGLE_ABS = 0x0B;
-        private const byte A1_RC = 0x0D;          
+        private const byte A1_RC = 0x0D;
         private const byte A1_NO_CHANGE = 0x0F;
         private const byte A1_PITCH_DOWN = 0x12;
 
@@ -50,9 +50,9 @@ namespace SimpleDroneGCS.Services
         private const byte C1_IR_DZOOM_OUT = 0x1C;
 
         private const byte LRF_NONE = 0x00;
-        private const byte LRF_SINGLE = 0x01;      
-        private const byte LRF_CONTINUOUS = 0x02;   
-        private const byte LRF_STOP = 0x03;         
+        private const byte LRF_SINGLE = 0x01;
+        private const byte LRF_CONTINUOUS = 0x02;
+        private const byte LRF_STOP = 0x03;
 
         public const byte SRC_EO = 0x01;
         public const byte SRC_IR = 0x02;
@@ -79,7 +79,8 @@ namespace SimpleDroneGCS.Services
         public event EventHandler<byte[]>? DataReceived;
         public event Action<string>? StatusChanged;
 
-        public bool IsConnected => _tcpClient?.Connected ?? false;
+        private bool _isConnected = false;
+        public bool IsConnected => _isConnected && (_tcpClient?.Connected ?? false);
         public string IpAddress { get; set; } = "192.168.1.108";
         public int Port { get; set; } = 2000;
         public int RtspPort { get; set; } = 554;
@@ -128,6 +129,7 @@ namespace SimpleDroneGCS.Services
                 await connectTask;
 
                 _networkStream = _tcpClient.GetStream();
+                _isConnected = true; 
                 _cts = new CancellationTokenSource();
                 TotalBytesReceived = 0;
 
@@ -162,6 +164,7 @@ namespace SimpleDroneGCS.Services
                 _tcpClient?.Close();
                 _networkStream = null;
                 _tcpClient = null;
+                _isConnected = false;
                 ConnectionChanged?.Invoke(this, false);
                 StatusChanged?.Invoke("Отключено");
             }
@@ -198,10 +201,10 @@ namespace SimpleDroneGCS.Services
             byte sum = 0;
             foreach (byte b in serial) sum += b;
 
-            byte[] wrapped = new byte[2 + 1 + serial.Length + 1]; 
+            byte[] wrapped = new byte[2 + 1 + serial.Length + 1];
             wrapped[0] = TCP_EB;
             wrapped[1] = TCP_90;
-            wrapped[2] = (byte)serial.Length;  
+            wrapped[2] = (byte)serial.Length;
             Array.Copy(serial, 0, wrapped, 3, serial.Length);
             wrapped[wrapped.Length - 1] = sum;
             return wrapped;
@@ -272,10 +275,10 @@ namespace SimpleDroneGCS.Services
 
             if (sensor == 0) sensor = _currentSensor;
             ushort c1 = 0;
-            c1 |= (ushort)(sensor & 0x07);           
-            c1 |= (ushort)((zoomSpd & 0x07) << 3);   
-            c1 |= (ushort)((cmd & 0x7F) << 6);        
-            c1 |= (ushort)((lrf & 0x07) << 13);       
+            c1 |= (ushort)(sensor & 0x07);
+            c1 |= (ushort)((zoomSpd & 0x07) << 3);
+            c1 |= (ushort)((cmd & 0x7F) << 6);
+            c1 |= (ushort)((lrf & 0x07) << 13);
             return c1;
         }
 
@@ -328,7 +331,7 @@ namespace SimpleDroneGCS.Services
             _userActive = true;
             _lastUserCmd = DateTime.UtcNow;
             int yawPwm = PWM_CENTER + (yawPct * 500 / 100);
-            int pitchPwm = PWM_CENTER - (pitchPct * 500 / 100); 
+            int pitchPwm = PWM_CENTER - (pitchPct * 500 / 100);
             SendFrame30(BuildA1_RC(yawPwm, pitchPwm), BuildC1(), BuildE1());
         }
 
@@ -482,7 +485,12 @@ namespace SimpleDroneGCS.Services
                 }
             }
             catch (OperationCanceledException) { }
-            catch (Exception ex) { Debug.WriteLine($"[ViewPro] RX ошибка: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                _isConnected = false; 
+                Debug.WriteLine($"[ViewPro] RX ошибка: {ex.Message}");
+                ConnectionChanged?.Invoke(this, false);
+            }
 
             if (firstData)
                 Debug.WriteLine("[ViewPro] ⚠ КАМЕРА НЕ ОТПРАВИЛА НИ ОДНОГО БАЙТА!");
@@ -549,7 +557,7 @@ namespace SimpleDroneGCS.Services
                 if (len >= 32 && off + 31 < data.Length)
                 {
                     ushort rawDist = (ushort)((data[off + 30] << 8) | data[off + 31]);
-                    if (rawDist > 0 && rawDist < 30000) 
+                    if (rawDist > 0 && rawDist < 30000)
                     {
                         float distM = rawDist * 0.1f;
                         CurrentDistance = distM;

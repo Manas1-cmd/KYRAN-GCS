@@ -26,21 +26,14 @@ namespace SimpleDroneGCS.Services
                     LanguageChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
-        }   
+        }
 
         private LocalizationService()
         {
-            
-            try
-            {
-                _currentLanguage = Properties.Settings.Default.Language ?? "ru";
-            }
-            catch
-            {
-                _currentLanguage = "ru"; 
-            }
+            try { _currentLanguage = Properties.Settings.Default.Language ?? "ru"; }
+            catch { _currentLanguage = "ru"; }
 
-            System.Diagnostics.Debug.WriteLine($"[Localization] Init: {_currentLanguage}");
+            ApplyLanguage(_currentLanguage);
         }
 
         private void ApplyLanguage(string language)

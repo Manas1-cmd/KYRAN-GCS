@@ -31,10 +31,14 @@ namespace SimpleDroneGCS.Services
 
         private CancellationTokenSource _cts;
         private MavlinkParse _parser;
-        private byte _packetSequence = 0;
+        private int _packetSequence = 0;
         private DispatcherTimer _heartbeatTimer;
         private DispatcherTimer _telemetryRequestTimer;
         private DateTime _connectionStartTime = DateTime.MinValue;
+        private bool _isUploading = false;
+        private bool _pendingArmed = false;
+        private int _armedConfirmCount = 0;
+        private const int ARMED_CONFIRM_THRESHOLD = 2;
 
         private List<WaypointItem> _plannedMission = null;
         public bool HasPlannedMission => _plannedMission != null && _plannedMission.Count > 0;
@@ -53,6 +57,109 @@ namespace SimpleDroneGCS.Services
         private TaskCompletionSource<List<MAVLink.mavlink_mission_item_int_t>> _missionDownloadTcs;
         private int _missionDownloadExpectedCount = 0;
         private bool _isDownloading = false;
+        private readonly SemaphoreSlim _downloadLock = new SemaphoreSlim(1, 1);
+        private bool _telemetryDirty = false;
+
+        private static readonly Dictionary<uint, string> _copterModeNames = new()
+        {
+            [0] = "STABILIZE",
+            [1] = "ACRO",
+            [2] = "ALT_HOLD",
+            [3] = "AUTO",
+            [4] = "GUIDED",
+            [5] = "LOITER",
+            [6] = "RTL",
+            [7] = "CIRCLE",
+            [9] = "LAND",
+            [11] = "DRIFT",
+            [13] = "SPORT",
+            [14] = "FLIP",
+            [15] = "AUTOTUNE",
+            [16] = "POSHOLD",
+            [17] = "BRAKE",
+            [18] = "THROW",
+            [19] = "AVOID_ADSB",
+            [20] = "GUIDED_NOGPS",
+            [21] = "SMART_RTL",
+            [22] = "FLOWHOLD",
+            [23] = "FOLLOW",
+            [24] = "ZIGZAG"
+        };
+        private static readonly Dictionary<uint, string> _planeModeNames = new()
+        {
+            [0] = "MANUAL",
+            [1] = "CIRCLE",
+            [2] = "STABILIZE",
+            [3] = "TRAINING",
+            [4] = "ACRO",
+            [5] = "FBWA",
+            [6] = "FBWB",
+            [7] = "CRUISE",
+            [8] = "AUTOTUNE",
+            [10] = "AUTO",
+            [11] = "RTL",
+            [12] = "LOITER",
+            [13] = "TAKEOFF",
+            [15] = "GUIDED",
+            [17] = "QSTABILIZE",
+            [18] = "QHOVER",
+            [19] = "QLOITER",
+            [20] = "QLAND",
+            [21] = "QRTL",
+            [22] = "QAUTOTUNE",
+            [23] = "QACRO",
+            [24] = "THERMAL"
+        };
+        private static readonly Dictionary<string, uint> _copterModeNumbers = new()
+        {
+            ["STABILIZE"] = 0,
+            ["ACRO"] = 1,
+            ["ALT_HOLD"] = 2,
+            ["AUTO"] = 3,
+            ["GUIDED"] = 4,
+            ["LOITER"] = 5,
+            ["RTL"] = 6,
+            ["CIRCLE"] = 7,
+            ["LAND"] = 9,
+            ["DRIFT"] = 11,
+            ["SPORT"] = 13,
+            ["FLIP"] = 14,
+            ["AUTOTUNE"] = 15,
+            ["POSHOLD"] = 16,
+            ["BRAKE"] = 17,
+            ["THROW"] = 18,
+            ["AVOID_ADSB"] = 19,
+            ["GUIDED_NOGPS"] = 20,
+            ["SMART_RTL"] = 21,
+            ["FLOWHOLD"] = 22,
+            ["FOLLOW"] = 23,
+            ["ZIGZAG"] = 24
+        };
+        private static readonly Dictionary<string, uint> _planeModeNumbers = new()
+        {
+            ["MANUAL"] = 0,
+            ["CIRCLE"] = 1,
+            ["STABILIZE"] = 2,
+            ["TRAINING"] = 3,
+            ["ACRO"] = 4,
+            ["FBWA"] = 5,
+            ["FBWB"] = 6,
+            ["CRUISE"] = 7,
+            ["AUTOTUNE"] = 8,
+            ["AUTO"] = 10,
+            ["RTL"] = 11,
+            ["LOITER"] = 12,
+            ["TAKEOFF"] = 13,
+            ["GUIDED"] = 15,
+            ["QSTABILIZE"] = 17,
+            ["QHOVER"] = 18,
+            ["QLOITER"] = 19,
+            ["QLAND"] = 20,
+            ["QRTL"] = 21,
+            ["QAUTOTUNE"] = 22,
+            ["QACRO"] = 23,
+            ["THERMAL"] = 24
+        };
 
         public void SetActiveMission(List<WaypointItem> mission)
         {
@@ -81,6 +188,13 @@ namespace SimpleDroneGCS.Services
         public event Action<byte, byte, byte[], float, float, float> OnMagCalProgress;
 
         public event Action<byte, byte, float, float, float, float> OnMagCalReport;
+        public event Action<byte[]> RawPacketReceived;
+
+        /// <summary>
+        /// Срабатывает при получении COMMAND_ACK для MAV_CMD_DO_MOTOR_TEST (209).
+        /// int = номер мотора, bool = true если ACCEPTED.
+        /// </summary>
+        public event Action<int, bool> MotorTestAckReceived;
 
         public int CurrentMissionSeq { get; private set; } = 0;
 
@@ -176,7 +290,10 @@ namespace SimpleDroneGCS.Services
 
         private void StartConnectionTimeoutCheck()
         {
-            Task.Delay(10000).ContinueWith(_ =>
+            var token = _isUdpMode ? _udpCts?.Token ?? CancellationToken.None
+                                   : _cts?.Token ?? CancellationToken.None;
+
+            Task.Delay(10000, token).ContinueWith(_ =>
             {
                 if (IsConnected && DroneStatus.LastHeartbeat == DateTime.MinValue)
                 {
@@ -186,8 +303,11 @@ namespace SimpleDroneGCS.Services
                         ErrorOccurred?.Invoke(this, Get("Msg_NoResponse"));
                     });
                 }
-            });
+            }, CancellationToken.None,
+               TaskContinuationOptions.OnlyOnRanToCompletion,
+               TaskScheduler.Default);
         }
+
 
         private async Task ReadLoopUDP(CancellationToken ct)
         {
@@ -219,9 +339,15 @@ namespace SimpleDroneGCS.Services
                         {
                             try
                             {
+                                int pktStart = (int)ms.Position;
                                 var msg = _parser.ReadPacket(ms);
                                 if (msg != null)
                                 {
+                                    int pktLen = (int)ms.Position - pktStart;
+                                    var raw = new byte[pktLen];
+                                    Array.Copy(result.Buffer, pktStart, raw, 0, pktLen);
+                                    RawPacketReceived?.Invoke(raw);
+
                                     TotalPacketsReceived++;
                                     DroneStatus.PacketsReceived++;
                                     ProcessMessage(msg);
@@ -321,9 +447,19 @@ namespace SimpleDroneGCS.Services
             _isUdpMode = false;
             _udpWaitingForFirstPacket = false;
             _heartbeatReceived = false;
+            _pendingArmed = false;
+            _armedConfirmCount = 0;
             _connectionStartTime = DateTime.MinValue;
             DroneStatus.IsConnected = false;
             DroneStatus.LastHeartbeat = DateTime.MinValue;
+
+            _isDownloading = false;
+            _missionDownloadTcs?.TrySetResult(null);
+
+            _isUploading = false;
+            _missionUploadTcs?.TrySetResult(false);
+            _missionUploadTcs = null;
+            _missionItemsToUpload = null;
 
             HomeLat = null;
             HomeLon = null;
@@ -369,6 +505,7 @@ namespace SimpleDroneGCS.Services
 
         private void StartHeartbeatTimer()
         {
+            _heartbeatTimer?.Stop();
             _heartbeatTimer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(HEARTBEAT_INTERVAL_MS)
@@ -398,6 +535,7 @@ namespace SimpleDroneGCS.Services
 
         private void StartTelemetryRequestTimer()
         {
+            _telemetryRequestTimer?.Stop();
             _telemetryRequestTimer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(TELEMETRY_REQUEST_INTERVAL_MS)
@@ -486,8 +624,10 @@ namespace SimpleDroneGCS.Services
 
         private async Task ReadLoop(CancellationToken token)
         {
-            byte[] buffer = new byte[4096];
-            List<byte> dataBuffer = new List<byte>();
+            const int BUF_SIZE = 8192;
+            byte[] dataBuffer = new byte[BUF_SIZE];
+            byte[] readBuffer = new byte[4096];
+            int dataLen = 0;
 
             System.Diagnostics.Debug.WriteLine("[MAVLink] ReadLoop started");
 
@@ -497,74 +637,85 @@ namespace SimpleDroneGCS.Services
                 {
                     if (_serialPort?.BytesToRead > 0)
                     {
-                        int count = _serialPort.Read(buffer, 0, Math.Min(buffer.Length, _serialPort.BytesToRead));
+                        int count = _serialPort.Read(readBuffer, 0,
+                            Math.Min(readBuffer.Length, _serialPort.BytesToRead));
                         TotalBytesReceived += count;
 
-                        for (int i = 0; i < count; i++)
+                        if (dataLen + count > BUF_SIZE)
                         {
-                            dataBuffer.Add(buffer[i]);
+                            dataLen = 0;
+                            PacketErrors++;
                         }
+                        Buffer.BlockCopy(readBuffer, 0, dataBuffer, dataLen, count);
+                        dataLen += count;
 
-                        while (dataBuffer.Count > 0)
+                        bool packetFound = true;
+                        while (packetFound && dataLen > 0)
                         {
-                            bool packetFound = false;
+                            packetFound = false;
 
-                            for (int i = 0; i < dataBuffer.Count; i++)
+                            int startIdx = -1;
+                            for (int i = 0; i < dataLen; i++)
                             {
                                 if (dataBuffer[i] == 0xFD || dataBuffer[i] == 0xFE)
                                 {
-                                    int minPacketSize = (dataBuffer[i] == 0xFD) ? 12 : 8;
-
-                                    if (dataBuffer.Count - i >= minPacketSize)
-                                    {
-                                        try
-                                        {
-                                            byte[] packetData = dataBuffer.Skip(i).ToArray();
-
-                                            using (var ms = new System.IO.MemoryStream(packetData))
-                                            {
-                                                var msg = _parser.ReadPacket(ms);
-
-                                                if (msg != null)
-                                                {
-                                                    ProcessMessage(msg);
-
-                                                    int bytesToRemove = (int)ms.Position;
-                                                    dataBuffer.RemoveRange(0, i + bytesToRemove);
-
-                                                    packetFound = true;
-                                                    TotalPacketsReceived++;
-                                                    DroneStatus.PacketsReceived++;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        catch (System.IO.EndOfStreamException)
-                                        {
-                                            break;
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            System.Diagnostics.Debug.WriteLine($"[MAVLink] Parse error: {ex.Message}");
-                                            dataBuffer.RemoveAt(i);
-                                            PacketErrors++;
-                                            break;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        break;
-                                    }
+                                    startIdx = i;
+                                    break;
                                 }
                             }
 
-                            if (!packetFound)
+                            if (startIdx < 0)
                             {
-                                if (dataBuffer.Count > 1024)
-                                {
-                                    dataBuffer.RemoveRange(0, dataBuffer.Count - 512);
-                                }
+                                dataLen = 0;
                                 break;
+                            }
+
+                            if (startIdx > 0)
+                            {
+                                Buffer.BlockCopy(dataBuffer, startIdx, dataBuffer, 0, dataLen - startIdx);
+                                dataLen -= startIdx;
+                            }
+
+                            int minSize = (dataBuffer[0] == 0xFD) ? 12 : 8;
+                            if (dataLen < minSize) break;
+                            try
+                            {
+                                using var ms = new System.IO.MemoryStream(dataBuffer, 0, dataLen);
+                                var msg = _parser.ReadPacket(ms);
+
+                                if (msg != null)
+                                {
+                                    int consumed = (int)ms.Position;
+
+                                    var raw = new byte[consumed];
+                                    Array.Copy(dataBuffer, 0, raw, 0, consumed);
+                                    RawPacketReceived?.Invoke(raw);
+
+                                    Buffer.BlockCopy(dataBuffer, consumed, dataBuffer, 0, dataLen - consumed);
+                                    dataLen -= consumed;
+
+                                    ProcessMessage(msg);
+                                    TotalPacketsReceived++;
+                                    DroneStatus.PacketsReceived++;
+                                    packetFound = true;
+                                }
+                                else
+                                {
+                                    Buffer.BlockCopy(dataBuffer, 1, dataBuffer, 0, dataLen - 1);
+                                    dataLen--;
+                                }
+                            }
+                            catch (System.IO.EndOfStreamException)
+                            {
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[MAVLink] Parse error: {ex.Message}");
+
+                                Buffer.BlockCopy(dataBuffer, 1, dataBuffer, 0, dataLen - 1);
+                                dataLen--;
+                                PacketErrors++;
                             }
                         }
                     }
@@ -694,8 +845,15 @@ namespace SimpleDroneGCS.Services
                         break;
                 }
 
-                TelemetryUpdated?.Invoke(this, CurrentTelemetry);
-                TelemetryReceived?.Invoke(this, EventArgs.Empty);
+                if (_telemetryDirty)
+                {
+                    _telemetryDirty = false;
+                    System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
+                    {
+                        TelemetryUpdated?.Invoke(this, CurrentTelemetry);
+                        TelemetryReceived?.Invoke(this, EventArgs.Empty);
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -705,9 +863,32 @@ namespace SimpleDroneGCS.Services
 
         private void ProcessHeartbeat(MAVLink.MAVLinkMessage msg)
         {
+
             var heartbeat = (MAVLink.mavlink_heartbeat_t)msg.data;
 
-            CurrentTelemetry.Armed = (heartbeat.base_mode & (byte)MAVLink.MAV_MODE_FLAG.SAFETY_ARMED) != 0;
+
+            if (heartbeat.autopilot == (byte)MAVLink.MAV_AUTOPILOT.INVALID ||
+                msg.sysid == GCS_SYSTEM_ID ||
+                heartbeat.type == (byte)MAVLink.MAV_TYPE.GCS)
+            {
+                return;
+            }
+
+
+            bool newArmed = (heartbeat.base_mode & (byte)MAVLink.MAV_MODE_FLAG.SAFETY_ARMED) != 0;
+
+            if (newArmed == _pendingArmed)
+            {
+                _armedConfirmCount++;
+                if (_armedConfirmCount >= ARMED_CONFIRM_THRESHOLD)
+                    CurrentTelemetry.Armed = newArmed;
+            }
+            else
+            {
+                _pendingArmed = newArmed;
+                _armedConfirmCount = 1;
+            }
+
             CurrentTelemetry.BaseMode = heartbeat.base_mode;
             CurrentTelemetry.CustomMode = heartbeat.custom_mode;
             CurrentTelemetry.SystemStatus = heartbeat.system_status;
@@ -721,12 +902,16 @@ namespace SimpleDroneGCS.Services
             if (!_heartbeatReceived)
             {
                 _heartbeatReceived = true;
-                ConnectionStatusChanged?.Invoke(this, Get("Connected"));
-                ConnectionStatusChanged_Bool?.Invoke(this, true);
+                System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
+                {
+                    ConnectionStatusChanged?.Invoke(this, Get("Connected"));
+                    ConnectionStatusChanged_Bool?.Invoke(this, true);
+                });
                 Debug.WriteLine("[MAVLink] ✅ Первый HEARTBEAT получен - дрон подключен!");
             }
 
             CurrentTelemetry.FlightMode = GetFlightModeName(heartbeat.custom_mode);
+            _telemetryDirty = true;
         }
 
         private void ProcessAttitude(MAVLink.MAVLinkMessage msg)
@@ -735,6 +920,7 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.Roll = attitude.roll * (180.0 / Math.PI);
             CurrentTelemetry.Pitch = attitude.pitch * (180.0 / Math.PI);
             CurrentTelemetry.Yaw = attitude.yaw * (180.0 / Math.PI);
+            _telemetryDirty = true;
         }
 
         private void ProcessGlobalPosition(MAVLink.MAVLinkMessage msg)
@@ -746,6 +932,24 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.RelativeAltitude = pos.relative_alt / 1000.0;
             CurrentTelemetry.Speed = Math.Sqrt(pos.vx * pos.vx + pos.vy * pos.vy) / 100.0;
             CurrentTelemetry.ClimbRate = -pos.vz / 100.0;
+
+            if (HomeLat.HasValue && HomeLon.HasValue)
+                CurrentTelemetry.DistanceFromHome = HaversineMeters(
+                    HomeLat.Value, HomeLon.Value,
+                    CurrentTelemetry.Latitude, CurrentTelemetry.Longitude);
+
+            _telemetryDirty = true;
+        }
+
+        private static double HaversineMeters(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371000.0;
+            double dLat = (lat2 - lat1) * Math.PI / 180.0;
+            double dLon = (lon2 - lon1) * Math.PI / 180.0;
+            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                     + Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0)
+                     * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            return R * 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
         }
 
         private void ProcessGpsRaw(MAVLink.MAVLinkMessage msg)
@@ -760,6 +964,7 @@ namespace SimpleDroneGCS.Services
                 CurrentTelemetry.Longitude = gps.lon / 1e7;
 
             CurrentTelemetry.GpsAltitude = gps.alt / 1000.0;
+            _telemetryDirty = true;
         }
 
         private void ProcessVfrHud(MAVLink.MAVLinkMessage msg)
@@ -771,6 +976,7 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.ClimbRate = hud.climb;
             CurrentTelemetry.Heading = hud.heading;
             CurrentTelemetry.Throttle = hud.throttle;
+            _telemetryDirty = true;
         }
 
         private void ProcessSysStatus(MAVLink.MAVLinkMessage msg)
@@ -779,6 +985,9 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.BatteryVoltage = sys.voltage_battery / 1000.0;
             CurrentTelemetry.BatteryCurrent = sys.current_battery / 100.0;
             CurrentTelemetry.BatteryPercent = sys.battery_remaining;
+            _telemetryDirty = true;
+            const uint AHRS_BIT = 0x80000;
+            CurrentTelemetry.IsEkfOk = (sys.onboard_control_sensors_health & AHRS_BIT) != 0;
         }
 
         private void ProcessMissionCurrent(MAVLink.MAVLinkMessage msg)
@@ -786,7 +995,9 @@ namespace SimpleDroneGCS.Services
             var mission = (MAVLink.mavlink_mission_current_t)msg.data;
             CurrentTelemetry.CurrentWaypoint = mission.seq;
             CurrentMissionSeq = mission.seq;
-            MissionProgressUpdated?.Invoke(this, (int)mission.seq);
+            int mseq = (int)mission.seq;
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
+                MissionProgressUpdated?.Invoke(this, mseq));
         }
 
         private void ProcessMagCalProgress(MAVLink.MAVLinkMessage msg)
@@ -834,13 +1045,16 @@ namespace SimpleDroneGCS.Services
         private void ProcessStatusText(MAVLink.MAVLinkMessage msg)
         {
             var status = (MAVLink.mavlink_statustext_t)msg.data;
-            string text = System.Text.Encoding.ASCII.GetString(status.text).TrimEnd('\0');
+            string original = System.Text.Encoding.ASCII.GetString(status.text).TrimEnd('\0');
+            string translated = StatusTextTranslator.Instance.Translate(original);
 
-            System.Diagnostics.Debug.WriteLine($"[DRONE] {text}");
+            System.Diagnostics.Debug.WriteLine($"[DRONE] {original}");
 
-            MessageReceived?.Invoke(this, text);
-
-            OnStatusTextReceived?.Invoke(text);
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
+            {
+                MessageReceived?.Invoke(this, translated);
+                OnStatusTextReceived?.Invoke(translated);
+            });
         }
 
         private void ProcessCommandAck(MAVLink.MAVLinkMessage msg)
@@ -874,6 +1088,14 @@ namespace SimpleDroneGCS.Services
                     System.Diagnostics.Debug.WriteLine($"❌ ARM ОТКЛОНЕНА: {resultName} (код {ack.result})");
                 }
             }
+            else if (ack.command == 209) // MAV_CMD_DO_MOTOR_TEST
+            {
+                bool accepted = ack.result == (byte)MAVLink.MAV_RESULT.ACCEPTED;
+                int motorNum = _lastMotorTestNumber;
+                Debug.WriteLine($"[MotorTest] ACK мотор #{motorNum} → {resultName}");
+                System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
+                    MotorTestAckReceived?.Invoke(motorNum, accepted));
+            }
         }
 
         private void ProcessServoOutput(MAVLink.MAVLinkMessage msg)
@@ -885,6 +1107,7 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.Motor3Percent = PwmToPercent(servo.servo7_raw);
             CurrentTelemetry.Motor4Percent = PwmToPercent(servo.servo8_raw);
             CurrentTelemetry.PusherPercent = PwmToPercent(servo.servo3_raw);
+            _telemetryDirty = true;
         }
 
         private int PwmToPercent(ushort pwm)
@@ -920,75 +1143,28 @@ namespace SimpleDroneGCS.Services
 
             CurrentTelemetry.BatteryCurrent = battery.current_battery / 100.0;
             CurrentTelemetry.BatteryPercent = battery.battery_remaining;
+            _telemetryDirty = true;
+        }
+
+        private bool IsCopterType()
+        {
+            // Приоритет — выбор пользователя в VehicleSelectionWindow
+            var userChoice = VehicleManager.Instance.CurrentVehicleType;
+            if (userChoice == VehicleType.Copter)
+                return true;
+            if (userChoice == VehicleType.QuadPlane)
+                return false;
+
+            // Fallback — тип из heartbeat FC
+            byte mavType = DroneStatus.Type;
+            return mavType == 2 || mavType == 3 || mavType == 4 ||
+                   mavType == 13 || mavType == 14 || mavType == 15;
         }
 
         private string GetFlightModeName(uint customMode)
         {
-
-            byte mavType = DroneStatus.Type;
-            bool isCopter = (mavType == 2 || mavType == 3 || mavType == 4 ||
-                            mavType == 13 || mavType == 14 || mavType == 15);
-
-            if (mavType == 0)
-                isCopter = VehicleManager.Instance.CurrentVehicleType == VehicleType.Copter;
-
-            if (isCopter)
-            {
-
-                switch (customMode)
-                {
-                    case 0: return "STABILIZE";
-                    case 1: return "ACRO";
-                    case 2: return "ALT_HOLD";
-                    case 3: return "AUTO";
-                    case 4: return "GUIDED";
-                    case 5: return "LOITER";
-                    case 6: return "RTL";
-                    case 7: return "CIRCLE";
-                    case 9: return "LAND";
-                    case 11: return "DRIFT";
-                    case 13: return "SPORT";
-                    case 14: return "FLIP";
-                    case 15: return "AUTOTUNE";
-                    case 16: return "POSHOLD";
-                    case 17: return "BRAKE";
-                    case 18: return "THROW";
-                    case 19: return "AVOID_ADSB";
-                    case 20: return "GUIDED_NOGPS";
-                    case 21: return "SMART_RTL";
-                    default: return $"MODE_{customMode}";
-                }
-            }
-            else
-            {
-
-                switch (customMode)
-                {
-                    case 0: return "MANUAL";
-                    case 1: return "CIRCLE";
-                    case 2: return "STABILIZE";
-                    case 3: return "TRAINING";
-                    case 4: return "ACRO";
-                    case 5: return "FBWA";
-                    case 6: return "FBWB";
-                    case 7: return "CRUISE";
-                    case 8: return "AUTOTUNE";
-                    case 10: return "AUTO";
-                    case 11: return "RTL";
-                    case 12: return "LOITER";
-                    case 13: return "TAKEOFF";
-                    case 15: return "GUIDED";
-                    case 17: return "QSTABILIZE";
-                    case 18: return "QHOVER";
-                    case 19: return "QLOITER";
-                    case 20: return "QLAND";
-                    case 21: return "QRTL";
-                    case 22: return "QAUTOTUNE";
-                    case 23: return "QACRO";
-                    case 24: return "THERMAL";
-                    default: return $"MODE_{customMode}";
-                }
-            }
+            var map = IsCopterType() ? _copterModeNames : _planeModeNames;
+            return map.TryGetValue(customMode, out var name) ? name : $"MODE_{customMode}";
         }
 
         public void SendArm()
@@ -1029,33 +1205,7 @@ namespace SimpleDroneGCS.Services
             System.Diagnostics.Debug.WriteLine($"[MAVLink] {(arm ? "ARM" : "DISARM")}{(force ? " (FORCE)" : "")} отправлено");
         }
 
-        public void ForceArm()
-        {
-            if (!IsConnected)
-            {
-                ErrorOccurred?.Invoke(this, Get("Msg_DroneNotConnected"));
-                return;
-            }
-
-            var cmd = new MAVLink.mavlink_command_long_t
-            {
-                target_system = (byte)DroneStatus.SystemId,
-                target_component = (byte)DroneStatus.ComponentId,
-                command = (ushort)MAVLink.MAV_CMD.COMPONENT_ARM_DISARM,
-                confirmation = 0,
-                param1 = 1,
-                param2 = 21196,
-                param3 = 0,
-                param4 = 0,
-                param5 = 0,
-                param6 = 0,
-                param7 = 0
-            };
-
-            SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
-
-            System.Diagnostics.Debug.WriteLine("[MAVLink] Принудительное ARM отправлено");
-        }
+        public void ForceArm() => SetArm(arm: true, force: true);
 
         public void Takeoff(double altitude)
         {
@@ -1104,7 +1254,7 @@ namespace SimpleDroneGCS.Services
                 var vehicleType = VehicleManager.Instance.CurrentVehicleType;
                 if (vehicleType == VehicleType.QuadPlane)
                 {
-                    SetMode(20); // QLAND for VTOL
+                    SetMode(20);
                     System.Diagnostics.Debug.WriteLine("[MAVLink] QLAND (mode=20) для VTOL");
                     return;
                 }
@@ -1136,11 +1286,19 @@ namespace SimpleDroneGCS.Services
             if (!IsConnected) return;
 
             var vehicleType = VehicleManager.Instance.CurrentVehicleType;
-            uint rtlMode = (vehicleType == VehicleType.Copter) ? 6u : 11u;
+
+            // QuadPlane использует QRTL (mode=21) для вертикального возврата
+            // Copter — RTL (mode=6), Plane — RTL (mode=11)
+            uint rtlMode = vehicleType switch
+            {
+                VehicleType.QuadPlane => 21u,  // QRTL
+                VehicleType.Copter => 6u,  // RTL
+                _ => 11u,  // RTL (Plane)
+            };
 
             SetMode(rtlMode);
 
-            System.Diagnostics.Debug.WriteLine($"[MAVLink] RTL режим установлен (mode={rtlMode})");
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] RTL/QRTL режим установлен (mode={rtlMode}, vehicle={vehicleType})");
         }
 
         public void SetMode(uint mode)
@@ -1151,16 +1309,19 @@ namespace SimpleDroneGCS.Services
                 return;
             }
 
+            // Если SystemId ещё не получен от FC — использовать 1 как fallback
+            byte sysId = DroneStatus.SystemId > 0 ? (byte)DroneStatus.SystemId : (byte)1;
+
             var setMode = new MAVLink.mavlink_set_mode_t
             {
-                target_system = (byte)DroneStatus.SystemId,
+                target_system = sysId,
                 base_mode = (byte)MAVLink.MAV_MODE_FLAG.CUSTOM_MODE_ENABLED,
                 custom_mode = mode
             };
 
             SendMessage(setMode, MAVLink.MAVLINK_MSG_ID.SET_MODE);
 
-            System.Diagnostics.Debug.WriteLine($"[MAVLink] Режим {GetFlightModeName(mode)} установлен");
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] Режим {GetFlightModeName(mode)} установлен (sysId={sysId})");
         }
 
         public void GoTo(double latitude, double longitude, double altitude)
@@ -1211,73 +1372,51 @@ namespace SimpleDroneGCS.Services
         public void SetFlightMode(string modeName)
         {
             if (!IsConnected) return;
-
-            var vehicleType = VehicleManager.Instance.CurrentVehicleType;
-
-            var copterModeMap = new Dictionary<string, uint>
-            {
-                { "STABILIZE", 0 },
-                { "ACRO", 1 },
-                { "ALT_HOLD", 2 },
-                { "AUTO", 3 },
-                { "GUIDED", 4 },
-                { "LOITER", 5 },
-                { "RTL", 6 },
-                { "CIRCLE", 7 },
-                { "LAND", 9 },
-                { "DRIFT", 11 },
-                { "SPORT", 13 },
-                { "FLIP", 14 },
-                { "AUTOTUNE", 15 },
-                { "POSHOLD", 16 },
-                { "BRAKE", 17 },
-                { "THROW", 18 },
-                { "GUIDED_NOGPS", 20 },
-                { "SMART_RTL", 21 },
-                { "FLOWHOLD", 22 },
-                { "FOLLOW", 23 },
-                { "ZIGZAG", 24 }
-            };
-
-            var planeModeMap = new Dictionary<string, uint>
-            {
-                { "MANUAL", 0 },
-                { "CIRCLE", 1 },
-                { "STABILIZE", 2 },
-                { "TRAINING", 3 },
-                { "ACRO", 4 },
-                { "FBWA", 5 },
-                { "FBWB", 6 },
-                { "CRUISE", 7 },
-                { "AUTOTUNE", 8 },
-                { "AUTO", 10 },
-                { "RTL", 11 },
-                { "LOITER", 12 },
-                { "TAKEOFF", 13 },
-                { "GUIDED", 15 },
-                { "QSTABILIZE", 17 },
-                { "QHOVER", 18 },
-                { "QLOITER", 19 },
-                { "QLAND", 20 },
-                { "QRTL", 21 },
-                { "QAUTOTUNE", 22 },
-                { "QACRO", 23 },
-                { "THERMAL", 24 }
-            };
-
-            var modeMap = (vehicleType == VehicleType.Copter) ? copterModeMap : planeModeMap;
-
-            if (!modeMap.ContainsKey(modeName))
+            var map = IsCopterType() ? _copterModeNumbers : _planeModeNumbers;
+            if (!map.TryGetValue(modeName, out uint customMode))
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ Неизвестный режим: {modeName}");
                 return;
             }
-
-            uint customMode = modeMap[modeName];
-
             SetMode(customMode);
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] Режим {modeName} (custom_mode={customMode}) отправлен");
+        }
 
-            System.Diagnostics.Debug.WriteLine($"[MAVLink] {vehicleType} режим {modeName} (custom_mode={customMode}) отправлен");
+        private int _lastMotorTestNumber = 0;
+
+        /// <summary>
+        /// MAV_CMD_DO_MOTOR_TEST (209).
+        /// Требует: дрон НЕ заармлен.
+        /// </summary>
+        /// <param name="motorNumber">Номер мотора 1-based (1-4 для Copter, 1-5 для QuadPlane)</param>
+        /// <param name="throttlePct">Газ в процентах (0-100)</param>
+        /// <param name="durationSec">Длительность теста в секундах</param>
+        public void SendMotorTest(int motorNumber, float throttlePct, float durationSec)
+        {
+            if (!IsConnected) return;
+            if (motorNumber < 1 || motorNumber > 8) return;
+
+            throttlePct = Math.Max(0, Math.Min(100, throttlePct));
+            durationSec = Math.Max(0, Math.Min(30, durationSec));
+
+            var cmd = new MAVLink.mavlink_command_long_t
+            {
+                target_system = (byte)DroneStatus.SystemId,
+                target_component = (byte)DroneStatus.ComponentId,
+                command = 209, // MAV_CMD_DO_MOTOR_TEST
+                confirmation = 0,
+                param1 = motorNumber,  // motor instance (1-based)
+                param2 = 1,            // throttle type: 1 = percent
+                param3 = throttlePct,  // throttle %
+                param4 = durationSec,  // duration seconds
+                param5 = 0,            // motor count (0 = single)
+                param6 = 0,            // test order
+                param7 = 0
+            };
+
+            SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
+            _lastMotorTestNumber = motorNumber;
+            Debug.WriteLine($"[MotorTest] Motor #{motorNumber} throttle={throttlePct}% dur={durationSec}s");
         }
 
         public void SendCommandLong(ushort command,
@@ -1468,11 +1607,19 @@ namespace SimpleDroneGCS.Services
                 return false;
             }
 
+            if (_isUploading)
+            {
+                Debug.WriteLine("[MAVLink] Upload already in progress, skipping");
+                return false;
+            }
+
             if (waypoints == null || waypoints.Count == 0)
             {
                 ErrorOccurred?.Invoke(this, Get("Msg_NoPointsToUpload"));
                 return false;
             }
+
+            _isUploading = true;
 
             System.Diagnostics.Debug.WriteLine($"📤 Начало загрузки миссии: {waypoints.Count} точек");
 
@@ -1543,6 +1690,7 @@ namespace SimpleDroneGCS.Services
             }
             finally
             {
+                _isUploading = false;
                 _missionItemsToUpload = null;
             }
         }
@@ -1550,6 +1698,8 @@ namespace SimpleDroneGCS.Services
         private async Task<bool> FallbackSequentialUpload()
         {
             if (_missionItemsToUpload == null) return false;
+
+            _missionUploadTcs = new TaskCompletionSource<bool>();
 
             for (int i = 0; i < _missionItemsToUpload.Count; i++)
             {
@@ -1559,8 +1709,6 @@ namespace SimpleDroneGCS.Services
                 await Task.Delay(200);
             }
 
-            // Wait for MISSION_ACK from FC after sending all items
-            _missionUploadTcs = new TaskCompletionSource<bool>();
             var ackTimeout = Task.Delay(5000);
             var ackResult = await Task.WhenAny(_missionUploadTcs.Task, ackTimeout);
 
@@ -1619,6 +1767,12 @@ namespace SimpleDroneGCS.Services
         {
             if (!IsConnected) return null;
 
+            if (!await _downloadLock.WaitAsync(200))
+            {
+                System.Diagnostics.Debug.WriteLine("[DOWNLOAD] Уже идёт скачивание, пропускаем");
+                return null;
+            }
+
             try
             {
                 _isDownloading = true;
@@ -1654,6 +1808,10 @@ namespace SimpleDroneGCS.Services
                 _isDownloading = false;
                 System.Diagnostics.Debug.WriteLine($"[DOWNLOAD] Ошибка: {ex.Message}");
                 return null;
+            }
+            finally
+            {
+                _downloadLock.Release();
             }
         }
 
@@ -1799,9 +1957,9 @@ namespace SimpleDroneGCS.Services
                 target_system = (byte)DroneStatus.SystemId,
                 target_component = (byte)DroneStatus.ComponentId,
                 seq = 0,
-                frame = (byte)MAVLink.MAV_FRAME.GLOBAL,  // HOME = absolute altitude (MSL)
+                frame = (byte)MAVLink.MAV_FRAME.GLOBAL,
                 command = (ushort)MAVLink.MAV_CMD.WAYPOINT,
-                current = 0, // HOME seq=0 current should be 0
+                current = 0,
                 autocontinue = 1,
                 param1 = 0,
                 param2 = 0,
@@ -1879,7 +2037,7 @@ namespace SimpleDroneGCS.Services
                         break;
                     case "CHANGE_SPEED":
                         param1 = 1;
-                        param2 = (float)wp.Delay;
+                        param2 = (float)wp.Speed;
                         param3 = -1;
                         break;
                     case "WAYPOINT":
@@ -1907,7 +2065,7 @@ namespace SimpleDroneGCS.Services
                 frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
                 command = mavCmd,
                 current = 0,
-                autocontinue = (byte)(wp.AutoNext ? 1 : 0),
+                autocontinue = IsSystemCommand(wp.CommandType) ? (byte)1 : (byte)(wp.AutoNext ? 1 : 0),
                 param1 = param1,
                 param2 = param2,
                 param3 = param3,
@@ -1918,6 +2076,10 @@ namespace SimpleDroneGCS.Services
                 mission_type = 0
             };
         }
+
+        private bool IsSystemCommand(string cmd) =>
+            cmd is "VTOL_TAKEOFF" or "VTOL_TRANSITION_FW" or "VTOL_TRANSITION_MC"
+                   or "VTOL_LAND" or "TAKEOFF" or "RETURN_TO_LAUNCH" or "HOME";
 
         private ushort ConvertCommandTypeToMAVCmd(string commandType)
         {
@@ -2002,145 +2164,6 @@ namespace SimpleDroneGCS.Services
             System.Diagnostics.Debug.WriteLine("[MAVLink] Миссия приостановлена");
         }
 
-        public async Task<bool> UploadVtolMission(
-            WaypointItem home,
-            WaypointItem startCircle,
-            List<WaypointItem> waypoints,
-            WaypointItem landingCircle,
-            double takeoffAltitude,
-            double landAltitude)
-        {
-            if (!IsConnected)
-            {
-                ErrorOccurred?.Invoke(this, Get("Msg_DroneNotConnected"));
-                return false;
-            }
-
-            try
-            {
-                var items = new List<MAVLink.mavlink_mission_item_int_t>();
-                int seq = 0;
-
-                items.Add(new MAVLink.mavlink_mission_item_int_t
-                {
-                    target_system = (byte)DroneStatus.SystemId,
-                    target_component = (byte)DroneStatus.ComponentId,
-                    seq = (ushort)seq++,
-                    frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = (ushort)MAVLink.MAV_CMD.WAYPOINT,
-                    current = 1,
-                    autocontinue = 1,
-                    x = (int)(home.Latitude * 1e7),
-                    y = (int)(home.Longitude * 1e7),
-                    z = 0,
-                    mission_type = 0
-                });
-
-                items.Add(new MAVLink.mavlink_mission_item_int_t
-                {
-                    target_system = (byte)DroneStatus.SystemId,
-                    target_component = (byte)DroneStatus.ComponentId,
-                    seq = (ushort)seq++,
-                    frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = 84,
-                    current = 0,
-                    autocontinue = 1,
-                    param1 = 0,
-                    param2 = 1,
-                    x = (int)(home.Latitude * 1e7),
-                    y = (int)(home.Longitude * 1e7),
-                    z = (float)takeoffAltitude,
-                    mission_type = 0
-                });
-
-                items.Add(new MAVLink.mavlink_mission_item_int_t
-                {
-                    target_system = (byte)DroneStatus.SystemId,
-                    target_component = (byte)DroneStatus.ComponentId,
-                    seq = (ushort)seq++,
-                    frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = 3000,
-                    current = 0,
-                    autocontinue = 1,
-                    param1 = 4,
-                    x = 0,
-                    y = 0,
-                    z = 0,
-                    mission_type = 0
-                });
-
-                if (startCircle != null)
-                    items.Add(CreateLoiterItem(startCircle, seq++));
-
-                foreach (var wp in waypoints)
-                    items.Add(CreateLoiterItem(wp, seq++));
-
-                if (landingCircle != null)
-                    items.Add(CreateLoiterItem(landingCircle, seq++));
-
-                items.Add(new MAVLink.mavlink_mission_item_int_t
-                {
-                    target_system = (byte)DroneStatus.SystemId,
-                    target_component = (byte)DroneStatus.ComponentId,
-                    seq = (ushort)seq++,
-                    frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = 3000,
-                    current = 0,
-                    autocontinue = 1,
-                    param1 = 3,
-                    x = 0,
-                    y = 0,
-                    z = 0,
-                    mission_type = 0
-                });
-
-                items.Add(new MAVLink.mavlink_mission_item_int_t
-                {
-                    target_system = (byte)DroneStatus.SystemId,
-                    target_component = (byte)DroneStatus.ComponentId,
-                    seq = (ushort)seq++,
-                    frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
-                    command = 85,
-                    current = 0,
-                    autocontinue = 0,
-                    param1 = 0,
-                    x = (int)(home.Latitude * 1e7),
-                    y = (int)(home.Longitude * 1e7),
-                    z = 0,
-                    mission_type = 0
-                });
-
-                ClearMission();
-                await Task.Delay(500);
-
-                var missionCount = new MAVLink.mavlink_mission_count_t
-                {
-                    target_system = (byte)DroneStatus.SystemId,
-                    target_component = (byte)DroneStatus.ComponentId,
-                    count = (ushort)items.Count,
-                    mission_type = 0
-                };
-                SendMessage(missionCount, MAVLink.MAVLINK_MSG_ID.MISSION_COUNT);
-                await Task.Delay(500);
-
-                for (int i = 0; i < items.Count; i++)
-                {
-                    SendMissionItem(items[i]);
-                    System.Diagnostics.Debug.WriteLine($"[VTOL] seq={i}: cmd={items[i].command}");
-                    await Task.Delay(200);
-                }
-
-                System.Diagnostics.Debug.WriteLine($"✅ VTOL миссия: {items.Count} элементов");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ VTOL ошибка: {ex.Message}");
-                ErrorOccurred?.Invoke(this, Fmt("Msg_VtolMissionError", ex.Message));
-                return false;
-            }
-        }
-
         private MAVLink.mavlink_mission_item_int_t CreateLoiterItem(WaypointItem wp, int sequence)
         {
             ushort command;
@@ -2220,9 +2243,11 @@ namespace SimpleDroneGCS.Services
         {
             try
             {
+
+                byte seq = (byte)(Interlocked.Increment(ref _packetSequence) & 0xFF);
                 byte[] packet = _parser.GenerateMAVLinkPacket20(
                     messageId, message, false,
-                    GCS_SYSTEM_ID, GCS_COMPONENT_ID, _packetSequence++);
+                    GCS_SYSTEM_ID, GCS_COMPONENT_ID, seq);
 
                 if (packet == null || packet.Length == 0) return;
 

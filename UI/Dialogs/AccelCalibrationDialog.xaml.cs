@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using SimpleDroneGCS.Services;
+using static SimpleDroneGCS.Helpers.Loc;
 
 namespace SimpleDroneGCS.UI.Dialogs
 {
@@ -15,15 +16,15 @@ namespace SimpleDroneGCS.UI.Dialogs
         private int _currentStep = -1;
         private bool _waitingForDrone = false;
         private readonly Border[] _stepIndicators;
-
-        private readonly (string title, string description, string hint)[] _positions =
+        private bool _isClosed = false;
+        private (string title, string description, string hint)[] GetPositions() => new[]
         {
-            ("РОВНО",          "Поставьте дрон РОВНО на стол\nколёсами/ножками вниз",      "Стандартное положение"),
-            ("НА ЛЕВЫЙ БОК",   "Наклоните дрон НА ЛЕВЫЙ БОК\n(левая сторона вниз)",        "Левый бок касается стола"),
-            ("НА ПРАВЫЙ БОК",  "Наклоните дрон НА ПРАВЫЙ БОК\n(правая сторона вниз)",      "Правый бок касается стола"),
-            ("НОС ВНИЗ",       "Поставьте дрон НОСОМ ВНИЗ\n(передняя часть вниз)",         "Нос касается стола"),
-            ("НОС ВВЕРХ",      "Поставьте дрон НОСОМ ВВЕРХ\n(задняя часть вниз)",          "Хвост касается стола"),
-            ("ВВЕРХ НОГАМИ",   "Переверните дрон ВВЕРХ НОГАМИ\n(крышка вниз)",             "Дрон перевёрнут"),
+            (Get("AccelPos_0_Title"), Get("AccelPos_0_Desc"), Get("AccelPos_0_Hint")),
+            (Get("AccelPos_1_Title"), Get("AccelPos_1_Desc"), Get("AccelPos_1_Hint")),
+            (Get("AccelPos_2_Title"), Get("AccelPos_2_Desc"), Get("AccelPos_2_Hint")),
+            (Get("AccelPos_3_Title"), Get("AccelPos_3_Desc"), Get("AccelPos_3_Hint")),
+            (Get("AccelPos_4_Title"), Get("AccelPos_4_Desc"), Get("AccelPos_4_Hint")),
+            (Get("AccelPos_5_Title"), Get("AccelPos_5_Desc"), Get("AccelPos_5_Hint")),
         };
 
         private readonly double[] _rotations = { 0, -90, 90, 45, -45, 180 };
@@ -41,11 +42,11 @@ namespace SimpleDroneGCS.UI.Dialogs
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
             StartButton.IsEnabled = false;
-            StartButton.Content = "ИДЁТ...";
+            StartButton.Content = Get("AccelCalib_GoingBtn");
 
             _mavlink.SendPreflightCalibration(accelerometer: true);
 
-            StatusText.Text = "Ожидание ответа от дрона...";
+            StatusText.Text = Get("AccelCalib_Waiting");
             _waitingForDrone = true;
             _currentStep = -1;
 
@@ -53,6 +54,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             fallback.Tick += (s, args) =>
             {
                 fallback.Stop();
+                if (_isClosed) return;
                 if (_currentStep == -1)
                     GoToStep(0);
             };
@@ -70,7 +72,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             _mavlink.SendCommandLong(42429, param1: _currentStep);
 
-            StatusText.Text = "Дрон собирает данные... не двигайте!";
+            StatusText.Text = Get("AccelCalib_Collecting");
             _waitingForDrone = true;
             MarkStepCompleted(_currentStep);
 
@@ -82,7 +84,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                 {
                     int next = _currentStep + 1;
                     if (next < 6) GoToStep(next);
-                    else ShowResult(true, "Калибровка завершена!");
+                    else ShowResult(true, Get("AccelCalib_Done"));
                 }
             };
             fallback.Start();
@@ -97,12 +99,12 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             if (step >= 6)
             {
-                ShowResult(true, "Калибровка завершена!");
+                ShowResult(true, Get("AccelCalib_Done"));
                 return;
             }
 
-            var pos = _positions[step];
-            PositionTitle.Text = $"Шаг {step + 1}/6: {pos.title}";
+            var pos = GetPositions()[step];
+            PositionTitle.Text = Fmt("AccelCalib_StepTitle", step + 1, pos.title);
             PositionDescription.Text = pos.description;
             PositionHint.Text = pos.hint;
             CalibProgress.Value = step;
@@ -117,8 +119,8 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             NextButton.IsEnabled = true;
             NextButton.Opacity = 1.0;
-            NextButton.Content = step < 5 ? "ДАЛЕЕ ▶" : "ГОТОВО ✓";
-            StatusText.Text = $"Установите дрон: {pos.title}";
+            NextButton.Content = step < 5 ? Get("AccelCalib_NextBtn") : Get("AccelCalib_DoneBtn");
+            StatusText.Text = Fmt("AccelCalib_SetDrone", pos.title);
         }
 
         private void OnStatusText(string text)
@@ -154,7 +156,8 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             var body = new Ellipse
             {
-                Width = 30, Height = 24,
+                Width = 30,
+                Height = 24,
                 Fill = new SolidColorBrush(Color.FromArgb(40, 152, 240, 25)),
                 Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019")),
                 StrokeThickness = 1.5
@@ -173,7 +176,10 @@ namespace SimpleDroneGCS.UI.Dialogs
             {
                 var line = new Line
                 {
-                    X1 = x1, Y1 = y1, X2 = x2, Y2 = y2,
+                    X1 = x1,
+                    Y1 = y1,
+                    X2 = x2,
+                    Y2 = y2,
                     Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019")),
                     StrokeThickness = 1.5
                 };
@@ -181,7 +187,8 @@ namespace SimpleDroneGCS.UI.Dialogs
 
                 var motor = new Ellipse
                 {
-                    Width = 14, Height = 14,
+                    Width = 14,
+                    Height = 14,
                     Stroke = new SolidColorBrush(Color.FromArgb(80, 152, 240, 25)),
                     StrokeThickness = 1,
                     StrokeDashArray = new DoubleCollection(new[] { 2.0, 1.0 })
@@ -216,7 +223,10 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             var surface = new Line
             {
-                X1 = 15, Y1 = 105, X2 = 145, Y2 = 105,
+                X1 = 15,
+                Y1 = 105,
+                X2 = 145,
+                Y2 = 105,
                 Stroke = new SolidColorBrush(Color.FromArgb(60, 42, 67, 97)),
                 StrokeThickness = 2,
                 StrokeDashArray = new DoubleCollection(new[] { 6.0, 3.0 })
@@ -256,22 +266,22 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             if (success)
             {
-                PositionTitle.Text = "КАЛИБРОВКА ЗАВЕРШЕНА!";
+                PositionTitle.Text = Get("AccelCalib_SuccessTitle");
                 PositionTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
-                PositionDescription.Text = "Акселерометр откалиброван успешно";
+                PositionDescription.Text = Get("AccelCalib_SuccessDesc");
                 PositionHint.Text = "";
                 CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
-                CancelButton.Content = "ЗАКРЫТЬ";
+                CancelButton.Content = Get("AccelCalib_CloseBtn");
                 for (int i = 0; i < 6; i++) MarkStepCompleted(i);
             }
             else
             {
-                PositionTitle.Text = "ОШИБКА КАЛИБРОВКИ";
+                PositionTitle.Text = Get("AccelCalib_ErrorTitle");
                 PositionTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
                 PositionDescription.Text = message;
                 CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
                 StartButton.IsEnabled = true;
-                StartButton.Content = "ПОВТОРИТЬ";
+                StartButton.Content = Get("AccelCalib_RetryBtn");
             }
 
             StatusText.Text = message;
@@ -281,6 +291,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         protected override void OnClosed(EventArgs e)
         {
+            _isClosed = true;
             _mavlink.OnStatusTextReceived -= OnStatusText;
             base.OnClosed(e);
         }

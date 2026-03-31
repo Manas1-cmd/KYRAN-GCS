@@ -1,19 +1,17 @@
 ﻿using System;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
 namespace SimpleDroneGCS.Controls
 {
-    
     public class AttitudeIndicator : UserControl
     {
         private Canvas _canvas;
-        private Image _rollIndicatorImage;
         private Canvas _pitchLadder;
+        private Canvas _rollArc;
+        private RotateTransform _rollArcTransform;
 
         private RotateTransform _backgroundRollTransform;
         private TranslateTransform _backgroundPitchTransform;
@@ -25,6 +23,7 @@ namespace SimpleDroneGCS.Controls
         private double _currentPitch = 0;
         private double _targetRoll = 0;
         private double _targetPitch = 0;
+        private double _lastPitchForLadder = double.NaN;
         private readonly object _lockObject = new object();
 
         private bool _isRendering = false;
@@ -109,7 +108,7 @@ namespace SimpleDroneGCS.Controls
         {
             if (_backgroundRollTransform == null || _backgroundPitchTransform == null) return;
 
-            double pixelsPerDegree = 2.5; 
+            double pixelsPerDegree = 3.5;
 
             _backgroundPitchTransform.Y = _currentPitch * pixelsPerDegree;
             _backgroundRollTransform.Angle = -_currentRoll;
@@ -120,21 +119,30 @@ namespace SimpleDroneGCS.Controls
                 _pitchLadderRollTransform.Angle = -_currentRoll;
             }
 
-            UpdatePitchLadder(_currentPitch);
+            if (_rollArcTransform != null)
+                _rollArcTransform.Angle = -_currentRoll;
+
+            if (double.IsNaN(_lastPitchForLadder) || Math.Abs(_currentPitch - _lastPitchForLadder) > 1.0)
+            {
+                _lastPitchForLadder = _currentPitch;
+                UpdatePitchLadder(_currentPitch);
+            }
         }
 
         private void InitializeIndicator()
         {
+            double cx = Width / 2;
+            double cy = Height / 2;
+
             _canvas = new Canvas
             {
                 Width = Width,
                 Height = Height,
                 ClipToBounds = true,
-                Background = new SolidColorBrush(Color.FromRgb(13, 23, 51))
+                Background = new SolidColorBrush(Color.FromRgb(6, 11, 26))
             };
 
             RenderOptions.SetBitmapScalingMode(_canvas, BitmapScalingMode.LowQuality);
-            RenderOptions.SetEdgeMode(_canvas, EdgeMode.Aliased);
 
             _canvas.Clip = new RectangleGeometry
             {
@@ -142,30 +150,38 @@ namespace SimpleDroneGCS.Controls
                 RadiusX = 8,
                 RadiusY = 8
             };
-
+          
             var bg = new Canvas { Width = 2000, Height = 2000 };
 
             bg.Children.Add(new Rectangle
             {
                 Width = 2000,
                 Height = 650,
-                Fill = new SolidColorBrush(Color.FromRgb(12, 45, 85))
+                Fill = new SolidColorBrush(Color.FromRgb(18, 38, 70))
             });
 
-            var skyGrad = new LinearGradientBrush { StartPoint = new Point(0.5, 0), EndPoint = new Point(0.5, 1) };
-            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(12, 45, 85), 0.0));
-            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(40, 95, 145), 0.3));
-            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(78, 145, 200), 0.6));
-            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(125, 190, 235), 1.0));
+            var skyGrad = new LinearGradientBrush
+            {
+                StartPoint = new Point(0.5, 0),
+                EndPoint = new Point(0.5, 1)
+            };
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(18, 38, 70), 0.0));
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(30, 60, 110), 0.3));
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(38, 78, 132), 0.6));
+            skyGrad.GradientStops.Add(new GradientStop(Color.FromRgb(44, 92, 156), 1.0));
             var skyRect = new Rectangle { Width = 2000, Height = 350, Fill = skyGrad };
             Canvas.SetTop(skyRect, 650);
             bg.Children.Add(skyRect);
 
-            var gndGrad = new LinearGradientBrush { StartPoint = new Point(0.5, 0), EndPoint = new Point(0.5, 1) };
-            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(252, 238, 190), 0.0));
-            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(220, 200, 150), 0.3));
-            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(180, 160, 120), 0.6));
-            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(22, 17, 10), 1.0));
+            var gndGrad = new LinearGradientBrush
+            {
+                StartPoint = new Point(0.5, 0),
+                EndPoint = new Point(0.5, 1)
+            };
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(42, 52, 66), 0.0));
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(36, 44, 56), 0.3));
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(28, 35, 45), 0.6));
+            gndGrad.GradientStops.Add(new GradientStop(Color.FromRgb(18, 22, 30), 1.0));
             var gndRect = new Rectangle { Width = 2000, Height = 350, Fill = gndGrad };
             Canvas.SetTop(gndRect, 1000);
             bg.Children.Add(gndRect);
@@ -174,7 +190,7 @@ namespace SimpleDroneGCS.Controls
             {
                 Width = 2000,
                 Height = 650,
-                Fill = new SolidColorBrush(Color.FromRgb(22, 17, 10))
+                Fill = new SolidColorBrush(Color.FromRgb(14, 18, 24))
             };
             Canvas.SetTop(gndDark, 1350);
             bg.Children.Add(gndDark);
@@ -185,9 +201,9 @@ namespace SimpleDroneGCS.Controls
                 Y1 = 1000,
                 X2 = 2000,
                 Y2 = 1000,
-                Stroke = Brushes.White,
-                StrokeThickness = 2,
-                Opacity = 0.9
+                Stroke = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                StrokeThickness = 1.2,
+                Opacity = 0.5
             });
 
             _backgroundPitchTransform = new TranslateTransform(0, 0);
@@ -197,8 +213,8 @@ namespace SimpleDroneGCS.Controls
             _backgroundTransformGroup.Children.Add(_backgroundRollTransform);
             bg.RenderTransform = _backgroundTransformGroup;
 
-            Canvas.SetLeft(bg, -775);  
-            Canvas.SetTop(bg, -875);   
+            Canvas.SetLeft(bg, -775);
+            Canvas.SetTop(bg, -875);
             _canvas.Children.Add(bg);
 
             _pitchLadder = new Canvas { Width = Width * 2, Height = Height * 2 };
@@ -216,105 +232,245 @@ namespace SimpleDroneGCS.Controls
             Canvas.SetTop(_pitchLadder, -Height / 2);
             _canvas.Children.Add(_pitchLadder);
 
-            _rollIndicatorImage = LoadImageLayer("Assets/attitude_roll.png");
-            if (_rollIndicatorImage != null)
+          
+            double rollRadius = 180;
+            double rollCenterY = cy + 65;
+
+            _rollArc = new Canvas { Width = Width, Height = Height, IsHitTestVisible = false };
+
+            _rollArc.Children.Add(new Path
             {
-                _rollIndicatorImage.Width = 450;
-                _rollIndicatorImage.Height = 158;
-                _rollIndicatorImage.Stretch = Stretch.Fill;
-                RenderOptions.SetBitmapScalingMode(_rollIndicatorImage, BitmapScalingMode.HighQuality);
-                Canvas.SetLeft(_rollIndicatorImage, 0);
-                Canvas.SetTop(_rollIndicatorImage, (Height - 158) / 2);
-                _canvas.Children.Add(_rollIndicatorImage);
+                Stroke = Brushes.White,
+                StrokeThickness = 1.5,
+                Opacity = 0.7,
+                Data = CreateArcGeometry(cx, rollCenterY, rollRadius, -50, 50),
+                IsHitTestVisible = false
+            });
+
+            int[] rollAngles = { -60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60 };
+
+            foreach (int angle in rollAngles)
+            {
+                double rad = (angle - 90) * Math.PI / 180;
+                double outerX = cx + rollRadius * Math.Cos(rad);
+                double outerY = rollCenterY + rollRadius * Math.Sin(rad);
+
+                double tickLen, thickness;
+                if (angle == 0) { tickLen = 18; thickness = 2.5; }
+                else if (Math.Abs(angle) == 30 || Math.Abs(angle) == 60) { tickLen = 16; thickness = 2; }
+                else if (Math.Abs(angle) == 45) { tickLen = 13; thickness = 1.5; }
+                else { tickLen = 9; thickness = 1.2; }
+
+                double innerX = cx + (rollRadius - tickLen) * Math.Cos(rad);
+                double innerY = rollCenterY + (rollRadius - tickLen) * Math.Sin(rad);
+
+                if (outerY > cy + 20) continue;
+
+                _rollArc.Children.Add(new Line
+                {
+                    X1 = outerX,
+                    Y1 = outerY,
+                    X2 = innerX,
+                    Y2 = innerY,
+                    Stroke = Brushes.White,
+                    StrokeThickness = thickness,
+                    Opacity = 0.8
+                });
             }
+
+            int[] labelAngles = { -30, 30 };
+            foreach (int angle in labelAngles)
+            {
+                double rad = (angle - 90) * Math.PI / 180;
+                double labelR = rollRadius + 14;
+                double lx = cx + labelR * Math.Cos(rad);
+                double ly = rollCenterY + labelR * Math.Sin(rad);
+
+                var label = new TextBlock
+                {
+                    Text = "30",
+                    Foreground = Brushes.White,
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Opacity = 0.75
+                };
+                label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                Canvas.SetLeft(label, lx - label.DesiredSize.Width / 2);
+                Canvas.SetTop(label, ly - label.DesiredSize.Height / 2);
+                _rollArc.Children.Add(label);
+            }
+
+            double triY = rollCenterY - rollRadius;
+            _rollArc.Children.Add(new Polygon
+            {
+                Points = new PointCollection
+                {
+                    new Point(cx, triY + 2),
+                    new Point(cx - 5, triY - 8),
+                    new Point(cx + 5, triY - 8)
+                },
+                Fill = Brushes.White,
+                Opacity = 0.85
+            });
+
+            _rollArcTransform = new RotateTransform(0, cx, rollCenterY);
+            _rollArc.RenderTransform = _rollArcTransform;
+            _canvas.Children.Add(_rollArc);
+
+            double ptrY = rollCenterY - rollRadius;
+            _canvas.Children.Add(new Polygon
+            {
+                Points = new PointCollection
+                {
+                    new Point(cx, ptrY + 2),
+                    new Point(cx - 8, ptrY - 11),
+                    new Point(cx + 8, ptrY - 11)
+                },
+                Fill = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
+                IsHitTestVisible = false
+            });
+
+            var planeColor = new SolidColorBrush(Color.FromRgb(230, 150, 30));
+
+            _canvas.Children.Add(new Line
+            {
+                X1 = cx - 70,
+                Y1 = cy,
+                X2 = cx - 8,
+                Y2 = cy,
+                Stroke = planeColor,
+                StrokeThickness = 3,
+                IsHitTestVisible = false
+            });
+            _canvas.Children.Add(new Line
+            {
+                X1 = cx - 70,
+                Y1 = cy,
+                X2 = cx - 70,
+                Y2 = cy + 8,
+                Stroke = planeColor,
+                StrokeThickness = 2.5,
+                IsHitTestVisible = false
+            });
+
+            _canvas.Children.Add(new Line
+            {
+                X1 = cx + 8,
+                Y1 = cy,
+                X2 = cx + 70,
+                Y2 = cy,
+                Stroke = planeColor,
+                StrokeThickness = 3,
+                IsHitTestVisible = false
+            });
+            _canvas.Children.Add(new Line
+            {
+                X1 = cx + 70,
+                Y1 = cy,
+                X2 = cx + 70,
+                Y2 = cy + 8,
+                Stroke = planeColor,
+                StrokeThickness = 2.5,
+                IsHitTestVisible = false
+            });
+
+            _canvas.Children.Add(new Line
+            {
+                X1 = cx,
+                Y1 = cy - 10,
+                X2 = cx,
+                Y2 = cy - 2,
+                Stroke = planeColor,
+                StrokeThickness = 2.5,
+                IsHitTestVisible = false
+            });
+
+            var dot = new Ellipse
+            {
+                Width = 6,
+                Height = 6,
+                Fill = planeColor
+            };
+            Canvas.SetLeft(dot, cx - 3);
+            Canvas.SetTop(dot, cy - 3);
+            _canvas.Children.Add(dot);
 
             this.Content = _canvas;
         }
 
-        private Image LoadImageLayer(string path)
-        {
-            try
-            {
-                string uriString = $"pack://application:,,,/{path}";
-                var uri = new Uri(uriString, UriKind.Absolute);
-                var bitmap = new BitmapImage();
-
-                bitmap.BeginInit();
-                bitmap.UriSource = uri;
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
-
-                System.Diagnostics.Debug.WriteLine($"✅ Загружено: {path} ({bitmap.PixelWidth}x{bitmap.PixelHeight})");
-
-                return new Image
-                {
-                    Source = bitmap,
-                    Stretch = Stretch.None
-                };
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ Ошибка {path}: {ex.Message}");
-                return null;
-            }
-        }
-
         private void UpdatePitchLadder(double currentPitch)
         {
-            
-            _pitchLadder.Children.Clear(); 
+            _pitchLadder.Children.Clear();
 
-            double centerX = _pitchLadder.Width / 2;   
-            double centerY = _pitchLadder.Height / 2;  
-            double pixelsPerDegree = 2.5;
+            double centerX = _pitchLadder.Width / 2;
+            double centerY = _pitchLadder.Height / 2;
+            double pixelsPerDegree = 3.5;
 
-            int startAngle = (int)(currentPitch - 32);
-            int endAngle = (int)(currentPitch + 32);
-
-            startAngle = (startAngle / 5) * 5;
-            endAngle = (endAngle / 5) * 5;
-
+            int startAngle = ((int)(currentPitch - 25) / 5) * 5;
+            int endAngle = ((int)(currentPitch + 25) / 5) * 5;
             startAngle = Math.Max(-90, startAngle);
             endAngle = Math.Min(90, endAngle);
 
             for (int angle = startAngle; angle <= endAngle; angle += 5)
             {
-                if (angle == 0) continue; 
+                if (angle == 0) continue;
 
                 double yPos = centerY - (angle * pixelsPerDegree);
+                bool isMajor = angle % 10 == 0;
+                double halfLen = isMajor ? 55 : 20;
+                double thickness = isMajor ? 2 : 1;
+                double opacity = isMajor ? 0.75 : 0.35;
 
-                bool isLong = angle % 10 == 0;
-                double lineWidth = isLong ? 100 : 50;
-                double thickness = isLong ? 3 : 2;
-
-                var line = new Line
+                _pitchLadder.Children.Add(new Line
                 {
-                    X1 = centerX - lineWidth / 2,
+                    X1 = centerX - halfLen,
                     Y1 = yPos,
-                    X2 = centerX + lineWidth / 2,
+                    X2 = centerX + halfLen,
                     Y2 = yPos,
                     Stroke = Brushes.White,
                     StrokeThickness = thickness,
-                    SnapsToDevicePixels = true,
-                    Opacity = 0.8
-                };
-                _pitchLadder.Children.Add(line);
+                    Opacity = opacity
+                });
 
-                if (angle % 30 == 0)
+                if (isMajor)
                 {
-                    var textLeft = new TextBlock
+                    var text = new TextBlock
                     {
                         Text = Math.Abs(angle).ToString(),
                         Foreground = Brushes.White,
-                        FontSize = 16,
-                        FontWeight = FontWeights.Bold,
-                        Opacity = 0.9
+                        FontSize = 13,
+                        FontWeight = FontWeights.SemiBold,
+                        Opacity = 0.8
                     };
-                    Canvas.SetLeft(textLeft, centerX - lineWidth / 2 - 30);
-                    Canvas.SetTop(textLeft, yPos - 12);
-                    _pitchLadder.Children.Add(textLeft);
+                    Canvas.SetLeft(text, centerX - halfLen - 24);
+                    Canvas.SetTop(text, yPos - 9);
+                    _pitchLadder.Children.Add(text);
                 }
             }
+        }
+
+        private Geometry CreateArcGeometry(double cx, double cy, double r, double startAngleDeg, double endAngleDeg)
+        {
+            double startRad = (startAngleDeg - 90) * Math.PI / 180;
+            double endRad = (endAngleDeg - 90) * Math.PI / 180;
+
+            var start = new Point(cx + r * Math.Cos(startRad), cy + r * Math.Sin(startRad));
+            var end = new Point(cx + r * Math.Cos(endRad), cy + r * Math.Sin(endRad));
+
+            bool isLargeArc = Math.Abs(endAngleDeg - startAngleDeg) > 180;
+
+            var figure = new PathFigure { StartPoint = start };
+            figure.Segments.Add(new ArcSegment
+            {
+                Point = end,
+                Size = new Size(r, r),
+                IsLargeArc = isLargeArc,
+                SweepDirection = SweepDirection.Clockwise
+            });
+
+            var geometry = new PathGeometry();
+            geometry.Figures.Add(figure);
+            return geometry;
         }
 
         private static void OnAttitudeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

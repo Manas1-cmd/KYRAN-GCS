@@ -92,6 +92,28 @@
                         <TextBlock x:Name="FlightModeOverlayText" Text="UNKNOWN" Foreground="White" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
+
+                <!-- HUD Баннер — важные события по центру карты -->
+                <Border x:Name="HudBanner"
+                        HorizontalAlignment="Center" VerticalAlignment="Top"
+                        Margin="0,55,0,0"
+                        CornerRadius="8" Padding="20,10"
+                        Panel.ZIndex="300"
+                        Visibility="Collapsed"
+                        MinWidth="260">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="0" Opacity="0.5"/>
+                    </Border.Effect>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock x:Name="HudBannerIcon" FontSize="14"
+                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="HudBannerText"
+                                   FontFamily="Consolas" FontSize="13" FontWeight="Bold"
+                                   VerticalAlignment="Center" TextWrapping="Wrap"
+                                   MaxWidth="380"/>
+                    </StackPanel>
+                </Border>
+
                 <Border HorizontalAlignment="Right" VerticalAlignment="Center"
                         Background="#E6060B1A"
                         BorderBrush="#2298F019"
@@ -295,7 +317,7 @@
                     <StackPanel>
 
                         <Border Background="{StaticResource DarkBlue}" CornerRadius="8" Padding="8">
-                            <Viewbox Stretch="Uniform" MaxHeight="180">
+                            <Viewbox Stretch="Uniform" MaxHeight="220">
                                 <local:AttitudeIndicator x:Name="AttitudeIndicator"
                                      HorizontalAlignment="Center"
                                      VerticalAlignment="Center" Height="250" Width="450"/>
@@ -455,17 +477,17 @@
                                 </Grid.ColumnDefinitions>
 
                                 <Button x:Name="QuickModeBtn1" Grid.Row="0" Grid.Column="0" Content="{DynamicResource Mode_QHold}" Height="40" Margin="0,0,3,3"
-                                        Click="QuickMode_Click" Tag="QLOITER" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
+                                        Click="QuickMode_Click" Tag="LOITER" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
                                 <Button x:Name="QuickModeBtn2" Grid.Row="0" Grid.Column="1" Content="{DynamicResource Mode_QAltHold}" Height="40" Margin="3,0,3,3"
-                                        Click="QuickMode_Click" Tag="QHOVER" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
+                                        Click="QuickMode_Click" Tag="ALT_HOLD" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
                                 <Button Grid.Row="0" Grid.Column="2" Content="{DynamicResource Mode_Calibrate}" Height="40" Margin="3,0,0,3"
                                         Click="CalibrateButton_Click" Cursor="Hand" Style="{StaticResource ControlButtonStyle}"/>
-                                <Button x:Name="QuickModeBtn3" Grid.Row="1" Grid.Column="0" Content="{DynamicResource Execute}" Height="40" Margin="0,3,3,3"
-                                        Click="QuickMode_Click" Tag="AUTO" Cursor="Hand" Style="{StaticResource ControlButtonStyle}"/>
-                                <Button x:Name="QuickModeBtn4" Grid.Row="1" Grid.Column="1" Content="{DynamicResource Mode_QStabilize}" Height="40" Margin="3,3,3,3"
-                                        Click="QuickMode_Click" Tag="QSTABILIZE" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
-                                <Button x:Name="QuickModeBtn5" Grid.Row="1" Grid.Column="2" Content="{DynamicResource Mode_Home}" Height="40" Margin="3,3,0,3"
-                                        Click="QuickMode_Click" Tag="QRTL" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
+                                <Button x:Name="QuickModeBtn4" Grid.Row="1" Grid.Column="0" Content="{DynamicResource Mode_QStabilize}" Height="40" Margin="3,3,3,3"
+                                        Click="QuickMode_Click" Tag="STABILIZE" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
+                                <Button x:Name="QuickModeBtn5" Grid.Row="1" Grid.Column="1" Content="{DynamicResource Mode_Home}" Height="40" Margin="3,3,3,3"
+                                        Click="QuickMode_Click" Tag="RTL" Cursor="Hand" Style="{StaticResource FlightModeButtonStyle}"/>
+                                <Button Grid.Row="1" Grid.Column="2" Content="{DynamicResource MotorTest_BtnLabel}" Height="40" Margin="3,3,0,3"
+                                        Click="MotorTestButton_Click" Cursor="Hand" Style="{StaticResource ControlButtonStyle}"/>
                                 <Button Grid.Row="2" Grid.ColumnSpan="3" Content="{DynamicResource ActivateMissionFull}" Height="36"
                                         Click="ActivateMissionButton_Click" Cursor="Hand"
                                         Style="{StaticResource MissionButtonStyle}" Margin="0,3,0,0"/>
@@ -510,7 +532,8 @@
                                         <TextBlock Text="{DynamicResource AltLabel}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
                                         <TextBox x:Name="TakeoffAltitudeBox" Text="10" Width="40" Height="22" FontSize="10"
                                                  Background="#1A2433" Foreground="White" BorderBrush="#374151" BorderThickness="1"
-                                                 Padding="4,0" Margin="4,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                                                 Padding="4,0" Margin="4,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                                 LostFocus="TakeoffAltitudeBox_LostFocus"/>
                                         <TextBlock Text="{DynamicResource Unit_m}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                     </StackPanel>
                                 </Grid>
@@ -566,7 +589,8 @@
                                         <TextBlock Text="{DynamicResource AltLabel}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center"/>
                                         <TextBox x:Name="RtlAltitudeBox" Text="15" Width="40" Height="22" FontSize="10"
                                                  Background="#1A2433" Foreground="White" BorderBrush="#374151" BorderThickness="1"
-                                                 Padding="4,0" Margin="4,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                                                 Padding="4,0" Margin="4,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                                 LostFocus="RtlAltitudeBox_LostFocus"/>
                                         <TextBlock Text="{DynamicResource Unit_m}" Foreground="#9CA3AF" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                     </StackPanel>
                                 </Grid>

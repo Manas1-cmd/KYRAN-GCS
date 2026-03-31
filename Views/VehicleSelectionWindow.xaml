@@ -96,7 +96,7 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="/Images/drone_icon.png" Width="50" Height="50" Margin="0,0,15,0"/>
                     <StackPanel>
-                        <TextBlock Text="SQK GCS" 
+                        <TextBlock Text="SQK GCS v 1.0" 
                                    FontSize="24" 
                                    FontWeight="Bold" 
                                    Foreground="#98F019"/>

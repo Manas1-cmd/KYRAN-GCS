@@ -23,7 +23,9 @@ namespace SimpleDroneGCS.Models
         public double Longitude { get; set; }     
         public double GpsAltitude { get; set; }   
         public int SatellitesVisible { get; set; }
-        public int GpsFixType { get; set; }       
+        public int GpsFixType { get; set; }
+
+        public bool IsEkfOk { get; set; } = false;
 
         public double BatteryVoltage { get; set; }
         public double BatteryCurrent { get; set; }

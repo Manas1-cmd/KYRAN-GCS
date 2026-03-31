@@ -6,27 +6,22 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>app_icon.ico</ApplicationIcon>
 	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <!-- PUBLISH -->
+   
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     
-    <!-- Оптимизация -->
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
     <PublishTrimmed>false</PublishTrimmed>
-	  <!-- Отключаем XAML Designer support -->
 	  <DisableXamlDesigner>true</DisableXamlDesigner>
 
-	  <!-- Ускоряем сборку -->
 	  <UseRidGraph>true</UseRidGraph>
 	  <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 
-	  <!-- Убираем лишнее -->
 	  <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- NuGet пакеты -->
     <PackageReference Include="GMap.NET.Core" Version="2.1.7" />
     <PackageReference Include="GMap.NET.WinPresentation" Version="2.1.7" />
     <PackageReference Include="LibVLCSharp.WPF" Version="3.9.5" />

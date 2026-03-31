@@ -81,9 +81,8 @@ namespace SimpleDroneGCS.Views
 
         private void PresetSimulator_Click(object sender, RoutedEventArgs e)
         {
-            
-            HostIpTextBox.Text = "";
-            HostPortTextBox.Text = "";
+            HostIpTextBox.Text = "127.0.0.1";
+            HostPortTextBox.Text = "5760";
             LocalIpTextBox.Text = "0.0.0.0";
             LocalPortTextBox.Text = "14550";
         }
