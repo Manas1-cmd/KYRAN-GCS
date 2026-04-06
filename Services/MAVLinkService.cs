@@ -1,5 +1,6 @@
 ﻿using SimpleDroneGCS.Models;
 using SimpleDroneGCS.Views;
+using SimpleDroneGCS.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -36,6 +37,11 @@ namespace SimpleDroneGCS.Services
         private DispatcherTimer _telemetryRequestTimer;
         private DateTime _connectionStartTime = DateTime.MinValue;
         private bool _isUploading = false;
+        private Dictionary<int, MAVLink.mavlink_mission_item_int_t> _partialUpdateMap = null;
+
+        // Событие для GCS: подавляем ложные уведомления во время загрузки
+        public event Action MissionUploadStarted;
+        public event Action MissionUploadCompleted;
         private bool _pendingArmed = false;
         private int _armedConfirmCount = 0;
         private const int ARMED_CONFIRM_THRESHOLD = 2;
@@ -198,6 +204,8 @@ namespace SimpleDroneGCS.Services
 
         public int CurrentMissionSeq { get; private set; } = 0;
 
+        public bool IsUploadingMission => _isUploading;
+
         public long TotalBytesReceived { get; private set; }
         public long TotalPacketsReceived { get; private set; }
         public long TotalPacketsSent { get; private set; }
@@ -287,6 +295,7 @@ namespace SimpleDroneGCS.Services
                 return false;
             }
         }
+
 
         private void StartConnectionTimeoutCheck()
         {
@@ -460,6 +469,7 @@ namespace SimpleDroneGCS.Services
             _missionUploadTcs?.TrySetResult(false);
             _missionUploadTcs = null;
             _missionItemsToUpload = null;
+            _partialUpdateMap = null;
 
             HomeLat = null;
             HomeLon = null;
@@ -738,6 +748,14 @@ namespace SimpleDroneGCS.Services
             System.Diagnostics.Debug.WriteLine("[MAVLink] ReadLoop stopped");
         }
 
+        private void ProcessNavController(MAVLink.MAVLinkMessage msg)
+        {
+            var nav = (MAVLink.mavlink_nav_controller_output_t)msg.data;
+            CurrentTelemetry.NavBearing = nav.nav_bearing;
+            CurrentTelemetry.HasNavBearing = true;
+            _telemetryDirty = true;
+        }
+
         private void ProcessHomePosition(MAVLink.MAVLinkMessage msg)
         {
             var home = (MAVLink.mavlink_home_position_t)msg.data;
@@ -836,6 +854,10 @@ namespace SimpleDroneGCS.Services
                         ProcessMissionItemInt(msg);
                         break;
 
+                    case (MAVLink.MAVLINK_MSG_ID)62: // NAV_CONTROLLER_OUTPUT
+                        ProcessNavController(msg);
+                        break;
+
                     case (MAVLink.MAVLINK_MSG_ID)191:
                         ProcessMagCalProgress(msg);
                         break;
@@ -904,6 +926,7 @@ namespace SimpleDroneGCS.Services
                 _heartbeatReceived = true;
                 System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
                 {
+                    NotificationService.Instance.ClearSpamCache();
                     ConnectionStatusChanged?.Invoke(this, Get("Connected"));
                     ConnectionStatusChanged_Bool?.Invoke(this, true);
                 });
@@ -931,6 +954,9 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.Altitude = pos.alt / 1000.0;
             CurrentTelemetry.RelativeAltitude = pos.relative_alt / 1000.0;
             CurrentTelemetry.Speed = Math.Sqrt(pos.vx * pos.vx + pos.vy * pos.vy) / 100.0;
+            // GPS Track — фактическое направление движения из вектора скорости
+            if (Math.Abs(pos.vx) > 5 || Math.Abs(pos.vy) > 5) // >0.05 м/с — движемся
+                CurrentTelemetry.GpsTrack = (Math.Atan2(pos.vy, pos.vx) * 180.0 / Math.PI + 360) % 360;
             CurrentTelemetry.ClimbRate = -pos.vz / 100.0;
 
             if (HomeLat.HasValue && HomeLon.HasValue)
@@ -972,7 +998,8 @@ namespace SimpleDroneGCS.Services
             var hud = (MAVLink.mavlink_vfr_hud_t)msg.data;
             CurrentTelemetry.Airspeed = hud.airspeed;
             CurrentTelemetry.Speed = hud.groundspeed;
-            CurrentTelemetry.Altitude = hud.alt;
+            // hud.alt — барометрическая высота ≈ RelativeAltitude.
+            // НЕ перезаписываем Altitude (НУМ) — она берётся из GLOBAL_POSITION_INT.alt
             CurrentTelemetry.ClimbRate = hud.climb;
             CurrentTelemetry.Heading = hud.heading;
             CurrentTelemetry.Throttle = hud.throttle;
@@ -984,7 +1011,9 @@ namespace SimpleDroneGCS.Services
             var sys = (MAVLink.mavlink_sys_status_t)msg.data;
             CurrentTelemetry.BatteryVoltage = sys.voltage_battery / 1000.0;
             CurrentTelemetry.BatteryCurrent = sys.current_battery / 100.0;
-            CurrentTelemetry.BatteryPercent = sys.battery_remaining;
+            // battery_remaining: sbyte, -1 = unknown — не перезаписываем если неизвестно
+            if (sys.battery_remaining >= 0)
+                CurrentTelemetry.BatteryPercent = sys.battery_remaining;
             _telemetryDirty = true;
             const uint AHRS_BIT = 0x80000;
             CurrentTelemetry.IsEkfOk = (sys.onboard_control_sensors_health & AHRS_BIT) != 0;
@@ -1137,12 +1166,12 @@ namespace SimpleDroneGCS.Services
             var battery = (MAVLink.mavlink_battery_status_t)msg.data;
 
             if (battery.voltages.Length > 0 && battery.voltages[0] != ushort.MaxValue)
-            {
                 CurrentTelemetry.BatteryVoltage = battery.voltages[0] / 1000.0;
-            }
 
             CurrentTelemetry.BatteryCurrent = battery.current_battery / 100.0;
-            CurrentTelemetry.BatteryPercent = battery.battery_remaining;
+            // battery_remaining: sbyte, -1 = unknown — не перезаписываем если неизвестно
+            if (battery.battery_remaining >= 0)
+                CurrentTelemetry.BatteryPercent = battery.battery_remaining;
             _telemetryDirty = true;
         }
 
@@ -1359,11 +1388,11 @@ namespace SimpleDroneGCS.Services
         public void Stop()
         {
             if (!IsConnected) return;
-
             try
             {
                 var vehicleType = VehicleManager.Instance.CurrentVehicleType;
-                uint brakeMode = (vehicleType == VehicleType.Copter) ? 17u : 12u;
+                // Copter: BRAKE(17), VTOL: QLOITER(19) — удержание в MC режиме
+                uint brakeMode = (vehicleType == VehicleType.Copter) ? 17u : 19u;
                 SetMode(brakeMode);
             }
             catch { SetMode(17); }
@@ -1620,6 +1649,7 @@ namespace SimpleDroneGCS.Services
             }
 
             _isUploading = true;
+            MissionUploadStarted?.Invoke(); // GCS подавляет ложные уведомления
 
             System.Diagnostics.Debug.WriteLine($"📤 Начало загрузки миссии: {waypoints.Count} точек");
 
@@ -1636,8 +1666,8 @@ namespace SimpleDroneGCS.Services
                     _missionItemsToUpload.Add(ConvertToMissionItem(waypoints[i], _missionItemsToUpload.Count));
                 }
 
-                ClearMission();
-                await Task.Delay(300);
+                // Не делаем ClearMission — ArduPilot заменяет миссию на лету.
+                // ClearMission создаёт опасный разрыв когда FC теряет миссию в воздухе.
 
                 _missionUploadTcs = new TaskCompletionSource<bool>();
                 _missionUploadExpectedSeq = 0;
@@ -1692,6 +1722,7 @@ namespace SimpleDroneGCS.Services
             {
                 _isUploading = false;
                 _missionItemsToUpload = null;
+                MissionUploadCompleted?.Invoke(); // разрешаем уведомления снова
             }
         }
 
@@ -1735,6 +1766,14 @@ namespace SimpleDroneGCS.Services
 
         private void SendRequestedMissionItem(ushort seq)
         {
+            // Partial update: FC запрашивает конкретный seq, не индекс в списке
+            if (_partialUpdateMap != null && _partialUpdateMap.TryGetValue(seq, out var partialItem))
+            {
+                SendMissionItem(partialItem);
+                System.Diagnostics.Debug.WriteLine($"✏️ PARTIAL ITEM sent seq={seq}");
+                return;
+            }
+
             if (_missionItemsToUpload == null || seq >= _missionItemsToUpload.Count)
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ FC запросил seq={seq}, но items={_missionItemsToUpload?.Count ?? 0}");
@@ -1746,7 +1785,6 @@ namespace SimpleDroneGCS.Services
 
             int progress = (int)((seq + 1) * 100.0 / _missionItemsToUpload.Count);
             MissionProgressUpdated?.Invoke(this, progress);
-
             System.Diagnostics.Debug.WriteLine($"📍 MISSION_ITEM_INT seq={seq}/{_missionItemsToUpload.Count - 1} ({progress}%)");
         }
 
@@ -1890,12 +1928,19 @@ namespace SimpleDroneGCS.Services
         public async Task<bool> ModifyWaypointInFlight(WaypointItem wp, int missionSeq)
         {
             if (!IsConnected) return false;
+            if (_isUploading) return false;
 
+            _isUploading = true;
             try
             {
-
                 var item = ConvertToMissionItem(wp, missionSeq);
-                _missionItemsToUpload = new List<MAVLink.mavlink_mission_item_int_t> { item };
+
+                // Словарь: seq → item, чтобы SendRequestedMissionItem нашёл по seq
+                _partialUpdateMap = new Dictionary<int, MAVLink.mavlink_mission_item_int_t>
+                {
+                    { missionSeq, item }
+                };
+
                 _missionUploadTcs = new TaskCompletionSource<bool>();
 
                 var partial = new MAVLink.mavlink_mission_write_partial_list_t
@@ -1908,29 +1953,29 @@ namespace SimpleDroneGCS.Services
                 };
 
                 SendMessage(partial, MAVLink.MAVLINK_MSG_ID.MISSION_WRITE_PARTIAL_LIST);
-                System.Diagnostics.Debug.WriteLine($"✏️ MISSION_WRITE_PARTIAL seq={missionSeq}");
+                Debug.WriteLine($"✏️ MISSION_WRITE_PARTIAL seq={missionSeq}");
 
-                var timeoutTask = Task.Delay(5000);
-                var completedTask = await Task.WhenAny(_missionUploadTcs.Task, timeoutTask);
+                // Ждём MISSION_ACK — максимум 800мс (было 3000мс)
+                var completed = await Task.WhenAny(_missionUploadTcs.Task, Task.Delay(800));
 
-                if (completedTask == timeoutTask)
-                {
+                if (completed == _missionUploadTcs.Task)
+                    return _missionUploadTcs.Task.Result;
 
-                    SendMissionItem(item);
-                    System.Diagnostics.Debug.WriteLine("⚠️ Partial write timeout, sent item directly");
-                    return true;
-                }
-
-                return _missionUploadTcs.Task.Result;
+                // Fallback: FC не ответил на запрос — шлём item напрямую
+                SendMissionItem(item);
+                Debug.WriteLine("⚠️ Partial write timeout, sent item directly");
+                return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ ModifyWaypoint error: {ex.Message}");
+                Debug.WriteLine($"❌ ModifyWaypoint error: {ex.Message}");
                 return false;
             }
             finally
             {
-                _missionItemsToUpload = null;
+                _partialUpdateMap = null;
+                _missionUploadTcs = null;
+                _isUploading = false;
             }
         }
 
@@ -1959,7 +2004,7 @@ namespace SimpleDroneGCS.Services
                 seq = 0,
                 frame = (byte)MAVLink.MAV_FRAME.GLOBAL,
                 command = (ushort)MAVLink.MAV_CMD.WAYPOINT,
-                current = 0,
+                current = 1, // HOME must be current=1 per MAVLink spec
                 autocontinue = 1,
                 param1 = 0,
                 param2 = 0,
@@ -2022,7 +2067,12 @@ namespace SimpleDroneGCS.Services
                         param1 = 3;
                         break;
                     case "DELAY":
+                        // NAV_DELAY (93): param1=seconds, param2/3/4=-1 → относительное время
+                        // Если param2=0 ArduPilot ждёт до полуночи (час 0) — неправильно!
                         param1 = (float)wp.Delay;
+                        param2 = -1;
+                        param3 = -1;
+                        param4 = -1;
                         break;
                     case "LOITER_TIME":
                         param1 = (float)wp.Delay;
@@ -2036,13 +2086,21 @@ namespace SimpleDroneGCS.Services
                         param3 = signedRadius;
                         break;
                     case "CHANGE_SPEED":
-                        param1 = 1;
+                        // param1: 0=airspeed, 1=groundspeed
+                        // Copter: только groundspeed (ArduCopter игнорирует airspeed)
+                        // QuadPlane в режиме самолёта: airspeed (иначе дрон не держит скорость по воздуху)
+                        param1 = IsCopterType() ? 1 : 0;
                         param2 = (float)wp.Speed;
-                        param3 = -1;
+                        param3 = -1; // throttle без изменений
                         break;
                     case "WAYPOINT":
                         param1 = (float)wp.Delay;
-                        param2 = 0;
+                        // param2 = acceptance radius (м) — для Plane/VTOL ArduPilot использует это.
+                        // Когда дрон подлетает на это расстояние → FC считает WP достигнутым
+                        // и начинает поворот к следующей точке (L1 controller).
+                        // Copter: не поддерживает param2, использует WP_RADIUS_M параметр FC.
+                        // VTOL: минимум 100м для 34кг дрона на ~20м/с (безопасный радиус поворота).
+                        param2 = IsCopterType() ? 0f : (float)Math.Max(100.0, wp.Radius);
                         break;
                     case "SPLINE_WP":
                         param1 = (float)wp.Delay;
@@ -2065,7 +2123,9 @@ namespace SimpleDroneGCS.Services
                 frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
                 command = mavCmd,
                 current = 0,
-                autocontinue = IsSystemCommand(wp.CommandType) ? (byte)1 : (byte)(wp.AutoNext ? 1 : 0),
+                autocontinue = IsSystemCommand(wp.CommandType) ? (byte)1 :
+                               (mavCmd == (ushort)MAVLink.MAV_CMD.LOITER_UNLIM) ? (byte)0 : // LOITER_UNLIM всегда ждёт команды
+                               (byte)(wp.AutoNext ? 1 : 0),
                 param1 = param1,
                 param2 = param2,
                 param3 = param3,
@@ -2149,18 +2209,14 @@ namespace SimpleDroneGCS.Services
         public void PauseMission()
         {
             if (!IsConnected) return;
-
             try
             {
                 var vehicleType = VehicleManager.Instance.CurrentVehicleType;
-                uint loiterMode = (vehicleType == VehicleType.Copter) ? 5u : 12u;
+                // Copter: LOITER(5), VTOL: QLOITER(19) — MC удержание, не Plane LOITER(12)
+                uint loiterMode = (vehicleType == VehicleType.Copter) ? 5u : 19u;
                 SetMode(loiterMode);
             }
-            catch
-            {
-                SetMode(5);
-            }
-
+            catch { SetMode(5); }
             System.Diagnostics.Debug.WriteLine("[MAVLink] Миссия приостановлена");
         }
 
@@ -2219,8 +2275,71 @@ namespace SimpleDroneGCS.Services
             };
 
             SendMessage(setCurrent, MAVLink.MAVLINK_MSG_ID.MISSION_SET_CURRENT);
+            System.Diagnostics.Debug.WriteLine($"[MAVLink] MISSION_SET_CURRENT seq={seq}");
+        }
 
-            System.Diagnostics.Debug.WriteLine($"[MAVLink] Установлена точка миссии: {seq}");
+        /// <summary>
+        /// Отправляет MISSION_SET_CURRENT и ждёт подтверждения через MISSION_CURRENT.
+        /// Повторяет до 3 раз если FC не ответил. Критично для реального дрона.
+        /// </summary>
+        public async Task<bool> SetCurrentWaypointVerified(ushort seq, int timeoutMs = 600)
+        {
+            if (!IsConnected) return false;
+
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                void onProgress(object s, int receivedSeq)
+                {
+                    if (receivedSeq == seq) tcs.TrySetResult(true);
+                }
+
+                MissionProgressUpdated += onProgress;
+                try
+                {
+                    SetCurrentWaypoint(seq);
+                    var done = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
+                    if (done == tcs.Task && tcs.Task.Result)
+                    {
+                        Debug.WriteLine($"[MAVLink] ✅ SetCurrentWP({seq}) подтверждён (попытка {attempt + 1})");
+                        return true;
+                    }
+                    Debug.WriteLine($"[MAVLink] ⚠️ SetCurrentWP({seq}) — нет MISSION_CURRENT, попытка {attempt + 2}");
+                }
+                finally
+                {
+                    MissionProgressUpdated -= onProgress;
+                }
+            }
+
+            Debug.WriteLine($"[MAVLink] ❌ SetCurrentWP({seq}) — FC не подтвердил за 3 попытки");
+            return false;
+        }
+
+        /// <summary>
+        /// Полный цикл обновления миссии в полёте:
+        /// Upload → MISSION_ACK → SetCurrentWaypointVerified → возврат true/false.
+        /// Безопасно для реального дрона: не использует ClearMission.
+        /// </summary>
+        public async Task<bool> UploadMissionAndResume(
+            List<WaypointItem> waypoints, ushort resumeSeq)
+        {
+            bool uploaded = await UploadMission(waypoints);
+            if (!uploaded) return false;
+
+            // После MISSION_ACK ArduPilot продолжает с тем же seq что был.
+            // Отправляем MISSION_SET_CURRENT с правильным seq и ждём подтверждения.
+            bool confirmed = await SetCurrentWaypointVerified(resumeSeq);
+
+            if (!confirmed)
+            {
+                // FC не ответил — шлём без подтверждения как fallback
+                SetCurrentWaypoint(resumeSeq);
+                Debug.WriteLine($"[MAVLink] Fallback SetCurrentWP({resumeSeq}) без подтверждения");
+            }
+
+            return true;
         }
 
         public void ClearMission()

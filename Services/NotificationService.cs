@@ -67,6 +67,17 @@ namespace SimpleDroneGCS.Services
                 HudRequested?.Invoke(message, type));              // в HUD баннер
         }
 
+        /// <summary>
+        /// Показывает только HUD баннер по центру — без добавления в журнал.
+        /// Используется для частых событий (прогресс WP) чтобы не засорять журнал.
+        /// </summary>
+        public void HudOnly(string message, NotificationType type)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return;
+            GetDispatcher()?.BeginInvoke(() =>
+                HudRequested?.Invoke(message, type));              // только баннер
+        }
+
         public void Show(string message, NotificationType type = NotificationType.Info)
         {
             if (string.IsNullOrWhiteSpace(message)) return;
@@ -146,14 +157,15 @@ namespace SimpleDroneGCS.Services
                         break;
                     }
                 }
+                // ключ уже есть в HashSet — не добавляем
             }
             else
             {
                 _historyKeys.Add(key);
                 if (History.Count >= MaxHistory)
                 {
-                    // удаляем самую старую запись и её ключ из HashSet
-                    _historyKeys.Remove($"{(int)History[History.Count - 1].Type}:{History[History.Count - 1].Message}");
+                    var oldest = History[History.Count - 1];
+                    _historyKeys.Remove($"{(int)oldest.Type}:{oldest.Message}");
                     History.RemoveAt(History.Count - 1);
                 }
             }

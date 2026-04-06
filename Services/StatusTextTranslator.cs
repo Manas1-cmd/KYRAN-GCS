@@ -100,6 +100,12 @@ namespace SimpleDroneGCS.Services
             ("Mission Complete",                 "Миссия завершена"),
             ("Reached waypoint",                 "Достигнута точка маршрута"),
             ("Passed waypoint",                  "Пройдена точка маршрута"),
+            ("Next WP ",                         "Следующая точка"),
+            ("WP ",                              "Точка"),
+            ("Takeoff complete",                 "Взлёт завершён"),
+            ("Mission: Takeoff",                 "Миссия: взлёт"),
+            ("Mission paused",                   "Миссия приостановлена"),
+            ("Mission resumed",                  "Миссия продолжена"),
         };
 
         private static readonly (string Prefix, string Translation)[] KazakhPatterns =
@@ -145,6 +151,12 @@ namespace SimpleDroneGCS.Services
             ("Mission Complete",                 "Миссия аяқталды"),
             ("Reached waypoint",                 "Маршрут нүктесіне жетілді"),
             ("Passed waypoint",                  "Маршрут нүктесі өтілді"),
+            ("Next WP ",                         "Келесі нүкте"),
+            ("WP ",                              "Нүкте"),
+            ("Takeoff complete",                 "Ұшып шығу аяқталды"),
+            ("Mission: Takeoff",                 "Миссия: ұшып шығу"),
+            ("Mission paused",                   "Миссия тоқтатылды"),
+            ("Mission resumed",                  "Миссия жалғасты"),
         };
 
 

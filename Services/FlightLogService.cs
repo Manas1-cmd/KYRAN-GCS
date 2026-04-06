@@ -104,25 +104,19 @@ namespace SimpleDroneGCS.Services
 
         private void OnRawPacket(byte[] rawPacket)
         {
-            if (!IsRecording || _tlogStream is null) return;
-
             try
             {
                 long us = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000L;
 
                 Span<byte> ts = stackalloc byte[8];
-                ts[0] = (byte)(us >> 56);
-                ts[1] = (byte)(us >> 48);
-                ts[2] = (byte)(us >> 40);
-                ts[3] = (byte)(us >> 32);
-                ts[4] = (byte)(us >> 24);
-                ts[5] = (byte)(us >> 16);
-                ts[6] = (byte)(us >> 8);
-                ts[7] = (byte)(us);
+                ts[0] = (byte)(us >> 56); ts[1] = (byte)(us >> 48);
+                ts[2] = (byte)(us >> 40); ts[3] = (byte)(us >> 32);
+                ts[4] = (byte)(us >> 24); ts[5] = (byte)(us >> 16);
+                ts[6] = (byte)(us >> 8); ts[7] = (byte)(us);
 
                 lock (_lock)
                 {
-                    if (!IsRecording || _tlogStream is null) return;
+                    if (!IsRecording || _tlogStream is null) return; // внутри lock — безопасно
                     _tlogStream.Write(ts);
                     _tlogStream.Write(rawPacket, 0, rawPacket.Length);
                 }

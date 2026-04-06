@@ -83,7 +83,7 @@ namespace SimpleDroneGCS
 
         private void BellButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_historyAnimating) return; 
+            if (_historyAnimating) return;
 
             if (_historyOpen) CloseHistory();
             else OpenHistory();
@@ -181,6 +181,15 @@ namespace SimpleDroneGCS
             }
         }
 
+        private SimulatorWindow? _simWindow;
+
+        private void SimulatorBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_simWindow == null || !_simWindow.IsLoaded)
+                _simWindow = new SimulatorWindow();
+            _simWindow.Show();
+            _simWindow.Activate();
+        }
         private void ConnectToDrone()
         {
             try
@@ -280,6 +289,7 @@ namespace SimpleDroneGCS
                 );
             }
         }
+
 
         private void CameraButton_Click(object sender, RoutedEventArgs e)
         {

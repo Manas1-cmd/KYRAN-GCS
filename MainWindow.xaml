@@ -131,6 +131,18 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button x:Name="SimulatorBtn"
+            Style="{StaticResource NavButtonStyle}"
+            Click="SimulatorBtn_Click" Width="38" Height="38">
+                                        <TextBlock Text="SIM" FontSize="9" FontWeight="Bold" Foreground="White"
+                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </Button>
+                                    <TextBlock Text="Симулятор"
+               FontSize="8" FontWeight="Bold" Foreground="White"
+               HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Button x:Name="LandButton" 
                                             Style="{StaticResource NavButtonStyle}"
                                             Click="LandButton_Click" Width="38" Height="38">

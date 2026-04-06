@@ -95,7 +95,7 @@
     <!-- ==================== КООРДИНАТТАР / COORDINATES ==================== -->
     <sys:String x:Key="Lat">ЕНД</sys:String>
     <sys:String x:Key="Lon">БОЙ</sys:String>
-    <sys:String x:Key="Alt">БИІ</sys:String>
+    <sys:String x:Key="Alt">БЕДЕР</sys:String>
     <sys:String x:Key="MulticopterLabel">Мультикоптер</sys:String>
 
     <!-- ==================== КАРТА ПРОВАЙДЕРЛЕРІ / MAP PROVIDERS ==================== -->
@@ -493,6 +493,12 @@
     <sys:String x:Key="Msg_VehicleMenuError">Аппарат түрін таңдау ашылмады: {0}</sys:String>
     <sys:String x:Key="Status_UdpWaiting">UDP: Дрон күтілуде...</sys:String>
     <sys:String x:Key="Status_ConnectedUdp">Қосылды (UDP)</sys:String>
+    <sys:String x:Key="Status_ConnectedTcp">Қосылды (TCP)</sys:String>
+    <sys:String x:Key="Msg_TcpError">TCP қосылу қатесі</sys:String>
+    <sys:String x:Key="Udp_ErrLocalIp">Дұрыс жергілікті IP енгізіңіз (мысалы 0.0.0.0)</sys:String>
+    <sys:String x:Key="Udp_ErrLocalPort">Дұрыс жергілікті порт енгізіңіз (1-65535)</sys:String>
+    <sys:String x:Key="Udp_ErrHostIp">Дронның дұрыс IP мекенжайын енгізіңіз</sys:String>
+    <sys:String x:Key="Udp_ErrHostPort">Дронның дұрыс портын енгізіңіз (1-65535)</sys:String>
     <sys:String x:Key="Disconnected">Ажыратылды</sys:String>
     <sys:String x:Key="Msg_NoResponse">Дроннан жауап жоқ. IP/портты тексеріңіз.</sys:String>
     <sys:String x:Key="Msg_ConnectionLost">Дронмен байланыс үзілді</sys:String>
@@ -601,6 +607,7 @@
     <sys:String x:Key="Msg_ArmForceConfirm">Ұшу алды тексерулер өтпеді. Дронды мәжбүрлеп белсендіру керек пе?</sys:String>
     <sys:String x:Key="Msg_ResumeNotArmed">Миссияны жалғастыру мүмкін емес: дрон сөндірілген.</sys:String>
     <sys:String x:Key="Msg_NextWpVtolDanger">Нүктені өткізіп жіберу мүмкін емес: дрон қонуға өтуде.</sys:String>
+    <sys:String x:Key="Msg_CantSkipTakeoff">Ұшу фазасын өткізіп жіберуге болмайды</sys:String>
     <sys:String x:Key="Msg_RealtimeUpdateSkipped">Миссия жаңартуы өткізілді: дрон ағымдағы нүктеге тым жақын.</sys:String>
 
     <!-- Flight Log -->
@@ -675,4 +682,54 @@
     <sys:String x:Key="MotorTest_Stopped">Тест тоқтатылды</sys:String>
     <sys:String x:Key="MotorTest_StoppedArmed">Тест үзілді — дрон арминдалған!</sys:String>
     <sys:String x:Key="Preflight_Val_MotorSkipped">Өткізілді</sys:String>
+
+    <!-- Simulator -->
+    <sys:String x:Key="Sim_Title">KYRAN GCS — Симулятор</sys:String>
+    <sys:String x:Key="Sim_BtnStart">▶  Іске қосу</sys:String>
+    <sys:String x:Key="Sim_BtnStop">■  Тоқтату</sys:String>
+    <sys:String x:Key="Sim_ScenarioLabel">Сценарий:</sys:String>
+    <sys:String x:Key="Sim_VehicleCopter">Мультикоптер</sys:String>
+    <sys:String x:Key="Sim_VehicleVtol">QuadPlane (VTOL)</sys:String>
+    <sys:String x:Key="Sim_ScenarioNormal">Қалыпты ұшу</sys:String>
+    <sys:String x:Key="Sim_ScenarioGpsLoss">GPS жоғалту</sys:String>
+    <sys:String x:Key="Sim_ScenarioBatt">Батарея разряды</sys:String>
+    <sys:String x:Key="Sim_ScenarioRc">RC Failsafe</sys:String>
+    <sys:String x:Key="Sim_UdpReady">UDP :14551</sys:String>
+    <sys:String x:Key="Sim_UdpActive">UDP :14551 — белсенді</sys:String>
+    <sys:String x:Key="Sim_GcsDisconnected">GCS: қосылмаған</sys:String>
+    <sys:String x:Key="Sim_GcsConnected">GCS: қосылған</sys:String>
+    <sys:String x:Key="Sim_SectionStatus">КҮЙІ</sys:String>
+    <sys:String x:Key="Sim_LabelArm">ARM</sys:String>
+    <sys:String x:Key="Sim_LabelMode">Режим</sys:String>
+    <sys:String x:Key="Sim_LabelPhase">Фаза</sys:String>
+    <sys:String x:Key="Sim_LabelWp">WP</sys:String>
+    <sys:String x:Key="Sim_SectionTelemetry">ТЕЛЕМЕТРИЯ</sys:String>
+    <sys:String x:Key="Sim_LabelAlt">Биіктік</sys:String>
+    <sys:String x:Key="Sim_LabelSpeed">Жылдамдық</sys:String>
+    <sys:String x:Key="Sim_LabelBatt">Батарея</sys:String>
+    <sys:String x:Key="Sim_LabelGps">GPS</sys:String>
+    <sys:String x:Key="Sim_SectionCruiseSpeed">ҰШУ ЖЫЛДАМДЫҒЫ</sys:String>
+    <sys:String x:Key="Sim_StatusStopped">СИМУЛЯТОР ІСКЕ ҚОСЫЛМАҒАН</sys:String>
+    <sys:String x:Key="Sim_StatusRunning">СИМУЛЯТОР ІСКЕ ҚОСЫЛДЫ</sys:String>
+    <sys:String x:Key="Sim_FlightTimeLabel">ҰШУ УАҚЫТЫ</sys:String>
+    <sys:String x:Key="Sim_LogTitle">ОҚИҒАЛАР ЖУРНАЛЫ</sys:String>
+    <sys:String x:Key="Sim_LogSubtitle">(UDP :14551 → GCS :14550)</sys:String>
+    <sys:String x:Key="Sim_StateDisarmed">DISARMED</sys:String>
+    <sys:String x:Key="Sim_StateArmed">ARMED (жерде)</sys:String>
+    <sys:String x:Key="Sim_StateTakeoff">ҰШЫП ШЫҒУ</sys:String>
+    <sys:String x:Key="Sim_StateMission">МИССИЯ</sys:String>
+    <sys:String x:Key="Sim_StateRtl">RTL</sys:String>
+    <sys:String x:Key="Sim_StateLanding">ҚОНУ</sys:String>
+    <sys:String x:Key="Sim_BadgeArmed">ARMED</sys:String>
+    <sys:String x:Key="Sim_BadgeDisarmed">DISARMED</sys:String>
+    <sys:String x:Key="Sim_GpsOk">3D Fix ({0})</sys:String>
+    <sys:String x:Key="Sim_GpsLost">Сигнал жоқ ({0})</sys:String>
+    <sys:String x:Key="Sim_WpProgress">{0} / {1}</sys:String>
+    <sys:String x:Key="Sim_WpNone">— / —</sys:String>
+    <sys:String x:Key="Sim_SpeedUnit">м/с</sys:String>
+
+    <!-- Mission upload in progress warning -->
+    <sys:String x:Key="Msg_MissionUploading">Миссия бортқа жүктелуде, күтіңіз...</sys:String>
+    <sys:String x:Key="Msg_MissionChangedFreeze">Миссия өзгерді. Тоқтату → өзгерту → Жалғастыру үшін қолданыңыз.</sys:String>
+    <sys:String x:Key="Msg_DeactivateMission">Дрон AUTO режимінде. Деактивациялау — дрон RTL орындап үйге оралады. Жалғастыру?</sys:String>
 </ResourceDictionary>

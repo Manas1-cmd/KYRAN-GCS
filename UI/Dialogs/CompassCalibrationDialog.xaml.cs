@@ -236,7 +236,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                 _mavlink.SendCommandLong(42426);
                 _calibrating = false;
                 StartButton.IsEnabled = true;
-                StartButton.Content = "ПОВТОРИТЬ";
+                StartButton.Content = Get("CompassCalib_RetryBtn");
             }
         }
 
