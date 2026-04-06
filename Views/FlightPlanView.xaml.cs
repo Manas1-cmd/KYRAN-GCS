@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -16,7 +15,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using static SimpleDroneGCS.Helpers.Loc;
@@ -49,8 +47,8 @@ namespace SimpleDroneGCS.Views
         private bool _wasArmed = false;
         private bool _suppressMissionNotify = false;
         private DateTime _lastRouteUpdate = DateTime.MinValue;
-        private const double ROUTE_UPDATE_INTERVAL_MS = 16; // ~60fps
-        private WaypointItem _draggingWaypoint = null; // подавляет уведомления во время upload
+        private const double ROUTE_UPDATE_INTERVAL_MS = 16;
+        private WaypointItem _draggingWaypoint = null;
         private bool _homeLockedFromArm = false;
         private bool? _lastDisplayedArmed = null;
         private bool? _lastNextBtnVisible = null;
@@ -70,13 +68,9 @@ namespace SimpleDroneGCS.Views
         private double _vtolLandAltitude = 30;
         private bool _isMissionFrozen = false;
         private System.Threading.CancellationTokenSource _realtimeUploadCts;
-
-        // GPS трек (чёрные точки за дроном)
         private readonly List<GMapMarker> _trackMarkers = new();
         private DateTime _lastTrackTime = DateTime.MinValue;
-
-        // Target Heading line name constant
-        private const string TARGET_HEADING_LINE = "TargetHeadingLine"; // unused, kept for reference
+        private const string TARGET_HEADING_LINE = "TargetHeadingLine";
         private GMapMarker _navBearingMarker = null;
         private bool _isDataTabActive = true;
 
@@ -177,7 +171,6 @@ namespace SimpleDroneGCS.Views
                         if (_mavlinkService != null)
                         {
                             _mavlinkService.MissionProgressUpdated += OnMissionProgressUpdated;
-                            // Подавляем ложные "Миссия завершена" во время загрузки на реальном дроне
                             _mavlinkService.MissionUploadStarted += () => _suppressMissionNotify = true;
                             _mavlinkService.MissionUploadCompleted += () => _suppressMissionNotify = false;
                         }
@@ -431,8 +424,6 @@ namespace SimpleDroneGCS.Views
                     _waypoints.Add(waypoint);
                     AddMarkerToMap(waypoint);
                     UpdateRoute();
-
-                    // isNewWaypoint=true → SLOW PATH (count меняется, partial нельзя)
                     TryRealTimeMissionUpdate(waypoint, isNewWaypoint: true);
                 }
                 catch (Exception ex)
@@ -662,8 +653,6 @@ namespace SimpleDroneGCS.Views
                             waypoint.Latitude, waypoint.Longitude, 90, waypoint.Radius / 1000.0);
                         _resizeHandles[waypoint].Position = new PointLatLng(handlePos.Lat, handlePos.Lng);
                     }
-
-                    // Throttle: не чаще 60fps — иначе при быстром drag лагает
                     var now = DateTime.Now;
                     if ((now - _lastRouteUpdate).TotalMilliseconds >= ROUTE_UPDATE_INTERVAL_MS)
                     {
@@ -682,11 +671,7 @@ namespace SimpleDroneGCS.Views
                     shape.ReleaseMouseCapture();
                     PlanMap.CanDragMap = true;
                     _currentDragMarker = null;
-
-                    // Финальное полное обновление маршрута после drag
                     UpdateRoute();
-
-                    // Загружаем обновлённую миссию на FC (без ClearMission — безопасно)
                     TryRealTimeMissionUpdate(waypoint);
                 }
             };
@@ -919,7 +904,6 @@ namespace SimpleDroneGCS.Views
 
         private void RemoveWaypoint(WaypointItem waypoint)
         {
-            // Запоминаем MAVLink seq удаляемой WP ДО удаления (для корректного resumeSeq)
             bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
             int deletedMissionSeq = waypoint.Number - 1 + (isVtol ? 3 : 2);
 
@@ -958,8 +942,6 @@ namespace SimpleDroneGCS.Views
             UpdateRoute();
             UpdateWaypointsList();
             UpdateStatistics();
-
-            // Загружаем обновлённую миссию на FC — count изменился, нужен полный upload
             TryRealTimeMissionUpdate(null, deletedMissionSeq);
 
             System.Diagnostics.Debug.WriteLine($"Waypoint удалён, осталось: {_waypoints.Count}, deletedSeq={deletedMissionSeq}");
@@ -981,12 +963,6 @@ namespace SimpleDroneGCS.Views
                 }
             }
         }
-
-        /// <summary>
-        /// Быстрое обновление маршрута во время drag — перерисовывает только
-        /// затронутые сегменты (HOME→WP, WP[i-1]→WP[i], WP[i]→WP[i+1], WP→HOME).
-        /// Остальные сегменты не трогает. ~3-5x быстрее полного UpdateRoute.
-        /// </summary>
         private void UpdateRouteFast(WaypointItem changedWp)
         {
             if (changedWp == null || PlanMap == null) return;
@@ -997,25 +973,18 @@ namespace SimpleDroneGCS.Views
             bool isFirst = idx == 0;
             bool isLast = idx == _waypoints.Count - 1;
             bool isVTOL = _currentVehicleType == VehicleType.QuadPlane;
-
-            // Теги затронутых сегментов + арок
             var affectedTags = new HashSet<string>();
             if (isFirst) affectedTags.Add("home_entry");
             if (isLast) affectedTags.Add("home_return");
             if (idx > 0) affectedTags.Add($"seg_{idx - 1}_{idx}");
             if (idx < _waypoints.Count - 1) affectedTags.Add($"seg_{idx}_{idx + 1}");
-            // Арки затронутых точек
             affectedTags.Add($"arc_{changedWp.Number}");
             if (idx > 0) affectedTags.Add($"arc_{_waypoints[idx - 1].Number}");
             if (idx < _waypoints.Count - 1) affectedTags.Add($"arc_{_waypoints[idx + 1].Number}");
-
-            // Удаляем только затронутые сегменты
             var toRemove = PlanMap.Markers.OfType<GMapRoute>()
                 .Where(r => r.Tag is string tag && affectedTags.Contains(tag))
                 .ToList();
             foreach (var r in toRemove) { r.Shape = null; PlanMap.Markers.Remove(r); }
-
-            // HOME→WP0
             if (isFirst && _homePosition != null)
             {
                 var firstWp = _waypoints[0];
@@ -1026,8 +995,6 @@ namespace SimpleDroneGCS.Views
                     new PointLatLng(_homePosition.Latitude, _homePosition.Longitude), tp.Item2,
                     Color.FromRgb(239, 68, 68), dashed: true, tag: "home_entry");
             }
-
-            // WPN→HOME
             if (isLast && _homePosition != null)
             {
                 var lastWp = _waypoints[idx];
@@ -1038,8 +1005,6 @@ namespace SimpleDroneGCS.Views
                     tp.Item1, new PointLatLng(_homePosition.Latitude, _homePosition.Longitude),
                     Color.FromRgb(239, 68, 68), dashed: true, tag: "home_return");
             }
-
-            // WP[i-1] → WP[i]
             if (idx > 0)
             {
                 var wp1 = _waypoints[idx - 1];
@@ -1050,8 +1015,6 @@ namespace SimpleDroneGCS.Views
                 AddRouteSegment(tp.Item1, tp.Item2,
                     Color.FromRgb(152, 240, 25), dashed: false, tag: $"seg_{idx - 1}_{idx}");
             }
-
-            // WP[i] → WP[i+1]
             if (idx < _waypoints.Count - 1)
             {
                 var wp1 = _waypoints[idx];
@@ -1062,17 +1025,10 @@ namespace SimpleDroneGCS.Views
                 AddRouteSegment(tp.Item1, tp.Item2,
                     Color.FromRgb(152, 240, 25), dashed: false, tag: $"seg_{idx}_{idx + 1}");
             }
-
-            // Перерисовываем арки затронутых точек
             RedrawArcForIndex(idx);
             if (idx > 0) RedrawArcForIndex(idx - 1);
             if (idx < _waypoints.Count - 1) RedrawArcForIndex(idx + 1);
         }
-
-        /// <summary>
-        /// Перерисовывает арку для одной WP по текущим entryPoints/exitPoints.
-        /// Вычисляет точки касания из соседних сегментов.
-        /// </summary>
         private void RedrawArcForIndex(int i)
         {
             if (i < 0 || i >= _waypoints.Count) return;
@@ -1080,8 +1036,6 @@ namespace SimpleDroneGCS.Views
 
             PointLatLng? entry = null;
             PointLatLng? exit = null;
-
-            // entry: от HOME или от предыдущей WP
             if (i == 0 && _homePosition != null)
             {
                 var tp = GetExternalTangentPoints(
@@ -1097,8 +1051,6 @@ namespace SimpleDroneGCS.Views
                     wp.Latitude, wp.Longitude, wp.Radius, wp.Clockwise);
                 entry = tp.Item2;
             }
-
-            // exit: к следующей WP или к HOME
             if (i == _waypoints.Count - 1 && _homePosition != null)
             {
                 var tp = GetExternalTangentPoints(
@@ -1161,9 +1113,6 @@ namespace SimpleDroneGCS.Views
 
             var entryPoints = new Dictionary<int, PointLatLng>();
             var exitPoints = new Dictionary<int, PointLatLng>();
-
-            // HOME → WP0: используем GetExternalTangentPoints с radius=0 для HOME
-            // Это даёт правильную касательную — та же формула что и WP-to-WP
             if (_homePosition != null)
             {
                 var firstWp = _waypoints[0];
@@ -1175,8 +1124,6 @@ namespace SimpleDroneGCS.Views
                 AddRouteSegment(homePoint, tp.Item2,
                     Color.FromRgb(239, 68, 68), dashed: true, tag: "home_entry");
             }
-
-            // WP[i] → WP[i+1]
             for (int i = 0; i < _waypoints.Count - 1; i++)
             {
                 var wp1 = _waypoints[i];
@@ -1189,8 +1136,6 @@ namespace SimpleDroneGCS.Views
                 AddRouteSegment(tp.Item1, tp.Item2,
                     Color.FromRgb(152, 240, 25), dashed: false, tag: $"seg_{i}_{i + 1}");
             }
-
-            // WPN → HOME: radius=0 для HOME
             if (_homePosition != null && _waypoints.Count > 0)
             {
                 int lastIdx = _waypoints.Count - 1;
@@ -1203,8 +1148,6 @@ namespace SimpleDroneGCS.Views
                 AddRouteSegment(tp.Item1, homePoint,
                     Color.FromRgb(239, 68, 68), dashed: true, tag: "home_return");
             }
-
-            // Арки на каждой WP
             for (int i = 0; i < _waypoints.Count; i++)
             {
                 if (entryPoints.ContainsKey(i) && exitPoints.ContainsKey(i))
@@ -1212,27 +1155,6 @@ namespace SimpleDroneGCS.Views
             }
 
             UpdateStatistics();
-        }
-
-
-
-
-
-        private void DrawVtolLine(PointLatLng from, PointLatLng to, Color color, bool dashed)
-        {
-            var route = new GMapRoute(new List<PointLatLng> { from, to });
-            var path = new Path
-            {
-                Stroke = new SolidColorBrush(color),
-                StrokeThickness = 2.5,
-                Opacity = 0.85
-            };
-            if (dashed)
-                path.StrokeDashArray = new DoubleCollection { 6, 3 };
-            route.Shape = path;
-            route.ZIndex = 45;
-            route.Tag = "vtol_line";
-            PlanMap.Markers.Add(route);
         }
 
         private (PointLatLng, PointLatLng) GetExternalTangentPoints(
@@ -1287,101 +1209,7 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-        private (PointLatLng, PointLatLng) GetExternalTangentPoints(
-            double lat1, double lon1, double r1,
-            double lat2, double lon2, double r2)
-        {
-            return GetExternalTangentPoints(lat1, lon1, r1, true, lat2, lon2, r2, true);
-        }
-
-        private PointLatLng GetNearEdgePoint(double circleLat, double circleLon, double circleRadius,
-                                              double pointLat, double pointLon)
-        {
-            double bearing = CalculateBearing(circleLat, circleLon, pointLat, pointLon);
-            return CalculatePointAtDistance(circleLat, circleLon, bearing, circleRadius / 1000.0);
-        }
-
-        /// <summary>
-        /// Возвращает точку касания окружности WP при подходе от внешней точки (HOME).
-        /// В отличие от GetNearEdgePoint, линия HOME→точка касания не пересекает окружность.
-        /// </summary>
-        private PointLatLng GetTangentPointFromExternal(
-            double wpLat, double wpLon, double wpRadius, bool clockwise,
-            double extLat, double extLon)
-        {
-            double dist = CalculateDistanceLatLng(wpLat, wpLon, extLat, extLon); // в метрах
-            if (dist <= wpRadius)
-                return new PointLatLng(wpLat, wpLon);
-
-            // Угол при центре WP между направлением к HOME и направлением к точке касания
-            double sinA = Math.Min(1.0, wpRadius / dist);
-            double angleOffset = Math.Acos(Math.Sqrt(1 - sinA * sinA)) * 180 / Math.PI; // = arcsin(r/d)
-
-            // Bearing от центра WP к HOME
-            double bearingToExt = CalculateBearing(wpLat, wpLon, extLat, extLon);
-
-            // CW: касательная справа (offset -), CCW: касательная слева (offset +)
-            double tangentBearing = clockwise
-                ? bearingToExt - (90 - angleOffset)
-                : bearingToExt + (90 - angleOffset);
-
-            return CalculatePointAtDistance(wpLat, wpLon, tangentBearing, wpRadius / 1000.0);
-        }
-
-        private void UpdateRouteOnly()
-        {
-            var oldRoutes = PlanMap.Markers.OfType<GMapRoute>().ToList();
-            foreach (var r in oldRoutes) { r.Shape = null; PlanMap.Markers.Remove(r); }
-
-            if (_waypoints.Count == 0) return;
-
-            var entryPoints = new Dictionary<int, PointLatLng>();
-            var exitPoints = new Dictionary<int, PointLatLng>();
-
-            if (_homePosition != null)
-            {
-                var firstWp = _waypoints[0];
-                var tp = GetExternalTangentPoints(
-                    _homePosition.Latitude, _homePosition.Longitude, 0, firstWp.Clockwise,
-                    firstWp.Latitude, firstWp.Longitude, firstWp.Radius, firstWp.Clockwise);
-                entryPoints[0] = tp.Item2;
-                AddRouteSegment(new PointLatLng(_homePosition.Latitude, _homePosition.Longitude), tp.Item2,
-                    Color.FromRgb(239, 68, 68), dashed: true, tag: "home_entry");
-            }
-
-            for (int i = 0; i < _waypoints.Count - 1; i++)
-            {
-                var wp1 = _waypoints[i];
-                var wp2 = _waypoints[i + 1];
-                var tp = GetExternalTangentPoints(
-                    wp1.Latitude, wp1.Longitude, wp1.Radius, wp1.Clockwise,
-                    wp2.Latitude, wp2.Longitude, wp2.Radius, wp2.Clockwise);
-                exitPoints[i] = tp.Item1;
-                entryPoints[i + 1] = tp.Item2;
-                AddRouteSegment(tp.Item1, tp.Item2,
-                    Color.FromRgb(152, 240, 25), dashed: false, tag: $"seg_{i}_{i + 1}");
-            }
-
-            if (_homePosition != null && _waypoints.Count > 0)
-            {
-                int lastIdx = _waypoints.Count - 1;
-                var lastWp = _waypoints[lastIdx];
-                var tp = GetExternalTangentPoints(
-                    lastWp.Latitude, lastWp.Longitude, lastWp.Radius, lastWp.Clockwise,
-                    _homePosition.Latitude, _homePosition.Longitude, 0, lastWp.Clockwise);
-                exitPoints[lastIdx] = tp.Item1;
-                AddRouteSegment(tp.Item1, new PointLatLng(_homePosition.Latitude, _homePosition.Longitude),
-                    Color.FromRgb(239, 68, 68), dashed: true, tag: "home_return");
-            }
-
-            for (int i = 0; i < _waypoints.Count; i++)
-            {
-                if (entryPoints.ContainsKey(i) && exitPoints.ContainsKey(i))
-                    DrawArcOnWaypoint(_waypoints[i], entryPoints[i], exitPoints[i]);
-            }
-        }
-
-        private double CalculateBearing(double lat1, double lon1, double lat2, double lon2)
+         private double CalculateBearing(double lat1, double lon1, double lat2, double lon2)
         {
             double dLon = (lon2 - lon1) * Math.PI / 180;
             double lat1Rad = lat1 * Math.PI / 180;
@@ -1455,7 +1283,7 @@ namespace SimpleDroneGCS.Views
             if (arcPoints.Count >= 2)
             {
                 var arcRoute = new GMapRoute(arcPoints);
-                arcRoute.Tag = $"arc_{wp.Number}"; // тег для удаления при drag
+                arcRoute.Tag = $"arc_{wp.Number}";
                 arcRoute.Shape = new Path
                 {
                     Stroke = new SolidColorBrush(Color.FromRgb(152, 240, 25)),
@@ -1530,7 +1358,7 @@ namespace SimpleDroneGCS.Views
                 if (WaypointsListPanel == null) return;
 
                 bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
-                int wpOffset = isVtol ? (1 + 1 + 1) : (1 + 1); // HOME + TAKEOFF + TRANSITION_FW
+                int wpOffset = isVtol ? (1 + 1 + 1) : (1 + 1);
 
                 foreach (var child in WaypointsListPanel.Children)
                 {
@@ -1845,23 +1673,12 @@ namespace SimpleDroneGCS.Views
                 int currentSeq = _mavlinkService.CurrentMissionSeq;
                 bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
                 int offset = isVtol ? 3 : 2;
-
-                // Вычисляем ЗАРАНЕЕ — изменение впереди дрона или нет?
-                // ADD: userWpNum → missionSeq = wpNum - 1 + offset
-                // DELETE: deletedMissionSeq передаётся напрямую
                 int changedSeq = -1;
                 if (isNewWaypoint && changedWp != null)
                     changedSeq = changedWp.Number - 1 + offset;
                 else if (deletedMissionSeq > 0)
                     changedSeq = deletedMissionSeq;
-
-                // Если изменение ВПЕРЕДИ текущего seq — дрон к нему ещё не летит
-                // → дебаунс не нужен, SetCurrentWaypoint не нужен
                 bool changeIsDefinitelyAhead = changedSeq > currentSeq && currentSeq > 0;
-
-                // ── FAST PATH: ТОЛЬКО drag существующей WP → partial update (~150мс) ──────
-                // Для добавления/удаления — НЕЛЬЗЯ: count миссии меняется,
-                // partial update перезапишет RTL координатами новой точки, RTL исчезнет!
                 if (changedWp != null && !isNewWaypoint && deletedMissionSeq < 0
                     && _waypoints.Contains(changedWp))
                 {
@@ -1874,19 +1691,11 @@ namespace SimpleDroneGCS.Views
                     }
                     System.Diagnostics.Debug.WriteLine("[REALTIME] Partial failed, fallback full upload");
                 }
-
-                // Если миссия заморожена — помечаем что были изменения, загрузим при Resume
                 if (_isMissionFrozen)
                 {
                     NotifyMissionChangedIfArmed();
                     return;
                 }
-
-                // ── SLOW PATH: добавление/удаление WP или partial не сработал ──────────────
-                // Адаптивный дебаунс:
-                // • Изменение ВПЕРЕДИ дрона → 50мс (батчит быстрые клики, незаметно для пользователя)
-                // • Изменение ДО/НА текущем seq → 200мс (нужно успеть батчить + безопасность)
-                // Важно: ВСЕГДА используем CTS — иначе race condition при быстрых кликах
                 int debounceMs = changeIsDefinitelyAhead ? 50 : 200;
                 _realtimeUploadCts?.Cancel();
                 _realtimeUploadCts = new System.Threading.CancellationTokenSource();
@@ -1894,13 +1703,9 @@ namespace SimpleDroneGCS.Views
                 try { await Task.Delay(debounceMs, uploadToken); }
                 catch (OperationCanceledException) { return; }
                 if (uploadToken.IsCancellationRequested) return;
-
-                // Перепроверяем состояние после задержки
                 if (!_mavlinkService.IsConnected) return;
                 telem = _mavlinkService.CurrentTelemetry;
                 if (telem == null || !telem.Armed) return;
-
-                // Читаем seq ПОСЛЕ дебаунса (свежее чем до него)
                 int seqBeforeUpload = _mavlinkService.CurrentMissionSeq;
 
                 var fullMission = GetFullMission();
@@ -1929,9 +1734,6 @@ namespace SimpleDroneGCS.Views
                 int maxSafeSeq = isVtolResume ? newTotal - 3 : newTotal - 2;
                 int minSafeSeq = isVtolResume ? 3 : 2;
                 resumeSeq = Math.Max(minSafeSeq, Math.Min(resumeSeq, maxSafeSeq));
-
-                // ── УМНАЯ ОПТИМИЗАЦИЯ: SetCurrentWaypoint только если нужно ──────────────
-                // Если изменение впереди — дрон летит к правильной точке, SetCurrentWP не нужен
                 if (!changeIsDefinitelyAhead)
                 {
                     await _mavlinkService.SetCurrentWaypointVerified((ushort)resumeSeq);
@@ -1946,87 +1748,14 @@ namespace SimpleDroneGCS.Views
                 System.Diagnostics.Debug.WriteLine(
                     $"[REALTIME] ✅ Done, seqBefore={seqBeforeUpload} seqAfter={seqAfterUpload} resume={resumeSeq}");
             }
-            catch (OperationCanceledException) { /* дебаунс отменён — норма */ }
+            catch (OperationCanceledException) {  }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[REALTIME] Ошибка: {ex.Message}");
             }
         }
 
-        private dynamic[] GetCommandsForVehicleType()
-        {
-            if (_currentVehicleType == VehicleType.QuadPlane)
-            {
-
-                return new dynamic[]
-                {
-            new { Name = Get("CmdShort_Waypoint"), Value = "WAYPOINT" },
-            new { Name = Get("CmdShort_Spline"), Value = "SPLINE_WP" },
-            new { Name = Get("CmdShort_Loiter"), Value = "LOITER_UNLIM" },
-            new { Name = Get("CmdShort_LoiterTime"), Value = "LOITER_TIME" },
-            new { Name = Get("CmdShort_LoiterTurns"), Value = "LOITER_TURNS" },
-            new { Name = Get("CmdShort_Land"), Value = "LAND" },
-            new { Name = Get("CmdShort_Delay"), Value = "DELAY" },
-            new { Name = Get("CmdShort_Speed"), Value = "CHANGE_SPEED" }
-                };
-            }
-
-            return new dynamic[]
-            {
-        new { Name = Get("CmdShort_Waypoint"), Value = "WAYPOINT" },
-        new { Name = Get("CmdShort_Loiter"), Value = "LOITER_UNLIM" },
-        new { Name = Get("CmdShort_LoiterTime"), Value = "LOITER_TIME" },
-        new { Name = Get("CmdShort_LoiterTurns"), Value = "LOITER_TURNS" },
-        new { Name = Get("CmdShort_Takeoff"), Value = "TAKEOFF" },
-        new { Name = Get("CmdShort_Land"), Value = "LAND" },
-        new { Name = Get("CmdShort_Delay"), Value = "DELAY" },
-        new { Name = Get("CmdShort_Speed"), Value = "CHANGE_SPEED" },
-        new { Name = Get("CmdShort_RTL"), Value = "RETURN_TO_LAUNCH" },
-        new { Name = Get("CmdShort_Spline"), Value = "SPLINE_WP" }
-            };
-        }
-
-        private void AddHomePosition()
-        {
-            if (_mavlinkService == null || _mavlinkService.CurrentTelemetry.Latitude == 0)
-            {
-                AppMessageBox.ShowWarning(
-                    Get("Msg_NoGpsSignal"),
-                    owner: OwnerWindow,
-                    subtitle: Get("Msg_CannotSetHomeSub"),
-                    hint: Get("Msg_WaitGpsFix")
-                );
-                return;
-            }
-
-            if (_homePosition != null)
-            {
-                if (_homePosition.Marker != null)
-                    _homePosition.Marker.Shape = null;
-                PlanMap.Markers.Remove(_homePosition.Marker);
-            }
-
-            var telemetry = _mavlinkService.CurrentTelemetry;
-            _homePosition = new WaypointItem
-            {
-                Number = 0,
-                Latitude = telemetry.Latitude,
-                Longitude = telemetry.Longitude,
-                Altitude = 0,
-                CommandType = "HOME",
-                Radius = 20
-            };
-
-            AddHomeMarkerToMap(_homePosition);
-            UpdateRoute();
-
-            MissionStore.SetHome((int)_currentVehicleType, _homePosition);
-
-            PlanHomeLatText.Text = _homePosition.Latitude.ToString("F6");
-            PlanHomeLonText.Text = _homePosition.Longitude.ToString("F6");
-
-            System.Diagnostics.Debug.WriteLine($" HOME установлена: {telemetry.Latitude:F6}, {telemetry.Longitude:F6}");
-        }
+        
 
         private void AddHomeMarkerToMap(WaypointItem home)
         {
@@ -2165,44 +1894,6 @@ namespace SimpleDroneGCS.Views
             return grid;
         }
 
-        private ControlTemplate CreateRoundedTextBoxTemplate()
-        {
-            var template = new ControlTemplate(typeof(TextBox));
-
-            var border = new FrameworkElementFactory(typeof(Border));
-            border.Name = "border";
-            border.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(TextBox.BackgroundProperty));
-            border.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(TextBox.BorderBrushProperty));
-            border.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(TextBox.BorderThicknessProperty));
-            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
-
-            var scrollViewer = new FrameworkElementFactory(typeof(ScrollViewer));
-            scrollViewer.Name = "PART_ContentHost";
-            scrollViewer.SetValue(ScrollViewer.FocusableProperty, false);
-            scrollViewer.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
-            scrollViewer.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
-
-            border.AppendChild(scrollViewer);
-            template.VisualTree = border;
-
-            return template;
-        }
-
-        private void CommandCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var combo = sender as ComboBox;
-            if (combo?.Tag is WaypointItem wp && combo.SelectedItem is ComboBoxItem selectedItem)
-            {
-                string newCommandType = selectedItem.Tag?.ToString();
-
-                if (!string.IsNullOrEmpty(newCommandType) && wp.CommandType != newCommandType)
-                {
-                    wp.CommandType = newCommandType;
-                    System.Diagnostics.Debug.WriteLine($"WP{wp.Number}: Команда изменена на {newCommandType}");
-                }
-            }
-        }
-
         private void AltitudeBox_LostFocus(object sender, RoutedEventArgs e)
         {
             var textBox = sender as TextBox;
@@ -2248,55 +1939,6 @@ namespace SimpleDroneGCS.Views
                 RtlAltitudeBox.Text = _rtlAltitude.ToString("F0");
         }
 
-        private void DelayBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            var textBox = sender as TextBox;
-            var wp = textBox?.Tag as WaypointItem;
-            if (wp != null && double.TryParse(textBox.Text, out double newDelay))
-            {
-                wp.Delay = newDelay;
-            }
-        }
-
-        private void MoveUpButton_Click(object sender, RoutedEventArgs e)
-        {
-            var waypoint = (sender as Button)?.Tag as WaypointItem;
-            if (waypoint == null) return;
-
-            int index = _waypoints.IndexOf(waypoint);
-            if (index > 0)
-            {
-                _waypoints.Move(index, index - 1);
-                RenumberWaypoints();
-                UpdateRoute();
-                UpdateWaypointsList();
-            }
-        }
-
-        private void MoveDownButton_Click(object sender, RoutedEventArgs e)
-        {
-            var waypoint = (sender as Button)?.Tag as WaypointItem;
-            if (waypoint == null) return;
-
-            int index = _waypoints.IndexOf(waypoint);
-            if (index < _waypoints.Count - 1)
-            {
-                _waypoints.Move(index, index + 1);
-                RenumberWaypoints();
-                UpdateRoute();
-                UpdateWaypointsList();
-            }
-        }
-
-        private void DeleteButton_Click(object sender, RoutedEventArgs e)
-        {
-            var waypoint = (sender as Button)?.Tag as WaypointItem;
-            if (waypoint != null)
-            {
-                RemoveWaypoint(waypoint);
-            }
-        }
-
         private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (PlanMap != null)
@@ -2305,11 +1947,6 @@ namespace SimpleDroneGCS.Views
 
                 RefreshMarkers();
             }
-        }
-
-        private void MissionScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-
         }
 
         private void RefreshMarkers()
@@ -2389,15 +2026,6 @@ namespace SimpleDroneGCS.Views
             System.Diagnostics.Debug.WriteLine($" RefreshMarkers: завершено\n");
         }
 
-        private void AddWaypointButton_Click(object sender, RoutedEventArgs e)
-        {
-            AppMessageBox.ShowInfo(
-                Get("Msg_AddPointInDev"),
-                owner: OwnerWindow,
-                subtitle: Get("Msg_InDevelopmentSub")
-            );
-        }
-
         private void MotorTestButton_Click(object sender, RoutedEventArgs e)
         {
             if (_mavlinkService?.IsConnected != true)
@@ -2411,21 +2039,6 @@ namespace SimpleDroneGCS.Views
                 Owner = OwnerWindow
             };
             dialog.ShowDialog();
-        }
-
-        private void LoiterButton_Click(object sender, RoutedEventArgs e)
-        {
-            AppMessageBox.ShowInfo(Get("Msg_InDevelopment"), owner: OwnerWindow, subtitle: Get("Msg_InDevelopmentSub"));
-        }
-
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
-        {
-            AppMessageBox.ShowInfo(Get("Msg_InDevelopment"), owner: OwnerWindow, subtitle: Get("Msg_InDevelopmentSub"));
-        }
-
-        private void ToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            AppMessageBox.ShowInfo(Get("Msg_InDevelopment"), owner: OwnerWindow, subtitle: Get("Msg_InDevelopmentSub"));
         }
 
         private void UploadButton_Click(object sender, RoutedEventArgs e)
@@ -2907,12 +2520,12 @@ namespace SimpleDroneGCS.Views
                 case 85: return "VTOL_LAND";
                 case 93: return "DELAY";
                 case 178: return "CHANGE_SPEED";
-                case 3000: return "VTOL_TRANSITION_FW"; // param1 не доступен здесь — уточняется в caller
+                case 3000: return "VTOL_TRANSITION_FW"; 
                 default: return "WAYPOINT";
             }
         }
 
-        // Версия с param1 для Download с FC и файла
+        
         private string ConvertMAVCmdToCommandTypeWithParam(ushort cmd, double param1)
         {
             if (cmd == 3000)
@@ -3087,8 +2700,6 @@ namespace SimpleDroneGCS.Views
                 StrokeEndLineCap = PenLineCap.Triangle,
                 Name = "HeadingLine"
             };
-
-            // Чёрная линия — фактическое направление движения (GPS Track)
             var gpsTrackLine = new Line
             {
                 X1 = 2000,
@@ -3151,8 +2762,6 @@ namespace SimpleDroneGCS.Views
                 RemoveNavBearingMarker();
                 return;
             }
-
-            // Находим активный WP из миссии по CurrentWaypoint seq
             int seq = telemetry.CurrentWaypoint;
             var mission = _mavlinkService.ActiveMission;
             if (seq <= 0 || seq >= mission.Count)
@@ -3167,13 +2776,9 @@ namespace SimpleDroneGCS.Views
                 RemoveNavBearingMarker();
                 return;
             }
-
-            // Конвертируем lat/lon в экранные координаты
             var droneScreen = PlanMap.FromLatLngToLocal(dronePos);
             var wpScreen = PlanMap.FromLatLngToLocal(
                 new PointLatLng(targetWp.Latitude, targetWp.Longitude));
-
-            // Дельта в пикселях от дрона до WP
             double dx = wpScreen.X - droneScreen.X;
             double dy = wpScreen.Y - droneScreen.Y;
 
@@ -3191,7 +2796,7 @@ namespace SimpleDroneGCS.Views
                     Y1 = 2000,
                     X2 = 2000 + dx,
                     Y2 = 2000 + dy,
-                    Stroke = new SolidColorBrush(Color.FromRgb(251, 146, 60)), // оранжевый
+                    Stroke = new SolidColorBrush(Color.FromRgb(251, 146, 60)),
                     StrokeThickness = 2,
                     StrokeDashArray = new System.Windows.Media.DoubleCollection { 6, 3 },
                     StrokeEndLineCap = PenLineCap.Triangle
@@ -3237,7 +2842,7 @@ namespace SimpleDroneGCS.Views
             {
                 Width = 5,
                 Height = 5,
-                Fill = new SolidColorBrush(Color.FromRgb(168, 85, 247)), // фиолетовый
+                Fill = new SolidColorBrush(Color.FromRgb(168, 85, 247)),
                 Opacity = 0.85
             };
             var marker = new GMapMarker(pos)
@@ -3299,8 +2904,6 @@ namespace SimpleDroneGCS.Views
                     if (_droneMarker.Tag is Grid grid)
                         grid.RenderTransform = new RotateTransform(telemetry.Heading, 2000, 2000);
                 }
-
-                // Обновляем GPS Track линию (чёрная, направление движения)
                 if (_droneMarker.Tag is Grid dGrid)
                 {
                     var trackLine = dGrid.Children.OfType<Line>()
@@ -3312,11 +2915,7 @@ namespace SimpleDroneGCS.Views
                         trackLine.Y2 = 2000 - Math.Cos(relAngle) * 500;
                     }
                 }
-
-                // Target Heading (NavBearing) — отдельный маркер без вращения
                 UpdateNavBearingLine(dronePosition, telemetry);
-
-                // GPS трек — добавляем точку каждую секунду пока армирован
                 if (telemetry.Armed)
                 {
                     if ((DateTime.Now - _lastTrackTime).TotalSeconds >= 1.0)
@@ -3906,8 +3505,6 @@ namespace SimpleDroneGCS.Views
                 }
 
                 UpdateQuickModeButtons();
-
-                // Синхронизируем бокс взлётной высоты под текущий тип ВС
                 if (TakeoffAltitudeBox != null)
                     TakeoffAltitudeBox.Text = (_currentVehicleType == VehicleType.QuadPlane
                         ? _vtolTakeoffAltitude : _takeoffAltitude).ToString("F0");
@@ -4006,7 +3603,6 @@ namespace SimpleDroneGCS.Views
 
         private void PlanMap_OnMapZoomChanged()
         {
-            // При зуме пересчитываем nav bearing линию
             if (_droneMarker != null && _mavlinkService?.IsConnected == true)
             {
                 var telem = _mavlinkService.CurrentTelemetry;
@@ -4101,70 +3697,6 @@ namespace SimpleDroneGCS.Views
                 CursorDistanceFromHome.Text = $"{Get("FromHOME_Label")}: —";
             }
         }
-
-        private void LoiterBtn_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (_mavlinkService?.IsConnected != true)
-            {
-                ShowNotConnectedMessage();
-                return;
-            }
-
-            var mode = VehicleManager.Instance.CurrentVehicleType == Models.VehicleType.QuadPlane
-                ? "QLOITER" : "LOITER";
-            _mavlinkService.SetFlightMode(mode);
-        }
-
-        private void ResumeBtn_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (_mavlinkService?.IsConnected != true)
-            {
-                ShowNotConnectedMessage();
-                return;
-            }
-
-            _mavlinkService.SetFlightMode("AUTO");
-        }
-
-        private void StartBtn_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (_mavlinkService?.IsConnected != true)
-            {
-                ShowNotConnectedMessage();
-                return;
-            }
-
-            if (!_mavlinkService.CurrentTelemetry.Armed)
-            {
-                AppMessageBox.ShowWarning(Get("Msg_DroneNotArmed"), owner: OwnerWindow);
-                return;
-            }
-
-            if (!AppMessageBox.ShowConfirm(Get("Msg_RestartMissionConfirm"), owner: OwnerWindow,
-                subtitle: Get("Msg_Warning")))
-                return;
-
-            // seq=1 (TAKEOFF) — ArduPilot начнёт с взлёта если дрон на земле,
-            // или полетит к WP1 если уже в воздухе. НЕ seq=0 (HOME) — это сбрасывает к HOME.
-            bool isVtol = _currentVehicleType == VehicleType.QuadPlane;
-            ushort startSeq = (ushort)(isVtol ? 1 : 1); // TAKEOFF всегда seq=1
-            _mavlinkService.SetCurrentWaypoint(startSeq);
-            _mavlinkService.SetFlightMode("AUTO");
-        }
-
-        private void RtlBtn_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (_mavlinkService?.IsConnected != true)
-            {
-                ShowNotConnectedMessage();
-                return;
-            }
-
-            var mode = VehicleManager.Instance.CurrentVehicleType == Models.VehicleType.QuadPlane
-                ? "QRTL" : "RTL";
-            _mavlinkService.SetFlightMode(mode);
-        }
-
 
         private System.Threading.CancellationTokenSource _hudCts;
 
@@ -4496,7 +4028,6 @@ namespace SimpleDroneGCS.Views
         private async void ArmWithFeedbackAsync(bool force)
         {
             _mavlinkService.SetArm(true, force);
-            // Polling — реальный FC может армироваться 5-7 сек
             for (int i = 0; i < 16; i++)
             {
                 await System.Threading.Tasks.Task.Delay(500);
@@ -4705,12 +4236,10 @@ namespace SimpleDroneGCS.Views
                             return;
                         }
                     }
-
-                    // СВВП: QLOITER (мультикоптерное удержание), Copter: LOITER
                     string freezeMode = (_currentVehicleType == VehicleType.QuadPlane) ? "QLOITER" : "LOITER";
                     _mavlinkService.SetFlightMode(freezeMode);
                     _isMissionFrozen = true;
-                    _missionModifiedInFlight = false; // сбрасываем — изменения будут после заморозки
+                    _missionModifiedInFlight = false;
 
                     if (sender is Button btn)
                     {
@@ -4733,8 +4262,6 @@ namespace SimpleDroneGCS.Views
                         ShowStatusMessage(Get("Msg_ResumeNotArmed"));
                         return;
                     }
-
-                    // Если миссия менялась пока дрон висел — загружаем безопасно (QLOITER)
                     if (_missionModifiedInFlight)
                     {
                         var fullMission = GetFullMission();
@@ -4750,8 +4277,6 @@ namespace SimpleDroneGCS.Views
                             ShowStatusMessage(Get("Msg_ResumeNotArmed"));
                             return;
                         }
-
-                        // Перечитываем seq после upload — мог измениться
                         resumeSeq = (ushort)_mavlinkService.CurrentMissionSeq;
                         bool isVtolR = _currentVehicleType == VehicleType.QuadPlane;
                         int _minResumeUpd = isVtolR ? 3 : 2;
@@ -4759,9 +4284,6 @@ namespace SimpleDroneGCS.Views
                         int maxSafe = fullMission.Count - (isVtolR ? 3 : 2);
                         resumeSeq = (ushort)Math.Max(isVtolR ? 3 : 2, Math.Min(resumeSeq, maxSafe));
                     }
-
-                    // Verified: шлём MISSION_SET_CURRENT и ждём подтверждения MISSION_CURRENT
-                    // Критично для реального дрона — без подтверждения FC может полететь не туда
                     await _mavlinkService.SetCurrentWaypointVerified(resumeSeq);
                     _mavlinkService.SetFlightMode("AUTO");
 
@@ -4790,14 +4312,7 @@ namespace SimpleDroneGCS.Views
             System.Diagnostics.Debug.WriteLine($"[STATUS] {message}");
             AppMessageBox.ShowInfo(message, owner: OwnerWindow);
         }
-
-        // Флаг: миссия изменена в полёте, нужна загрузка
         private bool _missionModifiedInFlight = false;
-
-        /// <summary>
-        /// Если дрон в воздухе (armed) — показывает подсказку заморозить миссию.
-        /// Не делает авто-upload (опасно в AUTO).
-        /// </summary>
         private void NotifyMissionChangedIfArmed()
         {
             if (_mavlinkService == null || !_mavlinkService.IsConnected) return;
@@ -4809,7 +4324,6 @@ namespace SimpleDroneGCS.Views
             string mode = telem.FlightMode?.ToUpper() ?? "";
             if (mode == "AUTO" || mode == "MISSION")
             {
-                // Показываем подсказку только через HUD — не засоряем журнал
                 NotificationService.Instance.HudOnly(
                     Get("Msg_MissionChangedFreeze"), NotificationType.Warning);
             }
@@ -4824,8 +4338,6 @@ namespace SimpleDroneGCS.Views
                     AppMessageBox.ShowWarning(Get("Msg_DroneNotConnected"), owner: OwnerWindow);
                     return;
                 }
-
-                // Блокируем во время загрузки миссии — иначе nextSeq попадёт в старую миссию и дрон улетит домой
                 if (_mavlinkService.IsUploadingMission)
                 {
                     AppMessageBox.ShowWarning(Get("Msg_MissionUploading"), owner: OwnerWindow);
@@ -4848,8 +4360,6 @@ namespace SimpleDroneGCS.Views
                     AppMessageBox.ShowInfo(Get("Msg_DroneLastWaypoint"), owner: OwnerWindow);
                     return;
                 }
-
-                // Не пускаем на системные seq: VTOL — [1]=TAKEOFF,[2]=TRANS_FW; Copter — [1]=TAKEOFF
                 int minUserSeq = (_currentVehicleType == VehicleType.QuadPlane) ? 3 : 2;
                 if (nextSeq < minUserSeq)
                 {
@@ -4896,10 +4406,6 @@ namespace SimpleDroneGCS.Views
             if (t == null || !t.Armed) return;
             string mode = t.FlightMode?.ToUpper() ?? "";
             if (mode != "AUTO" && mode != "GUIDED") return;
-
-            // Пока идёт upload — не показываем уведомления.
-            // На реальном дроне ArduPilot продолжает слать MISSION_CURRENT со старым seq
-            // пока не получит MISSION_ACK. Это вызывало ложные "Миссия завершена".
             if (_suppressMissionNotify) return;
 
             int total = _mavlinkService.PlannedMissionCount > 0
@@ -4908,17 +4414,11 @@ namespace SimpleDroneGCS.Views
             if (total <= 0) return;
 
             if (seq <= 0) return;
-
-            // seq=1 → TAKEOFF — уведомляем о старте миссии
             if (seq == 1)
             {
                 NotificationService.Instance.Hud(Get("Notif_MissionStarted"), NotificationType.Success);
                 return;
             }
-
-            // seq >= missionCompleteSeq → посадочная фаза началась
-            // Copter:    RTL = total-1
-            // QuadPlane: VTOL_TRANSITION_MC = total-2 (начало посадки)
             bool isVtolNotify = _currentVehicleType == VehicleType.QuadPlane;
             int missionCompleteSeq = isVtolNotify ? total - 2 : total - 1;
 
@@ -4928,7 +4428,6 @@ namespace SimpleDroneGCS.Views
                 return;
             }
             int wpOffset = isVtolNotify ? 3 : 2;
-            // RTL для Copter = 1 элемент, для VTOL = TRANSITION_MC + VTOL_LAND = 2 элемента
             int rtlItems = isVtolNotify ? 2 : 1;
 
             int userSeq = seq - wpOffset + 1;

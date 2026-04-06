@@ -40,16 +40,12 @@ namespace SimpleDroneGCS.Simulator
         public byte Frame { get; set; }
     }
 
-    /// <summary>
-    /// MAVLink v1 packet builder + MAVLink v1/v2 parser.
-    /// </summary>
     public static class SimMAVLink
     {
         private static byte _seq;
         private const byte SysId = 1;
         private const byte CompId = 1;
 
-        // ─── CRC-16/MCRF4XX ───────────────────────────────────────────────────────
 
         private static ushort Crc16(byte[] data, int len, byte extra)
         {
@@ -66,8 +62,6 @@ namespace SimpleDroneGCS.Simulator
             return crc;
         }
 
-        // ─── v1 packet builder ────────────────────────────────────────────────────
-        // [0xFE][LEN][SEQ][SYS][COMP][MSG_ID][PAYLOAD][CRC_L][CRC_H]
 
         private static byte[] BuildPacket(byte msgId, byte crcExtra, byte[] payload)
         {
@@ -87,68 +81,44 @@ namespace SimpleDroneGCS.Simulator
             return pkt;
         }
 
-        // ─── Outgoing packets ─────────────────────────────────────────────────────
 
-        // msg_id=0, len=9, crc_extra=50
         public static byte[] Heartbeat(bool armed, string mode)
         {
             uint customMode = ModeToCustomMode(mode);
             byte baseMode = armed ? (byte)(0x80 | 0x04) : (byte)0x04;
             byte[] p = new byte[9];
             BitConverter.GetBytes(customMode).CopyTo(p, 0);
-            p[4] = 2;   // MAV_TYPE_QUADROTOR
-            p[5] = 3;   // MAV_AUTOPILOT_ARDUPILOTMEGA
-            p[6] = baseMode;
-            p[7] = 4;   // MAV_STATE_ACTIVE
-            p[8] = 3;
+            p[4] = 2;            p[5] = 3;            p[6] = baseMode;
+            p[7] = 4;            p[8] = 3;
             return BuildPacket(0, 50, p);
         }
 
-        // msg_id=1, len=31, crc_extra=124
         public static byte[] SysStatus(double battPct, double voltage)
         {
             byte[] p = new byte[31];
-            // 0x8001F = GPS | gyro | accel | mag | barometer + AHRS bit
             uint sensors = 0x8001F;
-            BitConverter.GetBytes(sensors).CopyTo(p, 0);  // sensors present
-            BitConverter.GetBytes(sensors).CopyTo(p, 4);  // sensors enabled
-            BitConverter.GetBytes(sensors).CopyTo(p, 8);  // sensors health
-            BitConverter.GetBytes((ushort)500).CopyTo(p, 12);
+            BitConverter.GetBytes(sensors).CopyTo(p, 0);            BitConverter.GetBytes(sensors).CopyTo(p, 4);            BitConverter.GetBytes(sensors).CopyTo(p, 8);            BitConverter.GetBytes((ushort)500).CopyTo(p, 12);
             BitConverter.GetBytes((ushort)(voltage * 1000)).CopyTo(p, 14);
             BitConverter.GetBytes((short)-1).CopyTo(p, 16);
-            // battery_remaining as sbyte — set only in BATTERY_STATUS now, here -1 = unknown
-            p[18] = 0xFF; // -1 as byte = unknown → GCS uses BATTERY_STATUS instead
-            return BuildPacket(1, 124, p);
+            p[18] = 0xFF;            return BuildPacket(1, 124, p);
         }
 
-        // msg_id=147, len=36, crc_extra=154  — BATTERY_STATUS
         public static byte[] BatteryStatus(double battPct, double voltage, double currentAmps)
         {
             byte[] p = new byte[36];
-            // current_consumed int32 offset 0 = -1 (unknown)
             BitConverter.GetBytes(-1).CopyTo(p, 0);
-            // energy_consumed int32 offset 4 = -1 (unknown)
             BitConverter.GetBytes(-1).CopyTo(p, 4);
-            // temperature int16 offset 8 = INT16_MAX (unknown)
             BitConverter.GetBytes((short)32767).CopyTo(p, 8);
-            // voltages uint16[10] offset 10 — first cell only
             BitConverter.GetBytes((ushort)(voltage * 1000)).CopyTo(p, 10);
             for (int i = 1; i < 10; i++)
-                BitConverter.GetBytes((ushort)65535).CopyTo(p, 10 + i * 2); // UINT16_MAX = unknown
-            // current_battery int16 offset 30 (mA*100)
-            BitConverter.GetBytes((short)(currentAmps * 100)).CopyTo(p, 30);
-            // id uint8 offset 32
+                BitConverter.GetBytes((ushort)65535).CopyTo(p, 10 + i * 2);            BitConverter.GetBytes((short)(currentAmps * 100)).CopyTo(p, 30);
             p[32] = 0;
-            // battery_function uint8 offset 33
             p[33] = 0;
-            // type uint8 offset 34
             p[34] = 0;
-            // battery_remaining int8 offset 35
             p[35] = (byte)(sbyte)Math.Clamp(battPct, 0, 100);
             return BuildPacket(147, 154, p);
         }
 
-        // msg_id=24, len=30, crc_extra=24
         public static byte[] GpsRawInt(double lat, double lon, double altMsl,
                                         double speed, double heading, byte fixType, byte sats)
         {
@@ -166,7 +136,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(24, 24, p);
         }
 
-        // msg_id=30, len=28, crc_extra=39
         public static byte[] Attitude(float rollRad, float pitchRad, float yawRad)
         {
             byte[] p = new byte[28];
@@ -177,7 +146,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(30, 39, p);
         }
 
-        // msg_id=33, len=28, crc_extra=104
         public static byte[] GlobalPositionInt(double lat, double lon, double altMsl,
                                                 double altRel, double speed, double heading)
         {
@@ -195,7 +163,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(33, 104, p);
         }
 
-        // msg_id=74, len=20, crc_extra=20
         public static byte[] VfrHud(double groundspeed, double altRel,
                                      double climbRate, double heading, int throttle)
         {
@@ -209,24 +176,15 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(74, 20, p);
         }
 
-        // msg_id=62, len=26, crc_extra=183
-        // NAV_CONTROLLER_OUTPUT: nav_bearing = целевой курс FC
         public static byte[] NavControllerOutput(short navBearing, short targetBearing, ushort wpDist)
         {
             byte[] p = new byte[26];
-            // float nav_roll=0, nav_pitch=0, alt_error=0, aspd_error=0, xtrack_error=0
-            BitConverter.GetBytes(0f).CopyTo(p, 0);   // nav_roll
-            BitConverter.GetBytes(0f).CopyTo(p, 4);   // nav_pitch
-            BitConverter.GetBytes(0f).CopyTo(p, 8);   // alt_error
-            BitConverter.GetBytes(0f).CopyTo(p, 12);  // aspd_error
-            BitConverter.GetBytes(0f).CopyTo(p, 16);  // xtrack_error
-            BitConverter.GetBytes(navBearing).CopyTo(p, 20);
+            BitConverter.GetBytes(0f).CopyTo(p, 0);            BitConverter.GetBytes(0f).CopyTo(p, 4);            BitConverter.GetBytes(0f).CopyTo(p, 8);            BitConverter.GetBytes(0f).CopyTo(p, 12);            BitConverter.GetBytes(0f).CopyTo(p, 16);            BitConverter.GetBytes(navBearing).CopyTo(p, 20);
             BitConverter.GetBytes(targetBearing).CopyTo(p, 22);
             BitConverter.GetBytes(wpDist).CopyTo(p, 24);
             return BuildPacket(62, 183, p);
         }
 
-        // msg_id=42, len=2, crc_extra=28
         public static byte[] MissionCurrent(ushort seq)
         {
             byte[] p = new byte[2];
@@ -234,7 +192,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(42, 28, p);
         }
 
-        // msg_id=253, len=51, crc_extra=83
         public static byte[] StatusText(byte severity, string text)
         {
             byte[] p = new byte[51];
@@ -244,7 +201,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(253, 83, p);
         }
 
-        // msg_id=77, len=3, crc_extra=143
         public static byte[] CommandAck(ushort command, byte result)
         {
             byte[] p = new byte[3];
@@ -253,7 +209,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(77, 143, p);
         }
 
-        // msg_id=51, len=4, crc_extra=196
         public static byte[] MissionRequestInt(ushort seq)
         {
             byte[] p = new byte[4];
@@ -262,7 +217,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(51, 196, p);
         }
 
-        // msg_id=47, len=3, crc_extra=153
         public static byte[] MissionAck(byte type = 0)
         {
             byte[] p = new byte[3];
@@ -270,7 +224,6 @@ namespace SimpleDroneGCS.Simulator
             return BuildPacket(47, 153, p);
         }
 
-        // ─── Incoming parser — supports both MAVLink v1 (0xFE) and v2 (0xFD) ─────
 
         public static SimCommand? ParsePacket(byte[] data, int len)
         {
@@ -279,22 +232,19 @@ namespace SimpleDroneGCS.Simulator
             byte msgId;
             byte[] payload;
 
-            if (data[0] == 0xFE) // MAVLink v1
-            {
+            if (data[0] == 0xFE)            {
                 byte payloadLen = data[1];
                 if (len < 6 + payloadLen + 2) return null;
                 msgId = data[5];
                 payload = new byte[payloadLen];
                 Array.Copy(data, 6, payload, 0, payloadLen);
             }
-            else // MAVLink v2 (0xFD)
-            {
+            else            {
                 if (len < 12) return null;
                 byte payloadLen = data[1];
                 if (len < 10 + payloadLen + 2) return null;
                 uint msgId32 = data[7] | ((uint)data[8] << 8) | ((uint)data[9] << 16);
-                if (msgId32 > 255) return null; // extended IDs not used here
-                msgId = (byte)msgId32;
+                if (msgId32 > 255) return null;                msgId = (byte)msgId32;
                 payload = new byte[payloadLen];
                 Array.Copy(data, 10, payload, 0, payloadLen);
             }
@@ -313,8 +263,6 @@ namespace SimpleDroneGCS.Simulator
             };
         }
 
-        // COMMAND_LONG: param1-7 float (0-27), command uint16 (28)
-        // MAVLink v2 may truncate trailing zeros → accept ≥ 30 bytes
         private static SimCommand? ParseCommandLong(byte[] p)
         {
             if (p.Length < 30) return null;
@@ -328,7 +276,6 @@ namespace SimpleDroneGCS.Simulator
             };
         }
 
-        // SET_MODE: custom_mode uint32 (0), target_system uint8 (4), base_mode uint8 (5)
         private static SimCommand? ParseSetMode(byte[] p)
         {
             if (p.Length < 5) return null;
@@ -336,7 +283,6 @@ namespace SimpleDroneGCS.Simulator
             return new SimCommand { Type = SimCommandType.SetMode, ModeName = CustomModeToName(customMode) };
         }
 
-        // MISSION_COUNT: count uint16 (0)
         private static SimCommand? ParseMissionCount(byte[] p)
         {
             if (p.Length < 2) return null;
@@ -357,8 +303,6 @@ namespace SimpleDroneGCS.Simulator
             };
         }
 
-        // MISSION_ITEM_INT: param1-4 float (0-15), x int32 (16), y int32 (20), z float (24),
-        //                   seq uint16 (28), command uint16 (30)
         private static SimCommand? ParseMissionItemInt(byte[] p)
         {
             if (p.Length < 32) return null;
@@ -378,7 +322,6 @@ namespace SimpleDroneGCS.Simulator
             return new SimCommand { Type = SimCommandType.MissionItemInt, Waypoint = wp };
         }
 
-        // MISSION_SET_CURRENT: seq uint16 (0)
         private static SimCommand? ParseMissionSetCurrent(byte[] p)
         {
             if (p.Length < 2) return null;
@@ -386,7 +329,6 @@ namespace SimpleDroneGCS.Simulator
             return new SimCommand { Type = SimCommandType.SetCurrentWaypoint, WpSeq = seq };
         }
 
-        // ─── Helpers ──────────────────────────────────────────────────────────────
 
         private static uint ModeToCustomMode(string mode) => mode switch
         {

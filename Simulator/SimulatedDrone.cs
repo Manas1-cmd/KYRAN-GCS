@@ -7,22 +7,15 @@ using System.Threading;
 
 namespace SimpleDroneGCS.Simulator
 {
-    /// <summary>
-    /// Core simulator: UDP server on :14551, sends telemetry to GCS on :14550.
-    /// MAVLinkService is NOT touched — simulator is fully independent.
-    /// </summary>
     public class SimulatedDrone : IDisposable
     {
-        // ─── Events ───────────────────────────────────────────────────────────────
         public event Action<string>? LogMessage;
         public event Action? StateChanged;
 
-        // ─── Public state ─────────────────────────────────────────────────────────
         public bool IsRunning { get; private set; }
         public bool IsGcsConnected { get; private set; }
         public SimPhysics Physics => _physics;
 
-        // ─── Private ──────────────────────────────────────────────────────────────
         private readonly SimPhysics _physics;
         private readonly ConcurrentQueue<SimCommand> _commandQueue = new();
         private readonly object _sendLock = new();
@@ -36,13 +29,11 @@ namespace SimpleDroneGCS.Simulator
         private volatile bool _running;
         private int _physicsRunning;
 
-        // Mission upload state (receive thread only)
         private int _uploadCount;
         private int _expectedSeq;
         private List<SimWaypoint> _uploadBuffer = new();
         private bool _uploadInProgress;
 
-        // Partial update state
         private bool _partialInProgress;
         private int _partialStartIdx;
         private int _partialEndIdx;
@@ -63,7 +54,6 @@ namespace SimpleDroneGCS.Simulator
             };
         }
 
-        // ─── Lifecycle ────────────────────────────────────────────────────────────
 
         public void Start()
         {
@@ -102,7 +92,6 @@ namespace SimpleDroneGCS.Simulator
 
         public void Dispose() => Stop();
 
-        // ─── Timer callbacks ──────────────────────────────────────────────────────
 
         private void PhysicsTick(object? _)
         {
@@ -113,7 +102,6 @@ namespace SimpleDroneGCS.Simulator
 
         private void TelemetryTick(object? _)
         {
-            // Send telemetry always — GCS needs it even before we know its port
             if (!_running) return;
 
             var p = _physics;
@@ -128,7 +116,6 @@ namespace SimpleDroneGCS.Simulator
             if (p.State == SimState.Mission && p.CurrentWpIndex >= 0)
             {
                 Send(SimMAVLink.MissionCurrent((ushort)p.CurrentWpIndex));
-                // NAV_CONTROLLER_OUTPUT — target heading для отображения в GCS
                 Send(SimMAVLink.NavControllerOutput(
                     navBearing: p.NavBearing,
                     targetBearing: p.NavBearing,
@@ -144,7 +131,6 @@ namespace SimpleDroneGCS.Simulator
             Send(SimMAVLink.Heartbeat(_physics.Armed, _physics.FlightMode));
         }
 
-        // ─── UDP receive ──────────────────────────────────────────────────────────
 
         private void ReceiveLoop()
         {
@@ -158,7 +144,6 @@ namespace SimpleDroneGCS.Simulator
 
                     var cmd = SimMAVLink.ParsePacket(data, data.Length);
 
-                    // Any packet from GCS = it's connected; send telemetry burst immediately
                     if (!IsGcsConnected)
                     {
                         IsGcsConnected = true;
@@ -185,14 +170,12 @@ namespace SimpleDroneGCS.Simulator
             switch (cmd.Type)
             {
                 case SimCommandType.GcsHeartbeat:
-                    break; // already handled in ReceiveLoop
-
+                    break;
                 case SimCommandType.MissionCount:
                     BeginMissionUpload(cmd.MissionCount);
                     break;
 
                 case SimCommandType.MissionWritePartialList:
-                    // Partial update: запрашиваем только изменённые WP
                     _partialStartIdx = cmd.WpSeq;
                     _partialEndIdx = cmd.MissionCount;
                     _expectedSeq = cmd.WpSeq;
@@ -244,7 +227,6 @@ namespace SimpleDroneGCS.Simulator
             }
         }
 
-        // ─── Mission upload handshake ─────────────────────────────────────────────
 
         private void BeginMissionUpload(int count)
         {
@@ -253,8 +235,7 @@ namespace SimpleDroneGCS.Simulator
             _expectedSeq = 0;
             _uploadBuffer = new List<SimWaypoint>(count);
             _uploadInProgress = true;
-            _partialInProgress = false; // сбрасываем partial если был активен
-            _physics.UploadInProgress = true;
+            _partialInProgress = false;            _physics.UploadInProgress = true;
             Log($"[MISSION] Начало загрузки: {count} WP");
             Send(SimMAVLink.MissionRequestInt(0));
         }
@@ -284,11 +265,9 @@ namespace SimpleDroneGCS.Simulator
             }
         }
 
-        // ─── Send ──────────────────────────────────────────────────────────────────
 
         private void ReceivePartialMissionItem(SimWaypoint wp)
         {
-            // Обновляем только конкретный WP — без остановки миссии
             _physics.UpdateWaypointAt(wp.Seq, wp);
 
             if (wp.Seq < _partialEndIdx)
@@ -314,7 +293,6 @@ namespace SimpleDroneGCS.Simulator
             }
             catch (SocketException ex) when (_running)
             {
-                // 10054 = WSAECONNRESET — GCS not listening yet, suppress
                 if (ex.ErrorCode != 10054)
                     Log($"[ERR] Send: {ex.Message}");
             }
@@ -323,7 +301,6 @@ namespace SimpleDroneGCS.Simulator
         private void Log(string msg) =>
             LogMessage?.Invoke($"{DateTime.Now:HH:mm:ss}  {msg}");
 
-        // ─── Configuration ────────────────────────────────────────────────────────
 
         public void SetCruiseSpeed(double mps) => _physics.CruiseSpeed = mps;
 

@@ -38,13 +38,13 @@ namespace SimpleDroneGCS.Services
         private DateTime _connectionStartTime = DateTime.MinValue;
         private bool _isUploading = false;
         private Dictionary<int, MAVLink.mavlink_mission_item_int_t> _partialUpdateMap = null;
-
-        // Событие для GCS: подавляем ложные уведомления во время загрузки
         public event Action MissionUploadStarted;
         public event Action MissionUploadCompleted;
         private bool _pendingArmed = false;
         private int _armedConfirmCount = 0;
         private const int ARMED_CONFIRM_THRESHOLD = 2;
+        private readonly int[] _servoFunctions = new int[17];
+        private volatile bool _servoMappingLoaded = false;
 
         private List<WaypointItem> _plannedMission = null;
         public bool HasPlannedMission => _plannedMission != null && _plannedMission.Count > 0;
@@ -196,10 +196,7 @@ namespace SimpleDroneGCS.Services
         public event Action<byte, byte, float, float, float, float> OnMagCalReport;
         public event Action<byte[]> RawPacketReceived;
 
-        /// <summary>
-        /// Срабатывает при получении COMMAND_ACK для MAV_CMD_DO_MOTOR_TEST (209).
-        /// int = номер мотора, bool = true если ACCEPTED.
-        /// </summary>
+        
         public event Action<int, bool> MotorTestAckReceived;
 
         public int CurrentMissionSeq { get; private set; } = 0;
@@ -296,7 +293,6 @@ namespace SimpleDroneGCS.Services
             }
         }
 
-
         private void StartConnectionTimeoutCheck()
         {
             var token = _isUdpMode ? _udpCts?.Token ?? CancellationToken.None
@@ -316,7 +312,6 @@ namespace SimpleDroneGCS.Services
                TaskContinuationOptions.OnlyOnRanToCompletion,
                TaskScheduler.Default);
         }
-
 
         private async Task ReadLoopUDP(CancellationToken ct)
         {
@@ -461,6 +456,9 @@ namespace SimpleDroneGCS.Services
             _connectionStartTime = DateTime.MinValue;
             DroneStatus.IsConnected = false;
             DroneStatus.LastHeartbeat = DateTime.MinValue;
+            Array.Clear(_servoFunctions, 0, _servoFunctions.Length);
+            _servoMappingLoaded = false;
+            _servoParamsReceived = 0;
 
             _isDownloading = false;
             _missionDownloadTcs?.TrySetResult(null);
@@ -834,6 +832,10 @@ namespace SimpleDroneGCS.Services
                         ProcessServoOutput(msg);
                         break;
 
+                    case MAVLink.MAVLINK_MSG_ID.PARAM_VALUE:
+                        ProcessParamValue(msg);
+                        break;
+
                     case MAVLink.MAVLINK_MSG_ID.MISSION_REQUEST_INT:
                         ProcessMissionRequestInt(msg);
                         break;
@@ -854,7 +856,7 @@ namespace SimpleDroneGCS.Services
                         ProcessMissionItemInt(msg);
                         break;
 
-                    case (MAVLink.MAVLINK_MSG_ID)62: // NAV_CONTROLLER_OUTPUT
+                    case (MAVLink.MAVLINK_MSG_ID)62:
                         ProcessNavController(msg);
                         break;
 
@@ -888,14 +890,12 @@ namespace SimpleDroneGCS.Services
 
             var heartbeat = (MAVLink.mavlink_heartbeat_t)msg.data;
 
-
             if (heartbeat.autopilot == (byte)MAVLink.MAV_AUTOPILOT.INVALID ||
                 msg.sysid == GCS_SYSTEM_ID ||
                 heartbeat.type == (byte)MAVLink.MAV_TYPE.GCS)
             {
                 return;
             }
-
 
             bool newArmed = (heartbeat.base_mode & (byte)MAVLink.MAV_MODE_FLAG.SAFETY_ARMED) != 0;
 
@@ -931,6 +931,12 @@ namespace SimpleDroneGCS.Services
                     ConnectionStatusChanged_Bool?.Invoke(this, true);
                 });
                 Debug.WriteLine("[MAVLink] ✅ Первый HEARTBEAT получен - дрон подключен!");
+                Task.Run(async () =>
+                {
+                    await Task.Delay(2000);
+                    for (int i = 1; i <= 12; i++)
+                        RequestParam($"SERVO{i}_FUNCTION");
+                });
             }
 
             CurrentTelemetry.FlightMode = GetFlightModeName(heartbeat.custom_mode);
@@ -954,8 +960,7 @@ namespace SimpleDroneGCS.Services
             CurrentTelemetry.Altitude = pos.alt / 1000.0;
             CurrentTelemetry.RelativeAltitude = pos.relative_alt / 1000.0;
             CurrentTelemetry.Speed = Math.Sqrt(pos.vx * pos.vx + pos.vy * pos.vy) / 100.0;
-            // GPS Track — фактическое направление движения из вектора скорости
-            if (Math.Abs(pos.vx) > 5 || Math.Abs(pos.vy) > 5) // >0.05 м/с — движемся
+            if (Math.Abs(pos.vx) > 5 || Math.Abs(pos.vy) > 5)
                 CurrentTelemetry.GpsTrack = (Math.Atan2(pos.vy, pos.vx) * 180.0 / Math.PI + 360) % 360;
             CurrentTelemetry.ClimbRate = -pos.vz / 100.0;
 
@@ -998,8 +1003,6 @@ namespace SimpleDroneGCS.Services
             var hud = (MAVLink.mavlink_vfr_hud_t)msg.data;
             CurrentTelemetry.Airspeed = hud.airspeed;
             CurrentTelemetry.Speed = hud.groundspeed;
-            // hud.alt — барометрическая высота ≈ RelativeAltitude.
-            // НЕ перезаписываем Altitude (НУМ) — она берётся из GLOBAL_POSITION_INT.alt
             CurrentTelemetry.ClimbRate = hud.climb;
             CurrentTelemetry.Heading = hud.heading;
             CurrentTelemetry.Throttle = hud.throttle;
@@ -1011,7 +1014,6 @@ namespace SimpleDroneGCS.Services
             var sys = (MAVLink.mavlink_sys_status_t)msg.data;
             CurrentTelemetry.BatteryVoltage = sys.voltage_battery / 1000.0;
             CurrentTelemetry.BatteryCurrent = sys.current_battery / 100.0;
-            // battery_remaining: sbyte, -1 = unknown — не перезаписываем если неизвестно
             if (sys.battery_remaining >= 0)
                 CurrentTelemetry.BatteryPercent = sys.battery_remaining;
             _telemetryDirty = true;
@@ -1117,7 +1119,7 @@ namespace SimpleDroneGCS.Services
                     System.Diagnostics.Debug.WriteLine($"❌ ARM ОТКЛОНЕНА: {resultName} (код {ack.result})");
                 }
             }
-            else if (ack.command == 209) // MAV_CMD_DO_MOTOR_TEST
+            else if (ack.command == 209)
             {
                 bool accepted = ack.result == (byte)MAVLink.MAV_RESULT.ACCEPTED;
                 int motorNum = _lastMotorTestNumber;
@@ -1127,15 +1129,92 @@ namespace SimpleDroneGCS.Services
             }
         }
 
+        private void RequestParam(string paramName)
+        {
+            if (!IsConnected) return;
+            byte[] paramIdBytes = new byte[16];
+            byte[] nameBytes = System.Text.Encoding.ASCII.GetBytes(paramName);
+            Array.Copy(nameBytes, paramIdBytes, Math.Min(nameBytes.Length, 16));
+
+            var req = new MAVLink.mavlink_param_request_read_t
+            {
+                target_system = (byte)DroneStatus.SystemId,
+                target_component = (byte)DroneStatus.ComponentId,
+                param_id = paramIdBytes,
+                param_index = -1
+            };
+            SendMessage(req, MAVLink.MAVLINK_MSG_ID.PARAM_REQUEST_READ);
+        }
+
+        private int _servoParamsReceived = 0;
+
+        private void ProcessParamValue(MAVLink.MAVLinkMessage msg)
+        {
+            var param = (MAVLink.mavlink_param_value_t)msg.data;
+            string name = System.Text.Encoding.ASCII.GetString(param.param_id).TrimEnd('\0');
+
+            if (name.StartsWith("SERVO") && name.EndsWith("_FUNCTION") &&
+                int.TryParse(name.Substring(5, name.Length - 14), out int servoIdx) &&
+                servoIdx >= 1 && servoIdx <= 16)
+            {
+                _servoFunctions[servoIdx] = (int)param.param_value;
+                _servoParamsReceived++;
+                if (_servoParamsReceived >= 12)
+                    _servoMappingLoaded = true;
+                Debug.WriteLine($"[MAVLink] {name} = {(int)param.param_value}");
+            }
+        }
+
         private void ProcessServoOutput(MAVLink.MAVLinkMessage msg)
         {
             var servo = (MAVLink.mavlink_servo_output_raw_t)msg.data;
 
-            CurrentTelemetry.Motor1Percent = PwmToPercent(servo.servo5_raw);
-            CurrentTelemetry.Motor2Percent = PwmToPercent(servo.servo6_raw);
-            CurrentTelemetry.Motor3Percent = PwmToPercent(servo.servo7_raw);
-            CurrentTelemetry.Motor4Percent = PwmToPercent(servo.servo8_raw);
-            CurrentTelemetry.PusherPercent = PwmToPercent(servo.servo3_raw);
+            ushort[] pwms = new ushort[]
+            {
+                0,
+                servo.servo1_raw,
+                servo.servo2_raw,
+                servo.servo3_raw,
+                servo.servo4_raw,
+                servo.servo5_raw,
+                servo.servo6_raw,
+                servo.servo7_raw,
+                servo.servo8_raw,
+                servo.servo9_raw,
+                servo.servo10_raw,
+                servo.servo11_raw,
+                servo.servo12_raw,
+                servo.servo13_raw,
+                servo.servo14_raw,
+                servo.servo15_raw,
+                servo.servo16_raw,
+            };
+
+            if (_servoMappingLoaded)
+            {
+                for (int i = 1; i <= 16; i++)
+                {
+                    int fn = _servoFunctions[i];
+                    int pct = i < pwms.Length ? PwmToPercent(pwms[i]) : 0;
+                    switch (fn)
+                    {
+                        case 33: CurrentTelemetry.Motor1Percent = pct; break;
+                        case 34: CurrentTelemetry.Motor2Percent = pct; break;
+                        case 35: CurrentTelemetry.Motor3Percent = pct; break;
+                        case 36: CurrentTelemetry.Motor4Percent = pct; break;
+                        case 38: CurrentTelemetry.PusherPercent = pct; break;
+                    }
+                }
+            }
+            else
+            {
+                CurrentTelemetry.Motor1Percent = PwmToPercent(servo.servo1_raw);
+                CurrentTelemetry.Motor2Percent = PwmToPercent(servo.servo2_raw);
+                CurrentTelemetry.Motor3Percent = PwmToPercent(servo.servo3_raw);
+                CurrentTelemetry.Motor4Percent = PwmToPercent(servo.servo4_raw);
+                CurrentTelemetry.PusherPercent = 0;
+            }
+
             _telemetryDirty = true;
         }
 
@@ -1169,7 +1248,6 @@ namespace SimpleDroneGCS.Services
                 CurrentTelemetry.BatteryVoltage = battery.voltages[0] / 1000.0;
 
             CurrentTelemetry.BatteryCurrent = battery.current_battery / 100.0;
-            // battery_remaining: sbyte, -1 = unknown — не перезаписываем если неизвестно
             if (battery.battery_remaining >= 0)
                 CurrentTelemetry.BatteryPercent = battery.battery_remaining;
             _telemetryDirty = true;
@@ -1177,14 +1255,11 @@ namespace SimpleDroneGCS.Services
 
         private bool IsCopterType()
         {
-            // Приоритет — выбор пользователя в VehicleSelectionWindow
             var userChoice = VehicleManager.Instance.CurrentVehicleType;
             if (userChoice == VehicleType.Copter)
                 return true;
             if (userChoice == VehicleType.QuadPlane)
                 return false;
-
-            // Fallback — тип из heartbeat FC
             byte mavType = DroneStatus.Type;
             return mavType == 2 || mavType == 3 || mavType == 4 ||
                    mavType == 13 || mavType == 14 || mavType == 15;
@@ -1315,14 +1390,11 @@ namespace SimpleDroneGCS.Services
             if (!IsConnected) return;
 
             var vehicleType = VehicleManager.Instance.CurrentVehicleType;
-
-            // QuadPlane использует QRTL (mode=21) для вертикального возврата
-            // Copter — RTL (mode=6), Plane — RTL (mode=11)
             uint rtlMode = vehicleType switch
             {
-                VehicleType.QuadPlane => 21u,  // QRTL
-                VehicleType.Copter => 6u,  // RTL
-                _ => 11u,  // RTL (Plane)
+                VehicleType.QuadPlane => 21u,
+                VehicleType.Copter => 6u,
+                _ => 11u,
             };
 
             SetMode(rtlMode);
@@ -1337,8 +1409,6 @@ namespace SimpleDroneGCS.Services
                 ErrorOccurred?.Invoke(this, Get("Msg_DroneNotConnected"));
                 return;
             }
-
-            // Если SystemId ещё не получен от FC — использовать 1 как fallback
             byte sysId = DroneStatus.SystemId > 0 ? (byte)DroneStatus.SystemId : (byte)1;
 
             var setMode = new MAVLink.mavlink_set_mode_t
@@ -1391,7 +1461,6 @@ namespace SimpleDroneGCS.Services
             try
             {
                 var vehicleType = VehicleManager.Instance.CurrentVehicleType;
-                // Copter: BRAKE(17), VTOL: QLOITER(19) — удержание в MC режиме
                 uint brakeMode = (vehicleType == VehicleType.Copter) ? 17u : 19u;
                 SetMode(brakeMode);
             }
@@ -1413,13 +1482,6 @@ namespace SimpleDroneGCS.Services
 
         private int _lastMotorTestNumber = 0;
 
-        /// <summary>
-        /// MAV_CMD_DO_MOTOR_TEST (209).
-        /// Требует: дрон НЕ заармлен.
-        /// </summary>
-        /// <param name="motorNumber">Номер мотора 1-based (1-4 для Copter, 1-5 для QuadPlane)</param>
-        /// <param name="throttlePct">Газ в процентах (0-100)</param>
-        /// <param name="durationSec">Длительность теста в секундах</param>
         public void SendMotorTest(int motorNumber, float throttlePct, float durationSec)
         {
             if (!IsConnected) return;
@@ -1432,14 +1494,14 @@ namespace SimpleDroneGCS.Services
             {
                 target_system = (byte)DroneStatus.SystemId,
                 target_component = (byte)DroneStatus.ComponentId,
-                command = 209, // MAV_CMD_DO_MOTOR_TEST
+                command = 209,
                 confirmation = 0,
-                param1 = motorNumber,  // motor instance (1-based)
-                param2 = 1,            // throttle type: 1 = percent
-                param3 = throttlePct,  // throttle %
-                param4 = durationSec,  // duration seconds
-                param5 = 0,            // motor count (0 = single)
-                param6 = 0,            // test order
+                param1 = motorNumber,
+                param2 = 1,
+                param3 = throttlePct,
+                param4 = durationSec,
+                param5 = 0,
+                param6 = 0,
                 param7 = 0
             };
 
@@ -1649,7 +1711,7 @@ namespace SimpleDroneGCS.Services
             }
 
             _isUploading = true;
-            MissionUploadStarted?.Invoke(); // GCS подавляет ложные уведомления
+            MissionUploadStarted?.Invoke();
 
             System.Diagnostics.Debug.WriteLine($"📤 Начало загрузки миссии: {waypoints.Count} точек");
 
@@ -1665,9 +1727,6 @@ namespace SimpleDroneGCS.Services
                 {
                     _missionItemsToUpload.Add(ConvertToMissionItem(waypoints[i], _missionItemsToUpload.Count));
                 }
-
-                // Не делаем ClearMission — ArduPilot заменяет миссию на лету.
-                // ClearMission создаёт опасный разрыв когда FC теряет миссию в воздухе.
 
                 _missionUploadTcs = new TaskCompletionSource<bool>();
                 _missionUploadExpectedSeq = 0;
@@ -1722,7 +1781,7 @@ namespace SimpleDroneGCS.Services
             {
                 _isUploading = false;
                 _missionItemsToUpload = null;
-                MissionUploadCompleted?.Invoke(); // разрешаем уведомления снова
+                MissionUploadCompleted?.Invoke();
             }
         }
 
@@ -1766,7 +1825,6 @@ namespace SimpleDroneGCS.Services
 
         private void SendRequestedMissionItem(ushort seq)
         {
-            // Partial update: FC запрашивает конкретный seq, не индекс в списке
             if (_partialUpdateMap != null && _partialUpdateMap.TryGetValue(seq, out var partialItem))
             {
                 SendMissionItem(partialItem);
@@ -1934,8 +1992,6 @@ namespace SimpleDroneGCS.Services
             try
             {
                 var item = ConvertToMissionItem(wp, missionSeq);
-
-                // Словарь: seq → item, чтобы SendRequestedMissionItem нашёл по seq
                 _partialUpdateMap = new Dictionary<int, MAVLink.mavlink_mission_item_int_t>
                 {
                     { missionSeq, item }
@@ -1954,14 +2010,10 @@ namespace SimpleDroneGCS.Services
 
                 SendMessage(partial, MAVLink.MAVLINK_MSG_ID.MISSION_WRITE_PARTIAL_LIST);
                 Debug.WriteLine($"✏️ MISSION_WRITE_PARTIAL seq={missionSeq}");
-
-                // Ждём MISSION_ACK — максимум 800мс (было 3000мс)
                 var completed = await Task.WhenAny(_missionUploadTcs.Task, Task.Delay(800));
 
                 if (completed == _missionUploadTcs.Task)
                     return _missionUploadTcs.Task.Result;
-
-                // Fallback: FC не ответил на запрос — шлём item напрямую
                 SendMissionItem(item);
                 Debug.WriteLine("⚠️ Partial write timeout, sent item directly");
                 return true;
@@ -2004,7 +2056,7 @@ namespace SimpleDroneGCS.Services
                 seq = 0,
                 frame = (byte)MAVLink.MAV_FRAME.GLOBAL,
                 command = (ushort)MAVLink.MAV_CMD.WAYPOINT,
-                current = 1, // HOME must be current=1 per MAVLink spec
+                current = 1,
                 autocontinue = 1,
                 param1 = 0,
                 param2 = 0,
@@ -2067,8 +2119,6 @@ namespace SimpleDroneGCS.Services
                         param1 = 3;
                         break;
                     case "DELAY":
-                        // NAV_DELAY (93): param1=seconds, param2/3/4=-1 → относительное время
-                        // Если param2=0 ArduPilot ждёт до полуночи (час 0) — неправильно!
                         param1 = (float)wp.Delay;
                         param2 = -1;
                         param3 = -1;
@@ -2086,20 +2136,12 @@ namespace SimpleDroneGCS.Services
                         param3 = signedRadius;
                         break;
                     case "CHANGE_SPEED":
-                        // param1: 0=airspeed, 1=groundspeed
-                        // Copter: только groundspeed (ArduCopter игнорирует airspeed)
-                        // QuadPlane в режиме самолёта: airspeed (иначе дрон не держит скорость по воздуху)
                         param1 = IsCopterType() ? 1 : 0;
                         param2 = (float)wp.Speed;
-                        param3 = -1; // throttle без изменений
+                        param3 = -1;
                         break;
                     case "WAYPOINT":
                         param1 = (float)wp.Delay;
-                        // param2 = acceptance radius (м) — для Plane/VTOL ArduPilot использует это.
-                        // Когда дрон подлетает на это расстояние → FC считает WP достигнутым
-                        // и начинает поворот к следующей точке (L1 controller).
-                        // Copter: не поддерживает param2, использует WP_RADIUS_M параметр FC.
-                        // VTOL: минимум 100м для 34кг дрона на ~20м/с (безопасный радиус поворота).
                         param2 = IsCopterType() ? 0f : (float)Math.Max(100.0, wp.Radius);
                         break;
                     case "SPLINE_WP":
@@ -2124,7 +2166,7 @@ namespace SimpleDroneGCS.Services
                 command = mavCmd,
                 current = 0,
                 autocontinue = IsSystemCommand(wp.CommandType) ? (byte)1 :
-                               (mavCmd == (ushort)MAVLink.MAV_CMD.LOITER_UNLIM) ? (byte)0 : // LOITER_UNLIM всегда ждёт команды
+                               (mavCmd == (ushort)MAVLink.MAV_CMD.LOITER_UNLIM) ? (byte)0 :
                                (byte)(wp.AutoNext ? 1 : 0),
                 param1 = param1,
                 param2 = param2,
@@ -2212,7 +2254,6 @@ namespace SimpleDroneGCS.Services
             try
             {
                 var vehicleType = VehicleManager.Instance.CurrentVehicleType;
-                // Copter: LOITER(5), VTOL: QLOITER(19) — MC удержание, не Plane LOITER(12)
                 uint loiterMode = (vehicleType == VehicleType.Copter) ? 5u : 19u;
                 SetMode(loiterMode);
             }
@@ -2277,11 +2318,7 @@ namespace SimpleDroneGCS.Services
             SendMessage(setCurrent, MAVLink.MAVLINK_MSG_ID.MISSION_SET_CURRENT);
             System.Diagnostics.Debug.WriteLine($"[MAVLink] MISSION_SET_CURRENT seq={seq}");
         }
-
-        /// <summary>
-        /// Отправляет MISSION_SET_CURRENT и ждёт подтверждения через MISSION_CURRENT.
-        /// Повторяет до 3 раз если FC не ответил. Критично для реального дрона.
-        /// </summary>
+               
         public async Task<bool> SetCurrentWaypointVerified(ushort seq, int timeoutMs = 600)
         {
             if (!IsConnected) return false;
@@ -2317,24 +2354,15 @@ namespace SimpleDroneGCS.Services
             return false;
         }
 
-        /// <summary>
-        /// Полный цикл обновления миссии в полёте:
-        /// Upload → MISSION_ACK → SetCurrentWaypointVerified → возврат true/false.
-        /// Безопасно для реального дрона: не использует ClearMission.
-        /// </summary>
         public async Task<bool> UploadMissionAndResume(
             List<WaypointItem> waypoints, ushort resumeSeq)
         {
             bool uploaded = await UploadMission(waypoints);
             if (!uploaded) return false;
-
-            // После MISSION_ACK ArduPilot продолжает с тем же seq что был.
-            // Отправляем MISSION_SET_CURRENT с правильным seq и ждём подтверждения.
             bool confirmed = await SetCurrentWaypointVerified(resumeSeq);
 
             if (!confirmed)
             {
-                // FC не ответил — шлём без подтверждения как fallback
                 SetCurrentWaypoint(resumeSeq);
                 Debug.WriteLine($"[MAVLink] Fallback SetCurrentWP({resumeSeq}) без подтверждения");
             }

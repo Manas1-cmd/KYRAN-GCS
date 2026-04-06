@@ -38,7 +38,6 @@ namespace SimpleDroneGCS.Views
             {
                 BaudRateComboBox.Items.Add(baud);
             }
-            // 57600 по умолчанию (стандарт для телеметрии)
             BaudRateComboBox.SelectedItem = 57600;
         }
 

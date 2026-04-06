@@ -6,13 +6,8 @@ namespace SimpleDroneGCS.Simulator
 {
     public enum SimState { Disarmed, Armed, Takeoff, Mission, Rtl, Landing }
 
-    /// <summary>
-    /// Simulated drone physics and state machine.
-    /// Tick() is called at 20 Hz (every 50 ms) from the physics timer.
-    /// </summary>
     public class SimPhysics
     {
-        // ─── Public state ─────────────────────────────────────────────────────────
         public double Lat { get; private set; }
         public double Lon { get; private set; }
         public double AltRel { get; private set; }
@@ -32,7 +27,6 @@ namespace SimpleDroneGCS.Simulator
         public int CurrentWpIndex { get; private set; } = -1;
         public int TotalWpCount => _waypoints.Count;
 
-        /// <summary>Bearing к текущему WP — аналог nav_bearing в NAV_CONTROLLER_OUTPUT.</summary>
         public short NavBearing
         {
             get
@@ -41,30 +35,25 @@ namespace SimpleDroneGCS.Simulator
                     return (short)Math.Round(Heading);
                 var wp = _waypoints[CurrentWpIndex];
                 double b = Bearing(Lat, Lon, wp.Lat, wp.Lon);
-                // Конвертируем 0-360 → -180..180 как требует MAVLink int16
                 if (b > 180) b -= 360;
                 return (short)Math.Round(b);
             }
         }
 
-        // ─── Configuration ────────────────────────────────────────────────────────
         public double CruiseSpeed { get; set; } = 8.0;
         public bool ScenarioGpsLoss { get; set; }
         public bool ScenarioBattDrain { get; set; }
         public bool ScenarioRcFailsafe { get; set; }
 
-        // ─── Events ───────────────────────────────────────────────────────────────
         public event Action<string>? StatusTextEvent;
 
-        // ─── Private ──────────────────────────────────────────────────────────────
         private readonly double _homeLat, _homeLon, _homeAltMsl;
         private List<SimWaypoint> _waypoints = new();
         private double _targetAlt;
         private double _currentSpeed;
         private double _prevAltRel;
         private double _elapsedSec;
-        private bool _missionPaused;    // LOITER freeze
-        private bool _gpsFailing;
+        private bool _missionPaused;        private bool _gpsFailing;
         private bool _rcFailsafeFired;
         private bool _battLow20Fired;
         private bool _battLow10Fired;
@@ -86,20 +75,17 @@ namespace SimpleDroneGCS.Simulator
 
         public void SetMission(List<SimWaypoint> waypoints)
         {
-            int prevIndex = CurrentWpIndex; // сохраняем позицию если летим
-            _waypoints = new List<SimWaypoint>(waypoints);
+            int prevIndex = CurrentWpIndex;            _waypoints = new List<SimWaypoint>(waypoints);
             _missionPaused = false;
             _wpWaiting = false;
             _wpWaitRemaining = 0;
 
-            // Если летели — восстанавливаем текущий WP, иначе сбрасываем
             if (State == SimState.Mission && prevIndex >= 0 && prevIndex < _waypoints.Count)
                 CurrentWpIndex = prevIndex;
             else
                 CurrentWpIndex = -1;
         }
 
-        /// <summary>Обновляет одну точку без остановки миссии.</summary>
         public void UpdateWaypointAt(int seq, SimWaypoint updated)
         {
             if (seq >= 0 && seq < _waypoints.Count)
@@ -114,7 +100,6 @@ namespace SimpleDroneGCS.Simulator
             while (commands.TryDequeue(out var cmd))
                 ProcessCommand(cmd);
 
-            // Battery drain
             double drainRate = Armed
                 ? (ScenarioBattDrain ? 0.3 : 0.025)
                 : 0.003;
@@ -134,7 +119,6 @@ namespace SimpleDroneGCS.Simulator
                 BeginRtl();
             }
 
-            // GPS loss scenario
             if (ScenarioGpsLoss && _elapsedSec > 30 && _elapsedSec < 45)
             {
                 if (!_gpsFailing) { StatusTextEvent?.Invoke("GPS: No Fix"); _gpsFailing = true; }
@@ -147,7 +131,6 @@ namespace SimpleDroneGCS.Simulator
                 StatusTextEvent?.Invoke("GPS: 3D Fix restored");
             }
 
-            // RC Failsafe scenario
             if (ScenarioRcFailsafe && _elapsedSec > 20 && !_rcFailsafeFired && Armed)
             {
                 _rcFailsafeFired = true;
@@ -155,7 +138,6 @@ namespace SimpleDroneGCS.Simulator
                 BeginRtl();
             }
 
-            // State machine
             switch (State)
             {
                 case SimState.Takeoff: TickTakeoff(dt); break;
@@ -168,7 +150,6 @@ namespace SimpleDroneGCS.Simulator
             UpdateAttitude();
         }
 
-        // ─── Command processing ───────────────────────────────────────────────────
 
         private void ProcessCommand(SimCommand cmd)
         {
@@ -197,7 +178,6 @@ namespace SimpleDroneGCS.Simulator
                     FlightMode = cmd.ModeName ?? "STABILIZE";
                     if (cmd.ModeName == "RTL") BeginRtl();
                     if (cmd.ModeName == "LAND") BeginLanding();
-                    // Freeze/Resume mission
                     if (cmd.ModeName == "LOITER" && State == SimState.Mission)
                     {
                         _missionPaused = true;
@@ -217,7 +197,6 @@ namespace SimpleDroneGCS.Simulator
                     break;
 
                 case SimCommandType.MissionClearAll:
-                    // Don't change State — re-upload is coming right after
                     _waypoints.Clear();
                     CurrentWpIndex = -1;
                     break;
@@ -236,7 +215,6 @@ namespace SimpleDroneGCS.Simulator
             }
         }
 
-        // ─── State transitions ────────────────────────────────────────────────────
 
         private void BeginMission()
         {
@@ -279,7 +257,6 @@ namespace SimpleDroneGCS.Simulator
             StatusTextEvent?.Invoke("Landing");
         }
 
-        // ─── State ticks ──────────────────────────────────────────────────────────
 
         private void TickTakeoff(double dt)
         {
@@ -294,31 +271,25 @@ namespace SimpleDroneGCS.Simulator
                 else
                 {
                     State = SimState.Mission;
-                    // User WP number: subtract HOME(0)+TAKEOFF(1) = 2 prefix items
                     int userWpNum = Math.Max(1, CurrentWpIndex - 1);
                     StatusTextEvent?.Invoke($"Takeoff complete -> WP {userWpNum}");
                 }
             }
         }
 
-        // ─── WP wait state (delay + loiter) ──────────────────────────────────────
         private bool _wpWaiting = false;
         private double _wpWaitRemaining = 0;
         private double _wpOrbitAngle = 0;
         private double _wpOrbitDone = 0;
 
-        // Пока идёт загрузка новой миссии — не продвигаться по WP
         public bool UploadInProgress { get; set; } = false;
 
         private void TickMission(double dt)
         {
-            // Paused by LOITER
             if (_missionPaused) return;
 
-            // Waiting for re-upload after ClearAll
             if (_waypoints.Count == 0) return;
 
-            // Waiting for SetCurrentWaypoint after SetMission
             if (CurrentWpIndex < 0) return;
 
             if (CurrentWpIndex >= _waypoints.Count)
@@ -330,7 +301,6 @@ namespace SimpleDroneGCS.Simulator
 
             var wp = _waypoints[CurrentWpIndex];
 
-            // ── Instant commands ────────────────────────────────────────────────
             if (wp.Command == 22) { CurrentWpIndex++; return; }
             if (wp.Command == 20) { BeginRtl(); return; }
             if (wp.Command == 178)
@@ -340,17 +310,14 @@ namespace SimpleDroneGCS.Simulator
                 return;
             }
 
-            // ── If waiting at WP (delay / loiter time) ──────────────────────────
             if (_wpWaiting)
             {
-                // For loiter: orbit around WP center at wp radius
                 bool isLoiter = wp.Command == 19 || wp.Command == 18 || wp.Command == 17;
                 if (isLoiter && wp.Alt > 1f)
                 {
                     double radius = Math.Max(20, Math.Abs(wp.Param3) > 0 ? Math.Abs(wp.Param3) : 80);
                     bool cw = wp.Param3 >= 0;
-                    double angSpeed = (CruiseSpeed / radius) * (180.0 / Math.PI); // deg/s
-                    _wpOrbitAngle += (cw ? angSpeed : -angSpeed) * dt;
+                    double angSpeed = (CruiseSpeed / radius) * (180.0 / Math.PI);                    _wpOrbitAngle += (cw ? angSpeed : -angSpeed) * dt;
                     double rad = _wpOrbitAngle * Math.PI / 180.0;
                     Lat = wp.Lat + Math.Cos(rad) * radius / 111111.0;
                     Lon = wp.Lon + Math.Sin(rad) * radius / (111111.0 * Math.Cos(wp.Lat * Math.PI / 180.0));
@@ -363,9 +330,7 @@ namespace SimpleDroneGCS.Simulator
                     Speed = 0;
                 }
 
-                // Count down
-                if (wp.Command == 18) // LOITER_TURNS: wait by turns
-                {
+                if (wp.Command == 18)                {
                     double targetTurns = wp.Param1 > 0 ? wp.Param1 : 1;
                     if (_wpOrbitDone >= targetTurns)
                         AdvanceWaypoint();
@@ -379,7 +344,6 @@ namespace SimpleDroneGCS.Simulator
                 return;
             }
 
-            // ── Altitude tracking ────────────────────────────────────────────────
             double altDiff = wp.Alt - AltRel;
             if (Math.Abs(altDiff) > 0.5)
             {
@@ -388,7 +352,6 @@ namespace SimpleDroneGCS.Simulator
                 AltMsl = _homeAltMsl + AltRel;
             }
 
-            // ── Horizontal navigation ─────────────────────────────────────────────
             double distToCenter = Haversine(Lat, Lon, wp.Lat, wp.Lon);
             double bearingToCenter = Bearing(Lat, Lon, wp.Lat, wp.Lon);
 
@@ -396,7 +359,6 @@ namespace SimpleDroneGCS.Simulator
             {
                 StatusTextEvent?.Invoke($"WP {Math.Max(1, CurrentWpIndex - 2 + 1)} reached");
 
-                // Start loiter/delay if needed
                 double delay = GetWpDelay(wp);
                 if (delay > 0 || wp.Command == 18 || wp.Command == 17)
                 {
@@ -418,9 +380,6 @@ namespace SimpleDroneGCS.Simulator
 
         private void AdvanceWaypoint()
         {
-            // Не переключаемся на следующий WP пока идёт загрузка новой миссии.
-            // Без этого дрон может advance на RTL (который в старой миссии был WP3,
-            // а в новой = последний элемент) до того как SetMission установит новые WP.
             if (UploadInProgress) return;
 
             _wpWaiting = false;
@@ -430,15 +389,11 @@ namespace SimpleDroneGCS.Simulator
 
             int nextIdx = CurrentWpIndex + 1;
 
-            // Дополнительная защита: если следующий WP = RTL (cmd=20) но впереди есть
-            // пользовательские WP — возможно миссия ещё не обновилась. Ждём.
             if (nextIdx < _waypoints.Count)
             {
                 var next = _waypoints[nextIdx];
                 if (next.Command == 20 && nextIdx < _waypoints.Count - 1)
                 {
-                    // RTL не последний элемент — что-то не так, вероятно стал миссия
-                    // Лучше остаться на месте чем RTL
                     System.Diagnostics.Debug.WriteLine($"[SIM] RTL at non-last seq={nextIdx}, holding");
                     return;
                 }
@@ -452,17 +407,11 @@ namespace SimpleDroneGCS.Simulator
             }
         }
 
-        /// <summary>Returns delay in seconds for this WP. 0 = no delay.</summary>
         private static double GetWpDelay(SimWaypoint wp)
         {
             return wp.Command switch
             {
-                16 => wp.Param1 > 0 ? wp.Param1 : 0,  // WAYPOINT: param1 = delay
-                82 => wp.Param1 > 0 ? wp.Param1 : 0,  // SPLINE_WP: param1 = delay
-                19 => wp.Param1 > 0 ? wp.Param1 : 0,  // LOITER_TIME: param1 = seconds
-                17 => 99999,                             // LOITER_UNLIM: infinite
-                93 => wp.Param1 > 0 ? wp.Param1 : 0,  // DELAY: param1 = seconds
-                _ => 0
+                16 => wp.Param1 > 0 ? wp.Param1 : 0,                82 => wp.Param1 > 0 ? wp.Param1 : 0,                19 => wp.Param1 > 0 ? wp.Param1 : 0,                17 => 99999,                93 => wp.Param1 > 0 ? wp.Param1 : 0,                _ => 0
             };
         }
 
@@ -504,7 +453,6 @@ namespace SimpleDroneGCS.Simulator
             }
         }
 
-        // ─── Motion helpers ───────────────────────────────────────────────────────
 
         private void MoveTowards(double bearing, double dist, double dt)
         {
@@ -548,7 +496,6 @@ namespace SimpleDroneGCS.Simulator
             Pitch += (targetPitch - Pitch) * 0.17f;
         }
 
-        // ─── Geo math ─────────────────────────────────────────────────────────────
 
         private static double Haversine(double lat1, double lon1, double lat2, double lon2)
         {

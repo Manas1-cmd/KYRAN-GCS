@@ -30,7 +30,6 @@ namespace SimpleDroneGCS
             _uiTimer.Tick += UiTimer_Tick;
         }
 
-        // ─── Start / Stop ─────────────────────────────────────────────────────
 
         private void StartStopBtn_Click(object sender, RoutedEventArgs e)
         {
@@ -108,14 +107,12 @@ namespace SimpleDroneGCS
             ScenarioCombo.IsEnabled = true;
         }
 
-        // ─── UI update ────────────────────────────────────────────────────────
 
         private void UiTimer_Tick(object? sender, EventArgs e)
         {
             if (_drone == null) return;
             var p = _drone.Physics;
 
-            // GCS connection indicator
             if (_drone.IsGcsConnected)
             {
                 GcsDot.Fill = BrushGreen;
@@ -123,15 +120,12 @@ namespace SimpleDroneGCS
                 GcsLabel.Text = Get("Sim_GcsConnected");
             }
 
-            // ARM badge
             bool armed = p.Armed;
             ArmBadge.Text = armed ? Get("Sim_BadgeArmed") : Get("Sim_BadgeDisarmed");
             ArmBadge.Foreground = armed ? BrushGreen : BrushRed;
 
-            // Mode
             ModeLabel.Text = p.FlightMode;
 
-            // State
             StateLabel.Text = p.State switch
             {
                 SimState.Disarmed => Get("Sim_StateDisarmed"),
@@ -152,12 +146,10 @@ namespace SimpleDroneGCS
                 _ => BrushMuted
             };
 
-            // WP progress
             WpLabel.Text = p.TotalWpCount > 0
                 ? Fmt("Sim_WpProgress", Math.Max(0, p.CurrentWpIndex), p.TotalWpCount)
                 : Get("Sim_WpNone");
 
-            // Telemetry
             AltLabel.Text = $"{p.AltRel:F1} м";
             SpeedLabel.Text = $"{p.Speed:F1}{Get("Sim_SpeedUnit")}";
 
@@ -171,7 +163,6 @@ namespace SimpleDroneGCS
                 : Fmt("Sim_GpsLost", p.SatCount);
             GpsLabel.Foreground = gpsOk ? BrushGreen : BrushRed;
 
-            // Flight timer
             if (p.Armed && !_flightTimerRunning)
             {
                 _flightStart = DateTime.Now;
@@ -189,7 +180,6 @@ namespace SimpleDroneGCS
             }
         }
 
-        // ─── Events from drone (background threads → Dispatcher) ──────────────
 
         private void OnLog(string msg) =>
             Dispatcher.InvokeAsync(() =>
@@ -203,7 +193,6 @@ namespace SimpleDroneGCS
         private void OnStateChanged() =>
             Dispatcher.InvokeAsync(() => UiTimer_Tick(null, EventArgs.Empty));
 
-        // ─── Controls ─────────────────────────────────────────────────────────
 
         private void SpeedSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
@@ -214,7 +203,6 @@ namespace SimpleDroneGCS
 
         private void VehicleTypeCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            // Reserved for VTOL support in future version
         }
 
         private void ScenarioCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -226,7 +214,6 @@ namespace SimpleDroneGCS
             (ScenarioCombo?.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString()
             ?? Get("Sim_ScenarioNormal");
 
-        // ─── Window closing ───────────────────────────────────────────────────
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {

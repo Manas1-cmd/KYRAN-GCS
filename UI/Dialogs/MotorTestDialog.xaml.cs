@@ -269,7 +269,6 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private void OnMotorTestAck(int motorNum, bool accepted)
         {
-            // TrySetResult игнорируется если TCS уже resolved — безопасно
             _motorAckTcs?.TrySetResult(accepted);
         }
 

@@ -46,8 +46,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             AddAutoItem("Preflight_Check_GPS", CheckGps, critical: true);
             AddAutoItem("Preflight_Check_Sats", CheckSats, critical: true);
             AddAutoItem("Preflight_Check_BattPct", CheckBattPct, critical: true);
-            AddAutoItem("Preflight_Check_BattV", CheckBattV, critical: false); // warn только — порог зависит от LiPo типа
-            AddAutoItem("Preflight_Check_Mode", CheckMode, critical: false);
+            AddAutoItem("Preflight_Check_BattV", CheckBattV, critical: false);            AddAutoItem("Preflight_Check_Mode", CheckMode, critical: false);
             AddAutoItem("Preflight_Check_EKF", CheckEkf, critical: false);
 
             AddMotorTestItem();
@@ -83,8 +82,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             string val = $"{t.BatteryPercent}%";
             if (t.BatteryPercent <= 0)
-                return CheckResult.Warn(Loc.Get("Preflight_Val_BattUnknown")); // нет данных
-            if (t.BatteryPercent >= 20)
+                return CheckResult.Warn(Loc.Get("Preflight_Val_BattUnknown"));            if (t.BatteryPercent >= 20)
                 return CheckResult.Pass(val);
             return CheckResult.Fail(Loc.Fmt("Preflight_Val_BattLow", val));
         }
@@ -187,7 +185,6 @@ namespace SimpleDroneGCS.UI.Dialogs
             Grid.SetColumn(icon, 0);
             item.IconBlock = icon;
 
-            // Название + значение
             var nameBlock = new TextBlock
             {
                 Text = Loc.Get(item.LabelKey),

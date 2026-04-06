@@ -11,8 +11,7 @@ namespace SimpleDroneGCS.Services
     public sealed class FlightLogService : IFlightLogService, IDisposable
     {
         private const int CsvIntervalMs = 1000;
-        private const long MaxFileSizeBytes = 50L * 1024 * 1024;  // 50 МБ
-
+        private const long MaxFileSizeBytes = 50L * 1024 * 1024;
         private static readonly string[] CsvHeader =
         {
             "Timestamp","Mode","Armed",
@@ -30,10 +29,8 @@ namespace SimpleDroneGCS.Services
         private Telemetry _lastTelemetry;
         private readonly object _lock = new();
 
-        // .tlog
         private FileStream _tlogStream;
 
-        // .csv
         private StreamWriter _csvWriter;
         private Timer _csvTimer;
 
@@ -116,8 +113,7 @@ namespace SimpleDroneGCS.Services
 
                 lock (_lock)
                 {
-                    if (!IsRecording || _tlogStream is null) return; // внутри lock — безопасно
-                    _tlogStream.Write(ts);
+                    if (!IsRecording || _tlogStream is null) return;                    _tlogStream.Write(ts);
                     _tlogStream.Write(rawPacket, 0, rawPacket.Length);
                 }
             }
@@ -205,7 +201,7 @@ namespace SimpleDroneGCS.Services
                         return;
                     }
                 }
-                catch { /* файл мог быть удалён */ }
+                catch { }
             }
 
             lock (_lock)

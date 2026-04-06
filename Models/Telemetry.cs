@@ -18,9 +18,9 @@ namespace SimpleDroneGCS.Models
         public double ClimbRate { get; set; }
         public double Heading { get; set; }
         public double Throttle { get; set; }
-        public double GpsTrack { get; set; } = 0;  // фактическое направление движения (из vx/vy)
+        public double GpsTrack { get; set; } = 0;  
         public double NavBearing { get; set; } = 0;
-        public bool HasNavBearing { get; set; } = false; // получен ли NAV_CONTROLLER_OUTPUT      
+        public bool HasNavBearing { get; set; } = false;
 
         public double Latitude { get; set; }
         public double Longitude { get; set; }
