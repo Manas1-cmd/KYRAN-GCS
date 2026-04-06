@@ -95,6 +95,7 @@ namespace SimpleDroneGCS
                 Debug.WriteLine($"[APP] ERROR: {ex.Message}");
                 Debug.WriteLine($"[APP] StackTrace: {ex.StackTrace}");
                 MessageBox.Show($"Ошибка запуска: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
             }
         }
     }

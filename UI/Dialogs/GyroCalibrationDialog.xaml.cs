@@ -51,6 +51,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private void Timer_Tick(object sender, EventArgs e)
         {
+            if (_isClosed) { _timer.Stop(); return; }
             _elapsedSeconds++;
             double progress = Math.Min(100, _elapsedSeconds * 20);
             CalibProgress.Value = progress;
@@ -68,7 +69,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             Dispatcher.BeginInvoke(() =>
             {
                 if (_isClosed) return;
-                
+
                 StatusText.Text = text;
                 Debug.WriteLine($"[GyroCalib] StatusText: {text}");
 
@@ -126,7 +127,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         protected override void OnClosed(EventArgs e)
         {
-            _isClosed=true;
+            _isClosed = true;
             _timer.Stop();
             _mavlink.OnStatusTextReceived -= OnStatusText;
             base.OnClosed(e);

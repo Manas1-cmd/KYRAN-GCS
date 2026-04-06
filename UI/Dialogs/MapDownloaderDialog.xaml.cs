@@ -17,15 +17,15 @@ namespace SimpleDroneGCS.UI.Dialogs
         private PointLatLng? _currentPosition = null;
 
         private static readonly RectLatLng KazakhstanBounds = new RectLatLng(
-            55.45, 46.49, 14.89, 40.82  
+            55.45, 46.49, 40.86, 14.82  
         );
 
         private static readonly RectLatLng AlmatyBounds = new RectLatLng(
-            44.0, 76.0, 1.5, 2.0  
+            44.0, 76.0, 1.5, 2.0
         );
 
         private static readonly RectLatLng AstanaBounds = new RectLatLng(
-            51.5, 71.0, 1.0, 1.5  
+            51.5, 71.0, 1.0, 1.5
         );
 
         public MapDownloaderDialog(PointLatLng? currentPosition = null)
@@ -39,7 +39,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             if (_currentPosition == null)
             {
-                RegionCombo.Items.RemoveAt(3); 
+                RegionCombo.Items.RemoveAt(3);
             }
 
             UpdateEstimate();
@@ -61,13 +61,13 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private RectLatLng CreateBoundsAroundPoint(PointLatLng center, double radiusKm)
         {
-            
+
             double degreeSpan = radiusKm / 111.0;
             return new RectLatLng(
-                center.Lat + degreeSpan,  
-                center.Lng - degreeSpan,  
-                degreeSpan * 2,           
-                degreeSpan * 2            
+                center.Lat + degreeSpan,
+                center.Lng - degreeSpan,
+                degreeSpan * 2,
+                degreeSpan * 2
             );
         }
 
@@ -122,7 +122,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             if (_isDownloading)
             {
-                
+
                 _cts?.Cancel();
                 return;
             }
@@ -177,7 +177,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         private async Task DownloadTilesAsync(int zoomFrom, int zoomTo, CancellationToken ct)
         {
-            
+
             string cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MapCache");
             if (!Directory.Exists(cacheFolder))
                 Directory.CreateDirectory(cacheFolder);
@@ -213,7 +213,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
                     try
                     {
-                        
+
                         var img = GMaps.Instance.GetImageFrom(
                             GMapProviders.GoogleSatelliteMap, tile, zoom, out var ex);
 

@@ -235,7 +235,7 @@ namespace SimpleDroneGCS.Simulator
             _expectedSeq = 0;
             _uploadBuffer = new List<SimWaypoint>(count);
             _uploadInProgress = true;
-            _partialInProgress = false;            _physics.UploadInProgress = true;
+            _partialInProgress = false; _physics.UploadInProgress = true;
             Log($"[MISSION] Начало загрузки: {count} WP");
             Send(SimMAVLink.MissionRequestInt(0));
         }
@@ -258,9 +258,12 @@ namespace SimpleDroneGCS.Simulator
             {
                 _uploadInProgress = false;
                 Send(SimMAVLink.MissionAck(0));
+                // Определяем тип ВС по командам миссии: 84=VTOL_TAKEOFF, 85=VTOL_LAND, 3000=TRANSITION
+                bool isVtol = _uploadBuffer.Exists(w => w.Command == 84 || w.Command == 85 || w.Command == 3000);
+                _physics.IsVtol = isVtol;
                 _physics.SetMission(_uploadBuffer);
                 _physics.UploadInProgress = false;
-                Log($"[MISSION] Загрузка завершена: {_uploadBuffer.Count} WP принято");
+                Log($"[MISSION] Загрузка завершена: {_uploadBuffer.Count} WP, VTOL={isVtol}");
                 StateChanged?.Invoke();
             }
         }
@@ -306,9 +309,9 @@ namespace SimpleDroneGCS.Simulator
 
         public void SetScenario(string scenario)
         {
-            _physics.ScenarioGpsLoss = scenario == "Потеря GPS";
-            _physics.ScenarioBattDrain = scenario == "Разряд батареи";
-            _physics.ScenarioRcFailsafe = scenario == "RC Failsafe";
+            _physics.ScenarioGpsLoss = scenario == "gps";
+            _physics.ScenarioBattDrain = scenario == "batt";
+            _physics.ScenarioRcFailsafe = scenario == "rc";
         }
     }
 }

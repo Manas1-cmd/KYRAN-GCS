@@ -41,6 +41,7 @@ namespace SimpleDroneGCS.Simulator
         }
 
         public double CruiseSpeed { get; set; } = 8.0;
+        public bool IsVtol { get; set; } = false;
         public bool ScenarioGpsLoss { get; set; }
         public bool ScenarioBattDrain { get; set; }
         public bool ScenarioRcFailsafe { get; set; }
@@ -53,7 +54,7 @@ namespace SimpleDroneGCS.Simulator
         private double _currentSpeed;
         private double _prevAltRel;
         private double _elapsedSec;
-        private bool _missionPaused;        private bool _gpsFailing;
+        private bool _missionPaused; private bool _gpsFailing;
         private bool _rcFailsafeFired;
         private bool _battLow20Fired;
         private bool _battLow10Fired;
@@ -75,7 +76,7 @@ namespace SimpleDroneGCS.Simulator
 
         public void SetMission(List<SimWaypoint> waypoints)
         {
-            int prevIndex = CurrentWpIndex;            _waypoints = new List<SimWaypoint>(waypoints);
+            int prevIndex = CurrentWpIndex; _waypoints = new List<SimWaypoint>(waypoints);
             _missionPaused = false;
             _wpWaiting = false;
             _wpWaitRemaining = 0;
@@ -119,12 +120,12 @@ namespace SimpleDroneGCS.Simulator
                 BeginRtl();
             }
 
-            if (ScenarioGpsLoss && _elapsedSec > 30 && _elapsedSec < 45)
+            if (ScenarioGpsLoss)
             {
                 if (!_gpsFailing) { StatusTextEvent?.Invoke("GPS: No Fix"); _gpsFailing = true; }
                 GpsFixType = 0; SatCount = 0;
             }
-            else if (_gpsFailing && _elapsedSec >= 45)
+            else if (_gpsFailing)
             {
                 _gpsFailing = false;
                 GpsFixType = 3; SatCount = 12;
@@ -170,6 +171,11 @@ namespace SimpleDroneGCS.Simulator
                         Armed = false; State = SimState.Disarmed;
                         Speed = 0; _currentSpeed = 0;
                         FlightMode = "STABILIZE";
+                        // Сбрасываем сценарные флаги для повторного запуска
+                        _rcFailsafeFired = false;
+                        _battLow20Fired = false;
+                        _battLow10Fired = false;
+                        _elapsedSec = 0;
                         StatusTextEvent?.Invoke("Disarmed");
                     }
                     break;
@@ -208,7 +214,8 @@ namespace SimpleDroneGCS.Simulator
                         _missionPaused = false;
                         _wpWaiting = false;
                         _wpWaitRemaining = 0;
-                        int _userNum = Math.Max(1, CurrentWpIndex - 2 + 1);
+                        int _offset = IsVtol ? 3 : 2;
+                        int _userNum = Math.Max(1, CurrentWpIndex - _offset + 1);
                         StatusTextEvent?.Invoke($"Next WP {_userNum}");
                     }
                     break;
@@ -223,10 +230,11 @@ namespace SimpleDroneGCS.Simulator
             _targetAlt = 30;
             _missionPaused = false;
 
+            // cmd 22 = TAKEOFF (copter), cmd 84 = VTOL_TAKEOFF
             for (int i = 0; i < _waypoints.Count; i++)
             {
                 var wp = _waypoints[i];
-                if (wp.Command == 22 || wp.Alt > 5f)
+                if (wp.Command == 22 || wp.Command == 84 || wp.Alt > 5f)
                 {
                     _targetAlt = wp.Alt;
                     CurrentWpIndex = i;
@@ -271,7 +279,7 @@ namespace SimpleDroneGCS.Simulator
                 else
                 {
                     State = SimState.Mission;
-                    int userWpNum = Math.Max(1, CurrentWpIndex - 1);
+                    int userWpNum = Math.Max(1, CurrentWpIndex - (IsVtol ? 3 : 2) + 1);
                     StatusTextEvent?.Invoke($"Takeoff complete -> WP {userWpNum}");
                 }
             }
@@ -301,7 +309,10 @@ namespace SimpleDroneGCS.Simulator
 
             var wp = _waypoints[CurrentWpIndex];
 
-            if (wp.Command == 22) { CurrentWpIndex++; return; }
+            if (wp.Command == 22) { CurrentWpIndex++; return; }   // TAKEOFF - пропускаем
+            if (wp.Command == 84) { CurrentWpIndex++; return; }   // VTOL_TAKEOFF - пропускаем
+            if (wp.Command == 85) { BeginLanding(); return; }     // VTOL_LAND
+            if (wp.Command == 3000) { CurrentWpIndex++; return; } // VTOL_TRANSITION - пропускаем
             if (wp.Command == 20) { BeginRtl(); return; }
             if (wp.Command == 178)
             {
@@ -317,7 +328,7 @@ namespace SimpleDroneGCS.Simulator
                 {
                     double radius = Math.Max(20, Math.Abs(wp.Param3) > 0 ? Math.Abs(wp.Param3) : 80);
                     bool cw = wp.Param3 >= 0;
-                    double angSpeed = (CruiseSpeed / radius) * (180.0 / Math.PI);                    _wpOrbitAngle += (cw ? angSpeed : -angSpeed) * dt;
+                    double angSpeed = (CruiseSpeed / radius) * (180.0 / Math.PI); _wpOrbitAngle += (cw ? angSpeed : -angSpeed) * dt;
                     double rad = _wpOrbitAngle * Math.PI / 180.0;
                     Lat = wp.Lat + Math.Cos(rad) * radius / 111111.0;
                     Lon = wp.Lon + Math.Sin(rad) * radius / (111111.0 * Math.Cos(wp.Lat * Math.PI / 180.0));
@@ -330,7 +341,8 @@ namespace SimpleDroneGCS.Simulator
                     Speed = 0;
                 }
 
-                if (wp.Command == 18)                {
+                if (wp.Command == 18)
+                {
                     double targetTurns = wp.Param1 > 0 ? wp.Param1 : 1;
                     if (_wpOrbitDone >= targetTurns)
                         AdvanceWaypoint();
@@ -357,7 +369,7 @@ namespace SimpleDroneGCS.Simulator
 
             if (distToCenter < AcceptRadius)
             {
-                StatusTextEvent?.Invoke($"WP {Math.Max(1, CurrentWpIndex - 2 + 1)} reached");
+                StatusTextEvent?.Invoke($"WP {Math.Max(1, CurrentWpIndex - (IsVtol ? 3 : 2) + 1)} reached");
 
                 double delay = GetWpDelay(wp);
                 if (delay > 0 || wp.Command == 18 || wp.Command == 17)
@@ -367,7 +379,7 @@ namespace SimpleDroneGCS.Simulator
                     _wpOrbitAngle = bearingToCenter + 90;
                     _wpOrbitDone = 0;
                     if (delay > 0)
-                        StatusTextEvent?.Invoke($"WP {CurrentWpIndex}: delay {delay:F0}s");
+                        StatusTextEvent?.Invoke($"WP {Math.Max(1, CurrentWpIndex - (IsVtol ? 3 : 2) + 1)}: delay {delay:F0}s");
                     return;
                 }
 
@@ -411,7 +423,12 @@ namespace SimpleDroneGCS.Simulator
         {
             return wp.Command switch
             {
-                16 => wp.Param1 > 0 ? wp.Param1 : 0,                82 => wp.Param1 > 0 ? wp.Param1 : 0,                19 => wp.Param1 > 0 ? wp.Param1 : 0,                17 => 99999,                93 => wp.Param1 > 0 ? wp.Param1 : 0,                _ => 0
+                16 => wp.Param1 > 0 ? wp.Param1 : 0,
+                82 => wp.Param1 > 0 ? wp.Param1 : 0,
+                19 => wp.Param1 > 0 ? wp.Param1 : 0,
+                17 => 99999,
+                93 => wp.Param1 > 0 ? wp.Param1 : 0,
+                _ => 0
             };
         }
 

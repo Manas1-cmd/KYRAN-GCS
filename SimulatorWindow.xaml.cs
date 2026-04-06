@@ -113,14 +113,8 @@ namespace SimpleDroneGCS
             if (_drone == null) return;
             var p = _drone.Physics;
 
-            if (_drone.IsGcsConnected)
-            {
-                GcsDot.Fill = BrushGreen;
-                GcsLabel.Foreground = BrushGreen;
-                GcsLabel.Text = Get("Sim_GcsConnected");
-            }
-
             bool armed = p.Armed;
+            bool gpsOk = p.GpsFixType >= 3;
             ArmBadge.Text = armed ? Get("Sim_BadgeArmed") : Get("Sim_BadgeDisarmed");
             ArmBadge.Foreground = armed ? BrushGreen : BrushRed;
 
@@ -153,11 +147,14 @@ namespace SimpleDroneGCS
             AltLabel.Text = $"{p.AltRel:F1} м";
             SpeedLabel.Text = $"{p.Speed:F1}{Get("Sim_SpeedUnit")}";
 
-            var battColor = p.BattPct > 30 ? BrushAmber : BrushRed;
+            var battColor = p.BattPct > 30 ? BrushGreen : p.BattPct > 10 ? BrushAmber : BrushRed;
             BattLabel.Text = $"{p.BattPct:F0}% · {p.Voltage:F1}В";
             BattLabel.Foreground = battColor;
 
-            bool gpsOk = p.GpsFixType >= 3;
+            bool gcsOk = _drone.IsGcsConnected;
+            GcsDot.Fill = gcsOk ? BrushGreen : BrushMuted;
+            GcsLabel.Foreground = gcsOk ? BrushGreen : BrushMuted;
+            GcsLabel.Text = gcsOk ? Get("Sim_GcsConnected") : Get("Sim_GcsDisconnected");
             GpsLabel.Text = gpsOk
                 ? Fmt("Sim_GpsOk", p.SatCount)
                 : Fmt("Sim_GpsLost", p.SatCount);
@@ -211,8 +208,8 @@ namespace SimpleDroneGCS
         }
 
         private string GetSelectedScenario() =>
-            (ScenarioCombo?.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString()
-            ?? Get("Sim_ScenarioNormal");
+            (ScenarioCombo?.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString()
+            ?? "normal";
 
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

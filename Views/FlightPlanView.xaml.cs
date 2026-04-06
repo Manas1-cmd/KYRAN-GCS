@@ -1894,21 +1894,7 @@ namespace SimpleDroneGCS.Views
             return grid;
         }
 
-        private void AltitudeBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            var textBox = sender as TextBox;
-            var wp = textBox?.Tag as WaypointItem;
-            if (wp != null && double.TryParse(textBox.Text, out double altitude))
-            {
-                wp.Altitude = altitude;
-                System.Diagnostics.Debug.WriteLine($"Waypoint {wp.Number} высота изменена на: {altitude}м");
-            }
-            else if (textBox != null)
-            {
-
-                textBox.Text = wp?.Altitude.ToString("F0") ?? "100";
-            }
-        }
+        
 
         private void TakeoffAltitudeBox_LostFocus(object sender, RoutedEventArgs e)
         {
@@ -2152,6 +2138,8 @@ namespace SimpleDroneGCS.Views
 
                 PlanMap.Markers.Clear();
                 _droneMarker = null;
+                _navBearingMarker = null;
+                _trackMarkers.Clear();
                 _waypoints.Clear();
                 _homePosition = null;
                 _resizeHandles.Clear();
@@ -2360,6 +2348,8 @@ namespace SimpleDroneGCS.Views
 
                 PlanMap.Markers.Clear();
                 _droneMarker = null;
+                _navBearingMarker = null;
+                _trackMarkers.Clear();
                 _waypoints.Clear();
                 _homePosition = null;
                 _resizeHandles.Clear();
@@ -2545,6 +2535,8 @@ namespace SimpleDroneGCS.Views
 
                 PlanMap.Markers.Clear();
                 _droneMarker = null;
+                _navBearingMarker = null;
+                _trackMarkers.Clear();
 
                 _waypoints.Clear();
 

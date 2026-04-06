@@ -103,10 +103,10 @@
                            VerticalAlignment="Center" Margin="0,0,4,0"/>
                 <ComboBox x:Name="ScenarioCombo" Width="150" Margin="0,0,10,0" 
                           SelectionChanged="ScenarioCombo_SelectionChanged" Foreground="#0D1733">
-                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioNormal}" IsSelected="True"/>
-                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioGpsLoss}"/>
-                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioBatt}"/>
-                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioRc}"/>
+                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioNormal}" Tag="normal" IsSelected="True"/>
+                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioGpsLoss}" Tag="gps"/>
+                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioBatt}" Tag="batt"/>
+                    <ComboBoxItem Content="{DynamicResource Sim_ScenarioRc}" Tag="rc"/>
                 </ComboBox>
 
                 <!-- Spacer -->

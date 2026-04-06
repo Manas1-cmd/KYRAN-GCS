@@ -80,6 +80,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             fallback.Tick += (s, args) =>
             {
                 fallback.Stop();
+                if (_isClosed) return;
                 if (_waitingForDrone)
                 {
                     int next = _currentStep + 1;

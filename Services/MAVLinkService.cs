@@ -535,8 +535,6 @@ namespace SimpleDroneGCS.Services
             {
                 Debug.WriteLine("[MAVLink] ⚠️ Потеря связи: нет heartbeat > 5 сек");
                 ErrorOccurred?.Invoke(this, Get("Msg_ConnectionLost"));
-                ConnectionStatusChanged?.Invoke(this, Get("Msg_ConnectionLost"));
-                ConnectionStatusChanged_Bool?.Invoke(this, false);
                 Disconnect();
             }
         }
@@ -756,6 +754,8 @@ namespace SimpleDroneGCS.Services
 
         private void ProcessHomePosition(MAVLink.MAVLinkMessage msg)
         {
+            if (CurrentTelemetry?.RelativeAltitude >= 2.0) return;
+
             var home = (MAVLink.mavlink_home_position_t)msg.data;
             HomeLat = home.latitude / 1e7;
             HomeLon = home.longitude / 1e7;
