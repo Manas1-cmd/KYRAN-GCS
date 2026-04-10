@@ -44,6 +44,19 @@ namespace SimpleDroneGCS.UI.Dialogs
             StartButton.IsEnabled = false;
             StartButton.Content = Get("AccelCalib_GoingBtn");
 
+            PositionTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
+            CancelButton.Content = Get("Cancel");
+            CalibProgress.Value = 0;
+            CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
+            foreach (var ind in _stepIndicators)
+            {
+                ind.Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x2A, 0x43, 0x61));
+                ind.BorderBrush = new SolidColorBrush(Color.FromArgb(0x1A, 0x2A, 0x43, 0x61));
+                ind.BorderThickness = new Thickness(0);
+                if (ind.Child is TextBlock tb && tb.Text.StartsWith("✓ "))
+                    tb.Text = tb.Text.Substring(2);
+            }
+
             _mavlink.SendPreflightCalibration(accelerometer: true);
 
             StatusText.Text = Get("AccelCalib_Waiting");
@@ -70,7 +83,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             NextButton.IsEnabled = false;
             NextButton.Opacity = 0.4;
 
-            _mavlink.SendCommandLong(42429, param1: _currentStep);
+            _mavlink.SendCommandLong(42429, param1: _currentStep + 1);
 
             StatusText.Text = Get("AccelCalib_Collecting");
             _waitingForDrone = true;
@@ -288,7 +301,12 @@ namespace SimpleDroneGCS.UI.Dialogs
             StatusText.Text = message;
         }
 
-        private void CancelButton_Click(object sender, RoutedEventArgs e) => Close();
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_waitingForDrone || _currentStep >= 0)
+                _mavlink.SendPreflightCalibration();
+            Close();
+        }
 
         protected override void OnClosed(EventArgs e)
         {

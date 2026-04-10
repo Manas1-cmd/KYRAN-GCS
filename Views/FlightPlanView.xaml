@@ -51,7 +51,7 @@
                         </StackPanel>
                         <Border Background="#1598F019" Height="1" Margin="0,4"/>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{DynamicResource Alt}" Foreground="#6B7280" FontSize="9" Width="28"/>
+                            <TextBlock Text="{DynamicResource Alt}" Foreground="#6B7280" FontSize="9" Width="40"/>
                             <TextBlock x:Name="CursorAltText" Text="—" Foreground="{StaticResource AcidGreen}" FontSize="10" FontWeight="Bold"/>
                         </StackPanel>
                     </StackPanel>

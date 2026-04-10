@@ -120,12 +120,32 @@ namespace SimpleDroneGCS.UI.Dialogs
             _elapsedSeconds = 0;
             _lastCompletionPct = 0;
 
-            for (int i = 0; i < 80; i++) _sectorsCovered[i] = false;
+            for (int i = 0; i < 80; i++)
+            {
+                if (_sectorsCovered[i])
+                {
+                    Canvas.SetLeft(_sectorDots[i], Canvas.GetLeft(_sectorDots[i]) + 1);
+                    Canvas.SetTop(_sectorDots[i], Canvas.GetTop(_sectorDots[i]) + 1);
+                }
+                _sectorsCovered[i] = false;
+                _sectorDots[i].Fill = new SolidColorBrush(Color.FromArgb(30, 42, 67, 97));
+                _sectorDots[i].Stroke = new SolidColorBrush(Color.FromArgb(40, 42, 67, 97));
+                _sectorDots[i].Width = 10;
+                _sectorDots[i].Height = 10;
+            }
 
             StartButton.IsEnabled = false;
             StartButton.Content = Get("CompassCalib_GoingBtn");
             AcceptButton.IsEnabled = false;
             AcceptButton.Opacity = 0.4;
+            AcceptButton.Content = Get("CompassCalib_Accept");
+
+            CalibProgress.Value = 0;
+            CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
+            CenterPercent.Text = "0%";
+            StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6698F019"));
+            CoverageText.Text = Fmt("CompassCalib_SectionsCount", 0);
+            FitnessText.Text = "—";
 
             StatusText.Text = Get("CompassCalib_Sending");
             InstructionText.Text = Get("CompassCalib_Rotate");
@@ -142,6 +162,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             Dispatcher.BeginInvoke(() =>
             {
+                if (_completed) return;
                 _lastCompletionPct = completionPct;
                 CalibProgress.Value = completionPct;
                 CenterPercent.Text = $"{completionPct}%";

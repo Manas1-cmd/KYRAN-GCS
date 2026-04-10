@@ -684,7 +684,7 @@
     <sys:String x:Key="Preflight_Val_MotorSkipped">Пропущено</sys:String>
 
     <!-- Simulator -->
-    <sys:String x:Key="Sim_Title">KYRAN GCS — Симулятор</sys:String>
+    <sys:String x:Key="Sim_Title">SQK GCS — Симулятор</sys:String>
     <sys:String x:Key="Sim_BtnStart">▶  Запустить</sys:String>
     <sys:String x:Key="Sim_BtnStop">■  Остановить</sys:String>
     <sys:String x:Key="Sim_ScenarioLabel">Сценарий:</sys:String>

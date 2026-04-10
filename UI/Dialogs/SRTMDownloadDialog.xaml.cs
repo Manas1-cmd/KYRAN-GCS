@@ -94,7 +94,8 @@ namespace SimpleDroneGCS.UI.Dialogs
                 await SRTMService.Instance.PreloadRegionAsync(
                     bounds.minLat, bounds.maxLat,
                     bounds.minLon, bounds.maxLon,
-                    progress);
+                    progress,
+                    _cts.Token);
 
                 UpdateCacheInfo();
                 ProgressText.Text = "✅ Загрузка завершена!";

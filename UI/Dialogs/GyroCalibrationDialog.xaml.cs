@@ -39,9 +39,13 @@ namespace SimpleDroneGCS.UI.Dialogs
             StartButton.IsEnabled = false;
             StartButton.Content = Get("GyroCalib_GoingBtn");
             InstructionText.Text = Get("GyroCalib_InProgress");
+            InstructionText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCDDDD"));
             WarningText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
             WarningText.Text = Get("GyroCalib_DontTouch");
             ProgressText.Text = Get("GyroCalib_Calibrating");
+            ProgressText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6698F019"));
+            CalibProgress.Value = 0;
+            CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
 
             _mavlink.SendPreflightCalibration(gyro: true);
 
@@ -53,7 +57,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             if (_isClosed) { _timer.Stop(); return; }
             _elapsedSeconds++;
-            double progress = Math.Min(100, _elapsedSeconds * 20);
+            double progress = Math.Min(90, _elapsedSeconds * 8);
             CalibProgress.Value = progress;
             ProgressText.Text = Fmt("GyroCalib_Seconds", _elapsedSeconds);
 
@@ -123,7 +127,12 @@ namespace SimpleDroneGCS.UI.Dialogs
             StartButton.Content = success ? Get("GyroCalib_DoneBtn") : Get("GyroCalib_RetryBtn");
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_calibrating)
+                _mavlink.SendPreflightCalibration();
+            Close();
+        }
 
         protected override void OnClosed(EventArgs e)
         {
