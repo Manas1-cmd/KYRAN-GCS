@@ -523,6 +523,7 @@ namespace SimpleDroneGCS.Services
 
                     byte d2 = data[off + 31];
                     RecordingActive = (d2 & 0x03) == 1;
+                    _isRecording = RecordingActive; // sync internal state from camera telemetry
                     EoDigitalZoom = (byte)(((d2 >> 6) & 0x0F) + 1);
                     TrackStatus = (byte)((d2 >> 2) & 0x0F);
 

@@ -59,6 +59,17 @@ namespace SimpleDroneGCS.Views
             Closed += OnWindowClosed;
             Loaded += OnWindowLoaded;
 
+            Deactivated += (s, e) =>
+            {
+                _keyW = _keyA = _keyS = _keyD = false;
+                _keyZoomIn = _keyZoomOut = false;
+                _keyFocusFar = _keyFocusNear = false;
+                _joystickActive = false;
+                _joyX = 0; _joyY = 0;
+                _cam?.StopGimbal();
+                _cam?.ZoomStop();
+            };
+
             UpdateStatus("Инициализация...");
         }
 
@@ -242,9 +253,11 @@ namespace SimpleDroneGCS.Views
 
             if (yaw != 0 || pitch != 0)
                 _cam.SetGimbalSpeed(yaw, pitch);
-            else if (!_keyW && !_keyA && !_keyS && !_keyD && !_joystickActive)
+            else if (_joystickActive)
+                _cam.StopGimbal();
+            else if (!_keyW && !_keyA && !_keyS && !_keyD)
             {
-                // только если не нажаты — стоп не дёргаем постоянно (уже отправили)
+                // idle — стоп уже был отправлен
             }
 
             if (_keyZoomIn) _cam.ZoomIn();

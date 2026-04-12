@@ -132,6 +132,8 @@ namespace SimpleDroneGCS.Views
 
                 _mavlinkService.TelemetryUpdated += OnTelemetryReceived;
 
+                _mavlinkService.ConnectionStatusChanged_Bool += OnConnectionStatusChanged;
+
                 _telemetryTimer = new DispatcherTimer
                 {
                     Interval = TimeSpan.FromMilliseconds(50)
@@ -190,6 +192,7 @@ namespace SimpleDroneGCS.Views
                     {
                         _mavlinkService.TelemetryUpdated -= OnTelemetryReceived;
                         _mavlinkService.MissionProgressUpdated -= OnMissionProgressUpdated;
+                        _mavlinkService.ConnectionStatusChanged_Bool -= OnConnectionStatusChanged;
                     }
 
                     if (_droneUpdateTimer != null)
@@ -636,6 +639,18 @@ namespace SimpleDroneGCS.Views
                 e.Handled = true;
             };
 
+            // Баг 6: Alt+Tab или потеря фокуса во время drag теряет capture без MouseLeftButtonUp
+            // → CanDragMap навсегда остаётся false. LostMouseCapture сбрасывает состояние.
+            shape.LostMouseCapture += (s, e) =>
+            {
+                if (_currentDragMarker == marker)
+                {
+                    PlanMap.CanDragMap = true;
+                    _currentDragMarker = null;
+                    UpdateRoute();
+                }
+            };
+
             shape.MouseMove += (s, e) =>
             {
                 if (_currentDragMarker == marker && shape.IsMouseCaptured)
@@ -678,6 +693,13 @@ namespace SimpleDroneGCS.Views
 
             shape.MouseRightButtonDown += (s, e) =>
             {
+                // Баг 7: ПКМ во время drag (ЛКМ зажата) не сбрасывал CanDragMap
+                if (_currentDragMarker == marker)
+                {
+                    shape.ReleaseMouseCapture();
+                    PlanMap.CanDragMap = true;
+                    _currentDragMarker = null;
+                }
                 RemoveWaypoint(waypoint);
                 e.Handled = true;
             };
@@ -1209,7 +1231,7 @@ namespace SimpleDroneGCS.Views
             }
         }
 
-         private double CalculateBearing(double lat1, double lon1, double lat2, double lon2)
+        private double CalculateBearing(double lat1, double lon1, double lat2, double lon2)
         {
             double dLon = (lon2 - lon1) * Math.PI / 180;
             double lat1Rad = lat1 * Math.PI / 180;
@@ -1748,14 +1770,14 @@ namespace SimpleDroneGCS.Views
                 System.Diagnostics.Debug.WriteLine(
                     $"[REALTIME] ✅ Done, seqBefore={seqBeforeUpload} seqAfter={seqAfterUpload} resume={resumeSeq}");
             }
-            catch (OperationCanceledException) {  }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[REALTIME] Ошибка: {ex.Message}");
             }
         }
 
-        
+
 
         private void AddHomeMarkerToMap(WaypointItem home)
         {
@@ -1894,7 +1916,7 @@ namespace SimpleDroneGCS.Views
             return grid;
         }
 
-        
+
 
         private void TakeoffAltitudeBox_LostFocus(object sender, RoutedEventArgs e)
         {
@@ -2510,12 +2532,12 @@ namespace SimpleDroneGCS.Views
                 case 85: return "VTOL_LAND";
                 case 93: return "DELAY";
                 case 178: return "CHANGE_SPEED";
-                case 3000: return "VTOL_TRANSITION_FW"; 
+                case 3000: return "VTOL_TRANSITION_FW";
                 default: return "WAYPOINT";
             }
         }
 
-        
+
         private string ConvertMAVCmdToCommandTypeWithParam(ushort cmd, double param1)
         {
             if (cmd == 3000)
@@ -3739,6 +3761,16 @@ namespace SimpleDroneGCS.Views
         private void ShowNotConnectedMessage()
         {
             AppMessageBox.ShowWarning(Get("Msg_DroneNotConnected"), owner: OwnerWindow);
+        }
+
+        private void OnConnectionStatusChanged(object sender, bool connected)
+        {
+            if (!connected)
+                Dispatcher.Invoke(() =>
+                {
+                    _isMissionFrozen = false;
+                    _suppressMissionNotify = false;
+                });
         }
 
         private void OnTelemetryReceived(object sender, Telemetry telemetry)

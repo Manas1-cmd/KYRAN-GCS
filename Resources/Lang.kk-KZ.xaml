@@ -448,6 +448,9 @@
     <sys:String x:Key="Msg_SetHome">HOME орнатыңыз!</sys:String>
     <sys:String x:Key="Msg_MissionUploadError">Миссияны жүктеу қатесі</sys:String>
     <sys:String x:Key="Msg_ArmFailed">Дронды белсендіру мүмкін болмады</sys:String>
+    <sys:String x:Key="Msg_ArmRejectedTemp">ARM қабылданбады: GPS (3D fix қажет), калибровка және ұшу режимін тексеріңіз</sys:String>
+    <sys:String x:Key="Msg_ArmDenied">ARM тыйым салынды: қауіпсіздік мәселелері — оқиғалар журналын тексеріңіз</sys:String>
+    <sys:String x:Key="Msg_ArmRejectedCode">ARM {0} кодымен қабылданбады — оқиғалар журналын тексеріңіз</sys:String>
     <sys:String x:Key="Msg_MissionActivated">Миссия белсендірілді!</sys:String>
     <sys:String x:Key="Msg_DroneNotArmed">Дрон белсендірілмеген</sys:String>
     <sys:String x:Key="Msg_RestartMissionConfirm">Миссияны басынан қайта бастау керек пе? Дрон HOME нүктесіне оралып, маршрутты қайта орындайды.</sys:String>

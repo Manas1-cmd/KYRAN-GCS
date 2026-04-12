@@ -19,6 +19,9 @@ namespace SimpleDroneGCS.UI.Dialogs
         private bool _completed = false;
         private int _elapsedSeconds = 0;
 
+        private readonly Dictionary<byte, (byte status, float fitness, float ofsX, float ofsY, float ofsZ)> _calReports = new();
+        private DispatcherTimer _reportCollectTimer;
+
         private readonly bool[] _sectorsCovered = new bool[80];
         private readonly List<Ellipse> _sectorDots = new List<Ellipse>();
         private byte _lastCompletionPct = 0;
@@ -119,6 +122,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             _completed = false;
             _elapsedSeconds = 0;
             _lastCompletionPct = 0;
+            _calReports.Clear();
 
             for (int i = 0; i < 80; i++)
             {
@@ -189,43 +193,71 @@ namespace SimpleDroneGCS.UI.Dialogs
         {
             Dispatcher.BeginInvoke(() =>
             {
-                _timer.Stop();
-                _calibrating = false;
-                _completed = true;
+                if (_completed) return;
+                _calReports[compassId] = (calStatus, fitness, ofsX, ofsY, ofsZ);
 
-                bool success = calStatus == 4;
-
-                CalibProgress.Value = 100;
-                CenterPercent.Text = success ? "✓" : "✗";
-
-                if (success)
+                // Ждём 400мс — вдруг придёт второй компас
+                _reportCollectTimer?.Stop();
+                _reportCollectTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+                _reportCollectTimer.Tick += (s, e) =>
                 {
-                    CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
-                    StatusText.Text = Get("CompassCalib_SuccessStatus");
-                    StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
+                    _reportCollectTimer.Stop();
+                    _timer.Stop();
+                    _calibrating = false;
+                    _completed = true;
 
-                    FitnessText.Text = $"{fitness:F1}";
-                    FitnessText.Foreground = new SolidColorBrush(
-                        (Color)ColorConverter.ConvertFromString(fitness < 25 ? "#98F019" : fitness < 50 ? "#FFAA00" : "#FF4444"));
+                    // Берём худший результат среди всех компасов
+                    bool allSuccess = true;
+                    float worstFitness = 0;
+                    byte worstStatus = 4;
+                    byte worstId = 0;
+                    float wOfsX = 0, wOfsY = 0, wOfsZ = 0;
 
-                    DroneStatusText.Text = $"Offsets: X={ofsX:F1}  Y={ofsY:F1}  Z={ofsZ:F1}  |  Fitness={fitness:F1}";
-                    InstructionText.Text = Get("CompassCalib_SuccessInstruction");
+                    foreach (var kv in _calReports)
+                    {
+                        var r = kv.Value;
+                        if (r.status != 4) { allSuccess = false; worstStatus = r.status; worstId = kv.Key; }
+                        if (r.fitness > worstFitness)
+                        {
+                            worstFitness = r.fitness;
+                            wOfsX = r.ofsX; wOfsY = r.ofsY; wOfsZ = r.ofsZ;
+                            if (allSuccess) worstId = kv.Key;
+                        }
+                    }
 
-                    AcceptButton.IsEnabled = true;
-                    AcceptButton.Opacity = 1.0;
-                }
-                else
-                {
-                    CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-                    StatusText.Text = Fmt("CompassCalib_ErrorStatus", calStatus);
-                    StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
-                    InstructionText.Text = Get("CompassCalib_ErrorInstruction");
+                    CalibProgress.Value = 100;
+                    CenterPercent.Text = allSuccess ? "✓" : "✗";
 
-                    StartButton.IsEnabled = true;
-                    StartButton.Content = Get("CompassCalib_RetryBtn");
-                }
+                    string compassInfo = _calReports.Count > 1 ? $" ({_calReports.Count} компаса)" : "";
 
-                Debug.WriteLine($"[CompassCalib] Report: status={calStatus}, fitness={fitness}");
+                    if (allSuccess)
+                    {
+                        CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
+                        StatusText.Text = Get("CompassCalib_SuccessStatus") + compassInfo;
+                        StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#98F019"));
+                        FitnessText.Text = $"{worstFitness:F1}";
+                        FitnessText.Foreground = new SolidColorBrush(
+                            (Color)ColorConverter.ConvertFromString(worstFitness < 25 ? "#98F019" : worstFitness < 50 ? "#FFAA00" : "#FF4444"));
+                        DroneStatusText.Text = $"Offsets: X={wOfsX:F1}  Y={wOfsY:F1}  Z={wOfsZ:F1}  |  Fitness={worstFitness:F1}{compassInfo}";
+                        InstructionText.Text = Get("CompassCalib_SuccessInstruction");
+                        AcceptButton.IsEnabled = true;
+                        AcceptButton.Opacity = 1.0;
+                    }
+                    else
+                    {
+                        CalibProgress.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
+                        StatusText.Text = Fmt("CompassCalib_ErrorStatus", worstStatus) + $" MAG#{worstId + 1}";
+                        StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4444"));
+                        InstructionText.Text = Get("CompassCalib_ErrorInstruction");
+                        StartButton.IsEnabled = true;
+                        StartButton.Content = Get("CompassCalib_RetryBtn");
+                    }
+
+                    Debug.WriteLine($"[CompassCalib] Итог: {_calReports.Count} компасов, success={allSuccess}, worstFitness={worstFitness}");
+                };
+                _reportCollectTimer.Start();
+
+                Debug.WriteLine($"[CompassCalib] Report MAG#{compassId}: status={calStatus}, fitness={fitness}");
             });
         }
 
@@ -273,6 +305,7 @@ namespace SimpleDroneGCS.UI.Dialogs
 
         protected override void OnClosed(EventArgs e)
         {
+            _reportCollectTimer?.Stop();
             _timer.Stop();
             _mavlink.OnStatusTextReceived -= OnStatusText;
             _mavlink.OnMagCalProgress -= OnMagCalProgress;

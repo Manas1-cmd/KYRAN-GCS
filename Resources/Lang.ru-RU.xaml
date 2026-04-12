@@ -448,6 +448,9 @@
     <sys:String x:Key="Msg_SetHome">Установите HOME!</sys:String>
     <sys:String x:Key="Msg_MissionUploadError">Ошибка загрузки миссии</sys:String>
     <sys:String x:Key="Msg_ArmFailed">Не удалось активировать дрон</sys:String>
+    <sys:String x:Key="Msg_ArmRejectedTemp">ARM отклонён: проверьте GPS (нужен 3D fix), калибровку и режим полёта</sys:String>
+    <sys:String x:Key="Msg_ArmDenied">ARM запрещён: серьёзные проблемы безопасности — проверьте журнал событий</sys:String>
+    <sys:String x:Key="Msg_ArmRejectedCode">ARM отклонён с кодом {0} — проверьте журнал событий</sys:String>
     <sys:String x:Key="Msg_MissionActivated">Миссия активирована!</sys:String>
     <sys:String x:Key="Msg_DroneNotArmed">Дрон не активирован</sys:String>
     <sys:String x:Key="Msg_RestartMissionConfirm">Перезапустить миссию с начала? Дрон вернётся к точке HOME и выполнит маршрут заново.</sys:String>
