@@ -505,7 +505,18 @@ namespace SimpleDroneGCS.UI.Dialogs
             Latitude = lat;
             Longitude = lng;
             Altitude = Math.Max(0, alt);
-            Radius = Math.Max(5, Math.Min(500, rad));
+
+            string selectedCmd = (_commandCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "WAYPOINT";
+            bool isLoiterCmd = selectedCmd is "LOITER_UNLIM" or "LOITER_TURNS" or "LOITER_TIME";
+            double minRadius = isLoiterCmd ? 100.0 : 5.0;
+            if (rad < minRadius)
+            {
+                MessageBox.Show($"Минимальный радиус для этой команды: {minRadius} м",
+                    Get("Error"), MessageBoxButton.OK, MessageBoxImage.Warning);
+                _radBox.Text = minRadius.ToString("F0");
+                return;
+            }
+            Radius = Math.Max(minRadius, Math.Min(500, rad));
             Delay = Math.Max(0, delay);
             LoiterTurns = Math.Max(0, turns);
             Speed = Math.Max(1, speed);
