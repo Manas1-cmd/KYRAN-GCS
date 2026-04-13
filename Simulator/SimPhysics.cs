@@ -347,6 +347,12 @@ namespace SimpleDroneGCS.Simulator
                     if (_wpOrbitDone >= targetTurns)
                         AdvanceWaypoint();
                 }
+                else if (wp.Command == 17)
+                {
+                    // NAV_LOITER_UNLIM: в симуляторе делаем 1 полный круг затем идём дальше
+                    if (_wpOrbitDone >= 1.0)
+                        AdvanceWaypoint();
+                }
                 else
                 {
                     _wpWaitRemaining -= dt;
@@ -426,7 +432,7 @@ namespace SimpleDroneGCS.Simulator
                 16 => wp.Param1 > 0 ? wp.Param1 : 0,
                 82 => wp.Param1 > 0 ? wp.Param1 : 0,
                 19 => wp.Param1 > 0 ? wp.Param1 : 0,
-                17 => 99999,
+                17 => 0,    // NAV_LOITER_UNLIM — выход по завершению 1 круга
                 93 => wp.Param1 > 0 ? wp.Param1 : 0,
                 _ => 0
             };

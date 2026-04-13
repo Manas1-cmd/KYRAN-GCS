@@ -168,7 +168,7 @@
     <sys:String x:Key="Udp_Hint2">💡 Жергілікті IP 0.0.0.0 = барлық желілік интерфейстер</sys:String>
 
     <!-- ==================== КАМЕРА ТЕРЕЗЕСІ / CAMERA WINDOW ==================== -->
-    <sys:String x:Key="Cam_Title">Камера басқару — Z30T</sys:String>
+    <sys:String x:Key="Cam_Title">Камера басқару</sys:String>
     <sys:String x:Key="Cam_Heading">Бағыт: --</sys:String>
     <sys:String x:Key="Cam_Pitch">Тангаж: --</sys:String>
     <sys:String x:Key="Cam_Roll">Крен: --</sys:String>

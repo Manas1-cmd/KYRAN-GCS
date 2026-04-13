@@ -33,7 +33,6 @@ namespace SimpleDroneGCS.Services
         private CancellationTokenSource _cts;
         private MavlinkParse _parser;
         private int _packetSequence = 0;
-        private readonly object _sendLock = new object();
         private DispatcherTimer _heartbeatTimer;
         private DispatcherTimer _telemetryRequestTimer;
         private DateTime _connectionStartTime = DateTime.MinValue;
@@ -65,7 +64,7 @@ namespace SimpleDroneGCS.Services
         private int _missionDownloadExpectedCount = 0;
         private bool _isDownloading = false;
         private readonly SemaphoreSlim _downloadLock = new SemaphoreSlim(1, 1);
-        private volatile bool _telemetryDirty = false;
+        private bool _telemetryDirty = false;
 
         private static readonly Dictionary<uint, string> _copterModeNames = new()
         {
@@ -1110,20 +1109,14 @@ namespace SimpleDroneGCS.Services
                     System.Diagnostics.Debug.WriteLine("   • GPS Fix (нужен 3D)");
                     System.Diagnostics.Debug.WriteLine("   • Калибровка завершена");
                     System.Diagnostics.Debug.WriteLine("   • Режим полета подходит");
-                    System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
-                        ErrorOccurred?.Invoke(this, Get("Msg_ArmRejectedTemp")));
                 }
                 else if (ack.result == (byte)MAVLink.MAV_RESULT.DENIED)
                 {
                     System.Diagnostics.Debug.WriteLine("❌ ARM ОТКЛОНЕНА - серьезные проблемы безопасности");
-                    System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
-                        ErrorOccurred?.Invoke(this, Get("Msg_ArmDenied")));
                 }
                 else
                 {
                     System.Diagnostics.Debug.WriteLine($"❌ ARM ОТКЛОНЕНА: {resultName} (код {ack.result})");
-                    System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
-                        ErrorOccurred?.Invoke(this, Fmt("Msg_ArmRejectedCode", ack.result)));
                 }
             }
             else if (ack.command == 209)
@@ -1504,7 +1497,7 @@ namespace SimpleDroneGCS.Services
                 command = 209,
                 confirmation = 0,
                 param1 = motorNumber,
-                param2 = 0,
+                param2 = 1,
                 param3 = throttlePct,
                 param4 = durationSec,
                 param5 = 0,
@@ -2087,6 +2080,12 @@ namespace SimpleDroneGCS.Services
                 mavCmd = (ushort)MAVLink.MAV_CMD.LOITER_UNLIM;
             }
 
+            else if (wp.CommandType == "LOITER_UNLIM" && wp.AutoNext)
+            {
+                // AutoNext=true + LOITER_UNLIM → делаем 1 круг и идём дальше
+                mavCmd = 18; // LOITER_TURNS
+            }
+
             else if (wp.LoiterTurns > 0 && isNavCommand)
             {
                 mavCmd = 18;
@@ -2106,6 +2105,13 @@ namespace SimpleDroneGCS.Services
 
             if (mavCmd == (ushort)MAVLink.MAV_CMD.LOITER_UNLIM)
             {
+                param3 = signedRadius;
+            }
+
+            else if (mavCmd == 18 && wp.CommandType == "LOITER_UNLIM")
+            {
+                // LOITER_UNLIM с AutoNext=true → 1 круг
+                param1 = wp.LoiterTurns > 0 ? (float)wp.LoiterTurns : 1f;
                 param3 = signedRadius;
             }
 
@@ -2405,23 +2411,22 @@ namespace SimpleDroneGCS.Services
 
                 if (packet == null || packet.Length == 0) return;
 
-                lock (_sendLock)
+                if (_isUdpMode && _udpClient != null)
                 {
-                    if (_isUdpMode && _udpClient != null)
+                    if (_remoteEndPoint != null)
                     {
-                        if (_remoteEndPoint != null)
-                        {
-                            _udpClient.Send(packet, packet.Length, _remoteEndPoint);
-                            TotalPacketsSent++;
-                            DroneStatus.PacketsSent++;
-                        }
-                    }
-                    else if (_serialPort != null && _serialPort.IsOpen)
-                    {
-                        _serialPort.Write(packet, 0, packet.Length);
+                        _udpClient.Send(packet, packet.Length, _remoteEndPoint);
                         TotalPacketsSent++;
                         DroneStatus.PacketsSent++;
                     }
+
+                }
+
+                else if (_serialPort != null && _serialPort.IsOpen)
+                {
+                    _serialPort.Write(packet, 0, packet.Length);
+                    TotalPacketsSent++;
+                    DroneStatus.PacketsSent++;
                 }
             }
             catch (Exception ex)

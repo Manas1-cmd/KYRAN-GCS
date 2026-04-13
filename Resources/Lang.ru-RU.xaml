@@ -168,7 +168,7 @@
     <sys:String x:Key="Udp_Hint2">💡 Локальный IP 0.0.0.0 = все сетевые интерфейсы</sys:String>
 
     <!-- ==================== CAMERA WINDOW ==================== -->
-    <sys:String x:Key="Cam_Title">Управление камерой — Z30T</sys:String>
+    <sys:String x:Key="Cam_Title">Управление камерой</sys:String>
     <sys:String x:Key="Cam_Heading">Курс: --</sys:String>
     <sys:String x:Key="Cam_Pitch">Тангаж: --</sys:String>
     <sys:String x:Key="Cam_Roll">Крен: --</sys:String>
