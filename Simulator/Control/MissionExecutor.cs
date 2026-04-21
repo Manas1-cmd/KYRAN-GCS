@@ -92,6 +92,20 @@ namespace SimpleDroneGCS.Simulator.Control
         private MissionExecState _state = MissionExecState.Idle;
 
         private double _loiterElapsedSec;
+        private double _wpTraceTimer = 0;
+
+
+        // Path following — координаты предыдущей точки трека.
+        // Используется чтобы лететь по линии From→To, а не "напрямую к To".
+        private double _prevWpLat = double.NaN;
+        private double _prevWpLon = double.NaN;
+
+        // Орбита вокруг WP (облёт точки на её радиусе).
+        // true пока ВС облетает текущую WP по кругу до выхода на следующую.
+        private bool _orbiting = false;
+        // Направление облёта: true=по часовой, false=против. Выбирается так чтобы
+        // дуга была минимальной (зависит от положения next WP).
+        private bool _orbitClockwise = true;
         private double _cruiseSpeedMs;   // обновляется DO_CHANGE_SPEED
         private bool _rtlActive;
 
@@ -108,6 +122,9 @@ namespace SimpleDroneGCS.Simulator.Control
 
         /// <summary>Миссия полностью пройдена.</summary>
         public event EventHandler MissionCompleted;
+
+        /// <summary>Диагностический лог для UI (переходы, timeout и т.д.).</summary>
+        public event EventHandler<string> DiagnosticLog;
 
         // ---- Публичные свойства ----
 
@@ -135,6 +152,28 @@ namespace SimpleDroneGCS.Simulator.Control
 
         public bool IsRtlActive { get { lock (_lock) return _rtlActive; } }
 
+        /// <summary>Текущая команда миссии (или null если не активна).</summary>
+        public MissionCommand? CurrentCommand
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    if (_items.Length == 0 || _currentIndex < 0 ||
+                        _currentIndex >= _items.Length) return null;
+                    return _items[_currentIndex].Command;
+                }
+            }
+        }
+
+        /// <summary>Текущая крейсерская скорость (из DO_CHANGE_SPEED), м/с.</summary>
+        public double CurrentCruiseSpeedMs { get { lock (_lock) return _cruiseSpeedMs; } }
+
+        /// <summary>
+        /// Текущий "работающий" режим VTOL (обновляется через TRANSITION_FW/MC).
+        /// </summary>
+        public ControlMode CurrentRegime { get { lock (_lock) return _currentRegime; } }
+
         // =====================================================================
         // Lifecycle
         // =====================================================================
@@ -152,6 +191,10 @@ namespace SimpleDroneGCS.Simulator.Control
                 _state = MissionExecState.Idle;
                 _loiterElapsedSec = 0;
                 _rtlActive = false;
+
+                // Разумный дефолт скорости, если GCS не пришлёт DO_CHANGE_SPEED.
+                // 18 м/с — между v_transition (17) и v_cruise (22) для VTOL.
+                if (_cruiseSpeedMs <= 0) _cruiseSpeedMs = 18.0;
             }
         }
 
@@ -197,6 +240,19 @@ namespace SimpleDroneGCS.Simulator.Control
                 _state = MissionExecState.Navigating;
                 _rtlActive = false;
                 _loiterElapsedSec = 0;
+
+                // Path following: точкой "From" для первого WP считаем HOME (item 0).
+                if (_items.Length > 0 && _items[0].Seq == 0)
+                {
+                    _prevWpLat = _items[0].Lat;
+                    _prevWpLon = _items[0].Lon;
+                }
+                else
+                {
+                    _prevWpLat = double.NaN;
+                    _prevWpLon = double.NaN;
+                }
+
                 seqChanged = _items[_currentIndex].Seq;
                 fire = true;
             }
@@ -328,33 +384,232 @@ namespace SimpleDroneGCS.Simulator.Control
         // Handlers
         // =====================================================================
 
+        // =====================================================================
+        // DUBINS PATH NAVIGATION
+        //
+        // Классический алгоритм для fixed-wing UAV. ВС летит по схеме:
+        //   prev_WP → касательная → круг радиуса R → касательная → next_WP
+        //
+        // Вычисление точки касания из внешней точки:
+        //   d = distance(P, C)
+        //   α = arccos(R / d)         — угол между PC и касательной
+        //   tangent_len = √(d² - R²)
+        //   T = C + R·[cos(bearing_C→P ± α), sin(bearing_C→P ± α)]
+        //
+        // Знак ± определяется направлением облёта (по/против часовой).
+        // Направление облёта выбирается чтобы дуга была МИНИМАЛЬНОЙ.
+        // =====================================================================
+
         private ControlCommand HandleWaypoint(double dt, SimState state, in MissionItem item)
         {
             _state = MissionExecState.Navigating;
 
-            double dist = Navigator.DistanceM(
-                state.Position.Lat, state.Position.Lon, item.Lat, item.Lon);
+            double lat = state.Position.Lat;
+            double lon = state.Position.Lon;
             double altErr = Math.Abs(state.Position.AltRelative - item.AltRelative);
-            double acceptRadius = GetAcceptanceRadius(state, in item);
 
-            UpdateNavStatus(state, in item, dist);
+            // Радиус облёта — из item.Param2 или дефолт.
+            double R = item.Param2 > 0
+                ? item.Param2
+                : ((_currentRegime == ControlMode.FixedWing) ? 80.0 : 5.0);
 
-            if (dist < acceptRadius && altErr < 5.0)
+            // Координаты From и Next (для расчёта касательных).
+            double prevLat = double.IsNaN(_prevWpLat) ? lat : _prevWpLat;
+            double prevLon = double.IsNaN(_prevWpLon) ? lon : _prevWpLon;
+            MissionItem? nextWp = FindNextWpWithCoordinates();
+
+            // Расчёт точки касания ENTRY (касательная из prev_WP к кругу).
+            double entryLat, entryLon;
+            int orbitDir;  
+
+            // Направление облёта определяем через cross product
+            // (prev→WP) × (WP→next). Знак показывает с какой стороны next.
+            if (nextWp.HasValue)
             {
-                AdvanceToNextItem(in item);
-                return BuildHoldCommand(state);
+                // Векторы в локальных метрах (плоская проекция)
+                double mPerLat = Navigator.MetersPerDegLat;
+                double mPerLon = mPerLat * Math.Cos(item.Lat * Navigator.DegToRad);
+
+                double v1n = (item.Lat - prevLat) * mPerLat;
+                double v1e = (item.Lon - prevLon) * mPerLon;
+                double v2n = (nextWp.Value.Lat - item.Lat) * mPerLat;
+                double v2e = (nextWp.Value.Lon - item.Lon) * mPerLon;
+
+                // 2D cross product (Z компонента)
+                double cross = v1n * v2e - v1e * v2n;
+                // ВНЕШНЯЯ дуга (снаружи треугольника):
+                // cross > 0 (поворот налево) → облёт по часовой чтобы обойти с ВНЕШНЕЙ стороны
+                // cross < 0 (поворот направо) → облёт против часовой
+                orbitDir = cross > 0 ? +1 : -1;
+            }
+            else
+            {
+                orbitDir = +1;  // дефолт по часовой если нет next
             }
 
-            return new ControlCommand
+            // ENTRY: точка касания касательной от prev к кругу WP.
+            ComputeTangentPoint(prevLat, prevLon, item.Lat, item.Lon, R, orbitDir,
+                isEntry: true, out entryLat, out entryLon);
+
+            // EXIT: точка касания касательной от next к кругу WP.
+            double exitLat = entryLat, exitLon = entryLon;
+            bool hasNext = nextWp.HasValue;
+            if (hasNext)
             {
-                Mode = DetermineFlightMode(state),
-                HasPositionTarget = true,
-                TargetLat = item.Lat,
-                TargetLon = item.Lon,
-                TargetAltRelative = item.AltRelative,
-                TargetSpeedMs = _cruiseSpeedMs,
-                ThrottleMax = 1.0,
-            };
+                ComputeTangentPoint(nextWp.Value.Lat, nextWp.Value.Lon,
+                    item.Lat, item.Lon, R, orbitDir,
+                    isEntry: false, out exitLat, out exitLon);
+            }
+
+            double dist = Navigator.DistanceM(lat, lon, item.Lat, item.Lon);
+            double distToEntry = Navigator.DistanceM(lat, lon, entryLat, entryLon);
+            double distToExit = Navigator.DistanceM(lat, lon, exitLat, exitLon);
+            UpdateNavStatus(state, in item, dist);
+
+            // Trace
+            _wpTraceTimer += dt;
+            if (_wpTraceTimer >= 2.0)
+            {
+                _wpTraceTimer = 0;
+                DiagnosticLog?.Invoke(this,
+                    $"WP{item.Seq}: dist={dist:F0}m R={R:F0}m dir={(orbitDir > 0 ? "CW" : "CCW")} " +
+                    $"toEntry={distToEntry:F0}m toExit={distToExit:F0}m orbit={_orbiting}");
+            }
+
+            // ---- Состояние полёта: до entry / на дуге / после exit ----
+
+            if (!_orbiting)
+            {
+                // ФАЗА 1: летим к ENTRY-ТОЧКЕ по линии от prev.
+                double entryAccept = Math.Min(20.0, R * 0.3);
+                if (distToEntry < entryAccept)
+                {
+                    _orbiting = true;
+                    DiagnosticLog?.Invoke(this,
+                        $"WP{item.Seq}: ORBIT START tangent=({entryLat:F5},{entryLon:F5})");
+                }
+                else
+                {
+                    // К entry-точке летим НАПРЯМУЮ (без FromLat/Lon).
+                    // Если передать From — физика делает cross-track к линии From→Target
+                    // и игнорирует истинный target. ВС мечется между линией и entry.
+                    return new ControlCommand
+                    {
+                        Mode = DetermineFlightMode(state),
+                        HasPositionTarget = true,
+                        TargetLat = entryLat,
+                        TargetLon = entryLon,
+                        TargetAltRelative = item.AltRelative,
+                        TargetSpeedMs = _cruiseSpeedMs,
+                        ThrottleMax = 1.0,
+                    };
+                }
+            }
+
+            // ФАЗА 2: ОБЛЁТ по дуге. Цель — EXIT-точка.
+            if (hasNext)
+            {
+                double exitAccept = Math.Min(20.0, R * 0.3);
+                if (distToExit < exitAccept)
+                {
+                    DiagnosticLog?.Invoke(this,
+                        $"WP{item.Seq} REACHED (orbit complete at exit tangent)");
+                    _orbiting = false;
+                    _prevWpLat = item.Lat;
+                    _prevWpLon = item.Lon;
+                    AdvanceToNextItem(in item);
+                    return BuildHoldCommand(state);
+                }
+
+                // Цель в орбите: точка ВПЕРЕДИ по дуге на 30° (по выбранному направлению).
+                double bearingFromCenterToVc = Navigator.BearingDeg(item.Lat, item.Lon, lat, lon);
+                double aheadAngle = bearingFromCenterToVc + orbitDir * 30.0;
+                Navigator.OffsetByBearing(item.Lat, item.Lon, aheadAngle, R,
+                    out double aheadLat, out double aheadLon);
+
+                return new ControlCommand
+                {
+                    Mode = DetermineFlightMode(state),
+                    HasPositionTarget = true,
+                    TargetLat = aheadLat,
+                    TargetLon = aheadLon,
+                    TargetAltRelative = item.AltRelative,
+                    TargetSpeedMs = _cruiseSpeedMs,
+                    ThrottleMax = 1.0,
+                };
+            }
+            else
+            {
+                // Последняя WP — после одного захода завершаем.
+                if (altErr < 5.0)
+                {
+                    DiagnosticLog?.Invoke(this, $"WP{item.Seq} REACHED (final WP)");
+                    _orbiting = false;
+                    _prevWpLat = item.Lat;
+                    _prevWpLon = item.Lon;
+                    AdvanceToNextItem(in item);
+                    return BuildHoldCommand(state);
+                }
+
+                // Кружим вокруг.
+                double bearingFromCenterToVc = Navigator.BearingDeg(item.Lat, item.Lon, lat, lon);
+                double aheadAngle = bearingFromCenterToVc + orbitDir * 30.0;
+                Navigator.OffsetByBearing(item.Lat, item.Lon, aheadAngle, R,
+                    out double aheadLat, out double aheadLon);
+
+                return new ControlCommand
+                {
+                    Mode = DetermineFlightMode(state),
+                    HasPositionTarget = true,
+                    TargetLat = aheadLat,
+                    TargetLon = aheadLon,
+                    TargetAltRelative = item.AltRelative,
+                    TargetSpeedMs = _cruiseSpeedMs,
+                    ThrottleMax = 1.0,
+                };
+            }
+        }
+
+        /// <summary>
+        /// Вычисляет точку касания касательной из внешней точки P к кругу
+        /// с центром C радиуса R.
+        ///
+        /// Формула:
+        ///   d = distance(P, C)
+        ///   α = arccos(R / d)         — угол между PC и касательной
+        ///   T = C + R·[cos(bearing(C→P) ± α), sin(bearing(C→P) ± α)]
+        ///
+        /// Знак ± определяется направлением облёта:
+        /// - orbitDir = +1 (CW): для ENTRY используем -α, для EXIT +α
+        /// - orbitDir = -1 (CCW): наоборот
+        /// </summary>
+        private static void ComputeTangentPoint(
+            double pLat, double pLon,
+            double cLat, double cLon, double R,
+            int orbitDir, bool isEntry,
+            out double tLat, out double tLon)
+        {
+            double d = Navigator.DistanceM(pLat, pLon, cLat, cLon);
+            if (d <= R)
+            {
+                // P внутри круга — касательной нет, берём ближайшую точку
+                double bToP = Navigator.BearingDeg(cLat, cLon, pLat, pLon);
+                Navigator.OffsetByBearing(cLat, cLon, bToP, R, out tLat, out tLon);
+                return;
+            }
+
+            // Угол между линией C→P и касательной
+            double alphaDeg = Math.Acos(R / d) * Navigator.RadToDeg;
+            // Bearing от C к P
+            double bCtoP = Navigator.BearingDeg(cLat, cLon, pLat, pLon);
+
+            // Знак выбора стороны касательной — ВНЕШНЯЯ дуга облёта
+            // (снаружи угла треугольника, как у настоящих самолётов).
+            double signEntry = (orbitDir > 0) ? +1.0 : -1.0;
+            double signExit = -signEntry;
+            double angleFromCenter = bCtoP + (isEntry ? signEntry : signExit) * alphaDeg;
+
+            Navigator.OffsetByBearing(cLat, cLon, angleFromCenter, R, out tLat, out tLon);
         }
 
         private ControlCommand HandleTakeoff(double dt, SimState state, in MissionItem item)
@@ -391,6 +646,46 @@ namespace SimpleDroneGCS.Simulator.Control
                 return BuildHoldCommand(state);
             }
 
+            // Если VTOL_LAND содержит координаты (не ноль) — сначала долетаем
+            // туда (обычно это HOME), потом начинаем вертикальную посадку.
+            bool hasLandCoords = Math.Abs(item.Lat) > 1e-6 && Math.Abs(item.Lon) > 1e-6;
+            if (hasLandCoords)
+            {
+                double distToLand = Navigator.DistanceM(
+                    state.Position.Lat, state.Position.Lon, item.Lat, item.Lon);
+                UpdateNavStatus(state, in item, distToLand);
+
+                // Пока далеко от точки посадки — летим к ней ПО ЛИНИИ от prev WP.
+                // Это даёт полёт по плану миссии (по красной линии в GCS).
+                if (distToLand > 30.0)
+                {
+                    return new ControlCommand
+                    {
+                        Mode = DetermineFlightMode(state),
+                        HasPositionTarget = true,
+                        TargetLat = item.Lat,
+                        TargetLon = item.Lon,
+                        FromLat = _prevWpLat,    // ← путевое следование по линии
+                        FromLon = _prevWpLon,
+                        // Держим текущую высоту пока не долетим.
+                        TargetAltRelative = state.Position.AltRelative,
+                        TargetSpeedMs = _cruiseSpeedMs,
+                        ThrottleMax = 1.0,
+                    };
+                }
+
+                // Близко к точке посадки — вертикальный спуск на координатах.
+                return new ControlCommand
+                {
+                    Mode = ControlMode.Landing,
+                    HasPositionTarget = true,
+                    TargetLat = item.Lat,
+                    TargetLon = item.Lon,
+                    ThrottleMax = 1.0,
+                };
+            }
+
+            // Нет координат в LAND — садимся на месте.
             return new ControlCommand
             {
                 Mode = ControlMode.Landing,
@@ -529,25 +824,27 @@ namespace SimpleDroneGCS.Simulator.Control
             _state = MissionExecState.Transitioning;
             _loiterElapsedSec += dt;
 
-            // Условие завершения: airspeed criterion ИЛИ timeout 15 с.
-            bool airspeedOk = wantFw
-                ? state.Velocity.AirSpeed > 17.0
-                : state.Velocity.AirSpeed < 10.0;
-            bool timeout = _loiterElapsedSec > 20.0;
+            // Новая физика: transition по времени.
+            // FW: 5 секунд. MC: 3 секунды.
+            double requiredSec = wantFw ? 5.0 : 3.0;
 
-            if (airspeedOk || timeout)
+            if (_loiterElapsedSec >= requiredSec)
             {
                 _currentRegime = wantFw ? ControlMode.FixedWing : ControlMode.Multirotor;
+                DiagnosticLog?.Invoke(this,
+                    $"Transition → {(wantFw ? "FW" : "MC")} completed ({requiredSec:F0}s, AS={state.Velocity.AirSpeed:F1} m/s)");
                 AdvanceToNextItem(in item);
                 return BuildHoldCommand(state);
             }
 
-            // Во время перехода лететь в направлении следующего WP (чтобы pusher
-            // разгонял ВС по курсу, а не в никуда).
+            // Во время перехода лететь в направлении следующего WP.
             MissionItem? nextWithCoords = FindNextWpWithCoordinates();
             double tgtLat = nextWithCoords?.Lat ?? state.Position.Lat;
             double tgtLon = nextWithCoords?.Lon ?? state.Position.Lon;
-            double tgtAlt = nextWithCoords?.AltRelative ?? state.Position.AltRelative;
+
+            // Target alt НЕ ниже текущей (чтобы не снижаться во время transition).
+            double nextAlt = nextWithCoords?.AltRelative ?? state.Position.AltRelative;
+            double tgtAlt = Math.Max(nextAlt, state.Position.AltRelative);
 
             return new ControlCommand
             {
@@ -678,8 +975,10 @@ namespace SimpleDroneGCS.Simulator.Control
         {
             double wpRadius = item.Param2;
 
+            // VTOL в FW: 50м — fallback для случая когда нет линии From→To.
+            // При path following основной критерий — пересечение траверза WP.
             if (state.Vehicle == VehicleType.Vtol && _currentRegime == ControlMode.FixedWing)
-                return Math.Max(100.0, wpRadius);
+                return wpRadius > 0 ? wpRadius : 50.0;
 
             return wpRadius > 0 ? wpRadius : 5.0;
         }
@@ -714,6 +1013,8 @@ namespace SimpleDroneGCS.Simulator.Control
         private void AdvanceToNextItem(in MissionItem reached)
         {
             _loiterElapsedSec = 0;
+            _wpTraceTimer = 0;
+            _orbiting = false;
 
             MissionItemReached?.Invoke(this, reached.Seq);
 
@@ -734,7 +1035,10 @@ namespace SimpleDroneGCS.Simulator.Control
             }
 
             _state = MissionExecState.Navigating;
-            CurrentItemChanged?.Invoke(this, _items[_currentIndex].Seq);
+            var nextItem = _items[_currentIndex];
+            DiagnosticLog?.Invoke(this,
+                $"Advance to seq {nextItem.Seq}: {nextItem.Command} → ({nextItem.Lat:F5},{nextItem.Lon:F5}) alt={nextItem.AltRelative:F0}");
+            CurrentItemChanged?.Invoke(this, nextItem.Seq);
         }
     }
 }

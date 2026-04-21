@@ -305,6 +305,26 @@ namespace SimpleDroneGCS.Simulator
             HudArm.Foreground = s.Armed
                 ? new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E))
                 : new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF));
+
+            // -------- Диагностика --------
+            if (_drone != null)
+            {
+                DiagCtrlMode.Text = _drone.CurrentControlMode.ToString();
+                DiagMissionState.Text = _drone.MissionState.ToString();
+
+                var cmd = _drone.CurrentMissionCommand;
+                DiagCurrentWp.Text = cmd.HasValue
+                    ? $"{_drone.CurrentMissionSeq}: {cmd.Value}"
+                    : "—";
+
+                DiagVtolRegime.Text = _drone.VtolRegime.ToString();
+                DiagCruiseSpd.Text = $"{_drone.CruiseSpeedMs:F1} м/с";
+                DiagLiftEng.Text = $"{_drone.LiftEngagement:F2}";
+                DiagPusherEng.Text = $"{_drone.PusherEngagement:F2}";
+                DiagVd.Text = $"{s.Velocity.Vd:+0.0;-0.0;0.0} м/с";
+                DiagWpDist.Text = $"{s.NavStatus.WpDistance:F0} м";
+                DiagAltErr.Text = $"{s.NavStatus.AltError:+0.0;-0.0;0.0} м";
+            }
         }
 
         private static string FormatMode(SimState s)
@@ -369,6 +389,39 @@ namespace SimpleDroneGCS.Simulator
                 HudGcs.Text = "Не подкл.";
                 HudGcs.Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF));
             }));
+        }
+
+        // =====================================================================
+        // Title bar (custom chrome)
+        // =====================================================================
+
+        private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+            {
+                MaximizeButton_Click(null, null);
+            }
+            else
+            {
+                try { DragMove(); } catch { /* не перетаскиваем в Maximized */ }
+            }
+        }
+
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
         }
 
         // =====================================================================

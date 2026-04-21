@@ -2,35 +2,35 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Симулятор SQK GCS"
-        Height="720" Width="820"
-        WindowStartupLocation="CenterOwner"
-        Background="#1A1A1A"
-        Foreground="#E0E0E0"
-        FontFamily="Segoe UI"
-        FontSize="12"
-        ResizeMode="CanMinimize">
+        Height="900" Width="1600"
+        MinWidth="1200" MinHeight="700"
+        WindowState="Maximized"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
-        <!-- Общие стили -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Foreground" Value="#6B8CAE"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,0,0,6"/>
         </Style>
 
         <Style x:Key="PanelStyle" TargetType="Border">
-            <Setter Property="Background" Value="#252525"/>
-            <Setter Property="BorderBrush" Value="#3D3D3D"/>
+            <Setter Property="Background" Value="#0A1428"/>
+            <Setter Property="BorderBrush" Value="#1E3A5F"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
         </Style>
 
         <Style x:Key="ActionButton" TargetType="Button">
-            <Setter Property="Background" Value="#3D3D3D"/>
+            <Setter Property="Background" Value="#1E3A5F"/>
             <Setter Property="Foreground" Value="#E0E0E0"/>
-            <Setter Property="BorderBrush" Value="#4D4D4D"/>
+            <Setter Property="BorderBrush" Value="#2A5A8F"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,5"/>
             <Setter Property="Margin" Value="0,2"/>
@@ -49,7 +49,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#4D4D4D"/>
+                                <Setter Property="Background" Value="#2A5A8F"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5"/>
@@ -81,14 +81,14 @@
         </Style>
 
         <Style x:Key="FailureButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="Margin" Value="3"/>
-            <Setter Property="MinWidth" Value="90"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="MinWidth" Value="82"/>
             <Setter Property="FontSize" Value="11"/>
         </Style>
 
         <Style x:Key="HudLabel" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Foreground" Value="#6B8CAE"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
@@ -99,10 +99,17 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
 
+        <Style x:Key="DiagValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#60A5FA"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
         <Style x:Key="InputBox" TargetType="TextBox">
-            <Setter Property="Background" Value="#1A1A1A"/>
+            <Setter Property="Background" Value="#060B1A"/>
             <Setter Property="Foreground" Value="#E0E0E0"/>
-            <Setter Property="BorderBrush" Value="#3D3D3D"/>
+            <Setter Property="BorderBrush" Value="#1E3A5F"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,3"/>
             <Setter Property="FontFamily" Value="Consolas"/>
@@ -114,310 +121,430 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <Border Background="#060B1A" CornerRadius="10" BorderThickness="1" BorderBrush="#1E3A5F">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- ==================== Верхний ряд: Управление + HUD + Ветер ==================== -->
-        <Grid Grid.Row="0" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="260"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+            <!-- ====== Кастомный title bar ====== -->
+            <Border Grid.Row="0"
+                    Background="#060B1A"
+                    CornerRadius="10,10,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="15,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-            <!-- Управление -->
-            <Border Grid.Column="0" Style="{StaticResource PanelStyle}">
-                <StackPanel>
-                    <TextBlock Text="УПРАВЛЕНИЕ" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🧪" FontSize="18" Margin="0,0,10,0"/>
+                        <TextBlock Text="Симулятор SQK GCS"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#2A5A8F"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
 
-                    <Button x:Name="StartBtn" Content="▶  Запустить"
-                            Style="{StaticResource StartButton}"
-                            Click="StartBtn_Click"/>
-                    <Button x:Name="StopBtn" Content="■  Остановить"
-                            Style="{StaticResource StopButton}"
-                            Click="StopBtn_Click" IsEnabled="False"/>
-                    <Button x:Name="PauseBtn" Content="⏸  Пауза"
-                            Style="{StaticResource PauseButton}"
-                            Click="PauseBtn_Click" IsEnabled="False"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="—"
+                                Width="40" Height="30"
+                                Background="Transparent"
+                                Foreground="#2A5A8F"
+                                BorderThickness="0"
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Click="MinimizeButton_Click"
+                                Cursor="Hand"/>
+                        <Button Content="☐"
+                                Width="40" Height="30"
+                                Background="Transparent"
+                                Foreground="#2A5A8F"
+                                BorderThickness="0"
+                                FontSize="14"
+                                Click="MaximizeButton_Click"
+                                Cursor="Hand"/>
+                        <Button Content="✕"
+                                Width="40" Height="30"
+                                Background="Transparent"
+                                Foreground="#EF4444"
+                                BorderThickness="0"
+                                FontSize="16"
+                                Click="CloseButton_Click"
+                                Cursor="Hand"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                    <TextBlock Text="СКОРОСТЬ ВРЕМЕНИ" Style="{StaticResource SectionHeader}"
-                               Margin="0,14,0,6"/>
-                    <WrapPanel>
-                        <RadioButton x:Name="Speed05" Content="x0.5" GroupName="Speed"
-                                     Style="{StaticResource SimRadio}" Margin="0,0,10,0"
-                                     Checked="Speed_Checked" Tag="0.5"/>
-                        <RadioButton x:Name="Speed1" Content="x1" GroupName="Speed"
-                                     Style="{StaticResource SimRadio}" IsChecked="True"
-                                     Margin="0,0,10,0" Checked="Speed_Checked" Tag="1"/>
-                        <RadioButton x:Name="Speed2" Content="x2" GroupName="Speed"
-                                     Style="{StaticResource SimRadio}" Margin="0,0,10,0"
-                                     Checked="Speed_Checked" Tag="2"/>
-                        <RadioButton x:Name="Speed5" Content="x5" GroupName="Speed"
-                                     Style="{StaticResource SimRadio}"
-                                     Checked="Speed_Checked" Tag="5"/>
-                    </WrapPanel>
+            <!-- ====== Основной контент ====== -->
+            <Grid Grid.Row="1" Margin="15,5,15,15">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                    <TextBlock Text="ТИП ВС" Style="{StaticResource SectionHeader}"
-                               Margin="0,14,0,6"/>
-                    <RadioButton x:Name="VehCopter" Content="Мультикоптер"
-                                 GroupName="Veh"
-                                 Style="{StaticResource SimRadio}"
-                                 Checked="Vehicle_Checked" Tag="Copter"/>
-                    <RadioButton x:Name="VehVtol" Content="VTOL (QuadPlane)"
-                                 GroupName="Veh" IsChecked="True"
-                                 Style="{StaticResource SimRadio}"
-                                 Checked="Vehicle_Checked" Tag="Vtol"/>
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="280"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="340"/>
+                    </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="HOME" Style="{StaticResource SectionHeader}"
-                               Margin="0,14,0,6"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="55"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- Колонка 1: Управление + HOME -->
+                    <Border Grid.Column="0" Style="{StaticResource PanelStyle}">
+                        <StackPanel>
+                            <TextBlock Text="УПРАВЛЕНИЕ" Style="{StaticResource SectionHeader}"/>
+
+                            <Button x:Name="StartBtn" Content="▶  Запустить"
+                                    Style="{StaticResource StartButton}"
+                                    Click="StartBtn_Click"/>
+                            <Button x:Name="StopBtn" Content="■  Остановить"
+                                    Style="{StaticResource StopButton}"
+                                    Click="StopBtn_Click" IsEnabled="False"/>
+                            <Button x:Name="PauseBtn" Content="⏸  Пауза"
+                                    Style="{StaticResource PauseButton}"
+                                    Click="PauseBtn_Click" IsEnabled="False"/>
+
+                            <TextBlock Text="СКОРОСТЬ ВРЕМЕНИ" Style="{StaticResource SectionHeader}"
+                                       Margin="0,14,0,6"/>
+                            <WrapPanel>
+                                <RadioButton x:Name="Speed05" Content="x0.5" GroupName="Speed"
+                                             Style="{StaticResource SimRadio}" Margin="0,0,10,0"
+                                             Checked="Speed_Checked" Tag="0.5"/>
+                                <RadioButton x:Name="Speed1" Content="x1" GroupName="Speed"
+                                             Style="{StaticResource SimRadio}" IsChecked="True"
+                                             Margin="0,0,10,0" Checked="Speed_Checked" Tag="1"/>
+                                <RadioButton x:Name="Speed2" Content="x2" GroupName="Speed"
+                                             Style="{StaticResource SimRadio}" Margin="0,0,10,0"
+                                             Checked="Speed_Checked" Tag="2"/>
+                                <RadioButton x:Name="Speed5" Content="x5" GroupName="Speed"
+                                             Style="{StaticResource SimRadio}"
+                                             Checked="Speed_Checked" Tag="5"/>
+                            </WrapPanel>
+
+                            <TextBlock Text="ТИП ВС" Style="{StaticResource SectionHeader}"
+                                       Margin="0,14,0,6"/>
+                            <RadioButton x:Name="VehCopter" Content="Мультикоптер"
+                                         GroupName="Veh"
+                                         Style="{StaticResource SimRadio}"
+                                         Checked="Vehicle_Checked" Tag="Copter"/>
+                            <RadioButton x:Name="VehVtol" Content="VTOL (QuadPlane)"
+                                         GroupName="Veh" IsChecked="True"
+                                         Style="{StaticResource SimRadio}"
+                                         Checked="Vehicle_Checked" Tag="Vtol"/>
+
+                            <TextBlock Text="HOME" Style="{StaticResource SectionHeader}"
+                                       Margin="0,14,0,6"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="55"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Lat:"
+                                           VerticalAlignment="Center" Margin="0,3"
+                                           Style="{StaticResource HudLabel}"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="HomeLatBox"
+                                         Style="{StaticResource InputBox}" Margin="0,3"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Lon:"
+                                           VerticalAlignment="Center" Margin="0,3"
+                                           Style="{StaticResource HudLabel}"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="HomeLonBox"
+                                         Style="{StaticResource InputBox}" Margin="0,3"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Alt:"
+                                           VerticalAlignment="Center" Margin="0,3"
+                                           Style="{StaticResource HudLabel}"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="HomeAltBox"
+                                         Style="{StaticResource InputBox}" Margin="0,3"/>
+                            </Grid>
+                            <Button Content="Применить HOME"
+                                    Style="{StaticResource ActionButton}"
+                                    Margin="0,6,0,0"
+                                    Click="ApplyHomeBtn_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Колонка 2: HUD + Диагностика -->
+                    <Grid Grid.Column="2">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Lat:"
-                                   VerticalAlignment="Center" Margin="0,3"
-                                   Style="{StaticResource HudLabel}"/>
-                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="HomeLatBox"
-                                 Style="{StaticResource InputBox}" Margin="0,3"/>
+                        <Border Grid.Row="0" Style="{StaticResource PanelStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="HUD" Style="{StaticResource SectionHeader}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Lon:"
-                                   VerticalAlignment="Center" Margin="0,3"
-                                   Style="{StaticResource HudLabel}"/>
-                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="HomeLonBox"
-                                 Style="{StaticResource InputBox}" Margin="0,3"/>
+                                    <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Lat:  " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock x:Name="HudLat" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Lon:  " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock x:Name="HudLon" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Alt:  " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock x:Name="HudAlt" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="GS:   " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock x:Name="HudGs" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="AS:   " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock x:Name="HudAs" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Курс: " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock x:Name="HudHdg" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Alt:"
-                                   VerticalAlignment="Center" Margin="0,3"
-                                   Style="{StaticResource HudLabel}"/>
-                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="HomeAltBox"
-                                 Style="{StaticResource InputBox}" Margin="0,3"/>
+                                    <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Крен: " Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock x:Name="HudRoll" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Танг.:" Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock x:Name="HudPitch" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Бат.: " Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock x:Name="HudBatt" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Режим:" Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock x:Name="HudMode" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="ARM:  " Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock x:Name="HudArm" Text="—" Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="GCS:  " Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock x:Name="HudGcs" Text="Не подкл." Style="{StaticResource HudValue}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1" Style="{StaticResource PanelStyle}">
+                            <StackPanel>
+                                <TextBlock Text="ДИАГНОСТИКА" Style="{StaticResource SectionHeader}"
+                                           Foreground="#60A5FA"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="ControlMode:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagCtrlMode" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Mission state:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagMissionState" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Current WP:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagCurrentWp" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="VTOL regime:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagVtolRegime" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Cruise speed:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagCruiseSpd" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Lift engage:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagLiftEng" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Pusher engage:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagPusherEng" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Vd (vert):" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagVd" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="WP distance:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagWpDist" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Alt error:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagAltErr" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
                     </Grid>
-                    <Button Content="Применить HOME"
-                            Style="{StaticResource ActionButton}"
-                            Margin="0,6,0,0"
-                            Click="ApplyHomeBtn_Click"/>
-                </StackPanel>
-            </Border>
 
-            <!-- HUD + Wind -->
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                    <!-- Колонка 3: Ветер + Отказы -->
+                    <StackPanel Grid.Column="4">
 
-                <Border Grid.Row="0" Style="{StaticResource PanelStyle}" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="HUD" Style="{StaticResource SectionHeader}"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                        <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="ВЕТЕР" Style="{StaticResource SectionHeader}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="60"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                            <!-- Колонка 1 -->
-                            <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Lat:  " Style="{StaticResource HudLabel}" Width="50"/>
-                                <TextBlock x:Name="HudLat" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Lon:  " Style="{StaticResource HudLabel}" Width="50"/>
-                                <TextBlock x:Name="HudLon" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Alt:  " Style="{StaticResource HudLabel}" Width="50"/>
-                                <TextBlock x:Name="HudAlt" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="GS:   " Style="{StaticResource HudLabel}" Width="50"/>
-                                <TextBlock x:Name="HudGs" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="0" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="AS:   " Style="{StaticResource HudLabel}" Width="50"/>
-                                <TextBlock x:Name="HudAs" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="0" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Курс: " Style="{StaticResource HudLabel}" Width="50"/>
-                                <TextBlock x:Name="HudHdg" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Направл.:"
+                                               VerticalAlignment="Center"
+                                               Style="{StaticResource HudLabel}"/>
+                                    <Slider Grid.Row="0" Grid.Column="1" x:Name="WindDirSlider"
+                                            Minimum="0" Maximum="359" Value="0"
+                                            ValueChanged="Wind_ValueChanged"
+                                            VerticalAlignment="Center" Margin="5,2"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" x:Name="WindDirLabel"
+                                               Text="0°" Style="{StaticResource HudValue}"
+                                               VerticalAlignment="Center"/>
 
-                            <!-- Колонка 2 -->
-                            <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Крен: " Style="{StaticResource HudLabel}" Width="60"/>
-                                <TextBlock x:Name="HudRoll" Text="—" Style="{StaticResource HudValue}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Скорость:"
+                                               VerticalAlignment="Center"
+                                               Style="{StaticResource HudLabel}"/>
+                                    <Slider Grid.Row="1" Grid.Column="1" x:Name="WindSpeedSlider"
+                                            Minimum="0" Maximum="20" Value="0"
+                                            ValueChanged="Wind_ValueChanged"
+                                            VerticalAlignment="Center" Margin="5,2"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" x:Name="WindSpeedLabel"
+                                               Text="0.0 м/с" Style="{StaticResource HudValue}"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Танг.:" Style="{StaticResource HudLabel}" Width="60"/>
-                                <TextBlock x:Name="HudPitch" Text="—" Style="{StaticResource HudValue}"/>
+                        </Border>
+
+                        <Border Style="{StaticResource PanelStyle}">
+                            <StackPanel>
+                                <TextBlock Text="СЦЕНАРИИ ОТКАЗОВ" Style="{StaticResource SectionHeader}"/>
+                                <WrapPanel>
+                                    <Button x:Name="FailGps" Content="GPS Loss"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="FailureToggle_Click"/>
+                                    <Button x:Name="FailRc" Content="RC Failsafe"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="FailureToggle_Click"/>
+                                    <Button x:Name="FailBattLow" Content="Batt Low"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="FailureToggle_Click"/>
+                                    <Button x:Name="FailBattCrit" Content="Batt Crit"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="FailureToggle_Click"/>
+                                    <Button x:Name="FailCompass" Content="Compass"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="FailureToggle_Click"/>
+                                    <Button x:Name="FailEkf" Content="EKF Div"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="FailureToggle_Click"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button x:Name="FailMotor1" Content="Motor 1"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="MotorFailure_Click"/>
+                                    <Button x:Name="FailMotor2" Content="Motor 2"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="MotorFailure_Click"/>
+                                    <Button x:Name="FailMotor3" Content="Motor 3"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="MotorFailure_Click"/>
+                                    <Button x:Name="FailMotor4" Content="Motor 4"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="MotorFailure_Click"/>
+                                    <Button x:Name="FailMotor5" Content="M5 (Push)"
+                                            Style="{StaticResource FailureButton}" Tag="False"
+                                            Click="MotorFailure_Click"/>
+                                </WrapPanel>
+                                <Button Content="Сбросить все отказы"
+                                        Style="{StaticResource ActionButton}"
+                                        Margin="2,8,2,2" Padding="10,5"
+                                        Click="ClearAllFailures_Click"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Бат.: " Style="{StaticResource HudLabel}" Width="60"/>
-                                <TextBlock x:Name="HudBatt" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="Режим:" Style="{StaticResource HudLabel}" Width="60"/>
-                                <TextBlock x:Name="HudMode" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="ARM:  " Style="{StaticResource HudLabel}" Width="60"/>
-                                <TextBlock x:Name="HudArm" Text="—" Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="GCS:  " Style="{StaticResource HudLabel}" Width="60"/>
-                                <TextBlock x:Name="HudGcs" Text="Не подкл." Style="{StaticResource HudValue}"/>
-                            </StackPanel>
-                        </Grid>
+                        </Border>
                     </StackPanel>
-                </Border>
+                </Grid>
 
-                <!-- Ветер -->
                 <Border Grid.Row="1" Style="{StaticResource PanelStyle}">
-                    <StackPanel>
-                        <TextBlock Text="ВЕТЕР" Style="{StaticResource SectionHeader}"/>
-                        <Grid>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="70"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Направл.:"
-                                       VerticalAlignment="Center"
-                                       Style="{StaticResource HudLabel}"/>
-                            <Slider Grid.Row="0" Grid.Column="1" x:Name="WindDirSlider"
-                                    Minimum="0" Maximum="359" Value="0"
-                                    TickFrequency="45" IsSnapToTickEnabled="False"
-                                    ValueChanged="Wind_ValueChanged"
-                                    VerticalAlignment="Center" Margin="5,2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="2" x:Name="WindDirLabel"
-                                       Text="0°" Style="{StaticResource HudValue}"
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Скорость:"
-                                       VerticalAlignment="Center"
-                                       Style="{StaticResource HudLabel}"/>
-                            <Slider Grid.Row="1" Grid.Column="1" x:Name="WindSpeedSlider"
-                                    Minimum="0" Maximum="20" Value="0"
-                                    TickFrequency="2" IsSnapToTickEnabled="False"
-                                    ValueChanged="Wind_ValueChanged"
-                                    VerticalAlignment="Center" Margin="5,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="2" x:Name="WindSpeedLabel"
-                                       Text="0.0 м/с" Style="{StaticResource HudValue}"
-                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="0" Text="ЛОГ СОБЫТИЙ"
+                                       Style="{StaticResource SectionHeader}"/>
+                            <Button Grid.Column="1" Content="Очистить"
+                                    Style="{StaticResource ActionButton}"
+                                    Click="ClearLog_Click" Padding="8,2"/>
                         </Grid>
-                    </StackPanel>
+
+                        <ListBox Grid.Row="1" x:Name="LogList"
+                                 Background="#060B1A"
+                                 Foreground="#D0D0D0"
+                                 BorderBrush="#1E3A5F"
+                                 BorderThickness="1"
+                                 FontFamily="Consolas" FontSize="11"
+                                 Margin="0,4,0,0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="4,1"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                        </ListBox>
+                    </Grid>
                 </Border>
             </Grid>
         </Grid>
-
-        <!-- ==================== Сценарии отказов ==================== -->
-        <Border Grid.Row="1" Style="{StaticResource PanelStyle}" Margin="0,0,0,12">
-            <StackPanel>
-                <TextBlock Text="СЦЕНАРИИ ОТКАЗОВ" Style="{StaticResource SectionHeader}"/>
-                <WrapPanel>
-                    <Button x:Name="FailGps" Content="GPS Loss"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="FailureToggle_Click"/>
-                    <Button x:Name="FailRc" Content="RC Failsafe"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="FailureToggle_Click"/>
-                    <Button x:Name="FailBattLow" Content="Battery Low"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="FailureToggle_Click"/>
-                    <Button x:Name="FailBattCrit" Content="Battery Crit"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="FailureToggle_Click"/>
-                    <Button x:Name="FailCompass" Content="Compass Error"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="FailureToggle_Click"/>
-                    <Button x:Name="FailEkf" Content="EKF Diverge"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="FailureToggle_Click"/>
-                </WrapPanel>
-                <WrapPanel Margin="0,4,0,0">
-                    <Button x:Name="FailMotor1" Content="Motor 1"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="MotorFailure_Click"/>
-                    <Button x:Name="FailMotor2" Content="Motor 2"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="MotorFailure_Click"/>
-                    <Button x:Name="FailMotor3" Content="Motor 3"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="MotorFailure_Click"/>
-                    <Button x:Name="FailMotor4" Content="Motor 4"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="MotorFailure_Click"/>
-                    <Button x:Name="FailMotor5" Content="M5 (Pusher)"
-                            Style="{StaticResource FailureButton}" Tag="False"
-                            Click="MotorFailure_Click"/>
-                    <Button Content="Сбросить всё"
-                            Style="{StaticResource ActionButton}"
-                            Margin="12,3,3,3" Padding="10,4"
-                            Click="ClearAllFailures_Click"/>
-                </WrapPanel>
-            </StackPanel>
-        </Border>
-
-        <!-- ==================== Лог ==================== -->
-        <Border Grid.Row="2" Style="{StaticResource PanelStyle}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <Grid Grid.Row="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="ЛОГ СОБЫТИЙ"
-                               Style="{StaticResource SectionHeader}"/>
-                    <Button Grid.Column="1" Content="Очистить"
-                            Style="{StaticResource ActionButton}"
-                            Click="ClearLog_Click" Padding="8,2"/>
-                </Grid>
-
-                <ListBox Grid.Row="1" x:Name="LogList"
-                         Background="#1A1A1A"
-                         Foreground="#D0D0D0"
-                         BorderBrush="#3D3D3D"
-                         BorderThickness="1"
-                         FontFamily="Consolas" FontSize="11"
-                         Margin="0,4,0,0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                            <Setter Property="Padding" Value="4,1"/>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                </ListBox>
-            </Grid>
-        </Border>
-    </Grid>
+    </Border>
 </Window>

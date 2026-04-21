@@ -81,6 +81,32 @@ namespace SimpleDroneGCS.Simulator
         public SimState State => _state;
         public WindModel Wind => _wind;
 
+        // ---- Диагностика ----
+
+        /// <summary>Текущий <see cref="ControlMode"/> в физике.</summary>
+        public ControlMode CurrentControlMode => _vehicle?.CurrentMode ?? ControlMode.Idle;
+
+        /// <summary>Engagement лифт-моторов (0..1).</summary>
+        public double LiftEngagement => _vehicle?.LiftEngagement ?? 1.0;
+
+        /// <summary>Engagement pusher-мотора (0..1).</summary>
+        public double PusherEngagement => _vehicle?.PusherEngagement ?? 0.0;
+
+        /// <summary>Текущая команда миссии (null если нет).</summary>
+        public MissionCommand? CurrentMissionCommand => _executor.CurrentCommand;
+
+        /// <summary>Состояние executor'а.</summary>
+        public MissionExecState MissionState => _executor.State;
+
+        /// <summary>Текущий seq миссии.</summary>
+        public ushort CurrentMissionSeq => _executor.CurrentSeq;
+
+        /// <summary>Режим VTOL (MC/FW — что сейчас основной).</summary>
+        public ControlMode VtolRegime => _executor.CurrentRegime;
+
+        /// <summary>Крейсерская скорость от DO_CHANGE_SPEED.</summary>
+        public double CruiseSpeedMs => _executor.CurrentCruiseSpeedMs;
+
         /// <summary>Масштаб времени (пауза = 0, x1, x2, x5).</summary>
         public double TimeScale
         {
@@ -314,6 +340,8 @@ namespace SimpleDroneGCS.Simulator
                 _bridge.SendImmediate(_outbound.BuildStatusText("Mission complete", severity: 6));
                 Log("Mission complete");
             };
+
+            _executor.DiagnosticLog += (s, msg) => Log("[MSN] " + msg);
 
             // ---- Failure injector ----
             _injector.RequestAutoRtl += (s, e) => _fc.TriggerRtl();

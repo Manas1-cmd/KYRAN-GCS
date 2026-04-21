@@ -2,7 +2,6 @@
 using SimpleDroneGCS.Simulator.Control;
 using SimpleDroneGCS.Simulator.Core;
 
-
 namespace SimpleDroneGCS.Simulator.Physics
 {
     // =========================================================================
@@ -135,6 +134,10 @@ namespace SimpleDroneGCS.Simulator.Physics
         public double MassKg => _cfg.MassKg;
         public double BatteryCapacityMah => _cfg.BatteryCapacityMah;
         public double BatteryNominalV => _cfg.BatteryNominalV;
+
+        public ControlMode CurrentMode => _cmd.Mode;
+        public double LiftEngagement => 1.0; // Для Copter лифт-моторы всегда активны.
+        public double PusherEngagement => 0.0;
 
         // =====================================================================
         // Constructor

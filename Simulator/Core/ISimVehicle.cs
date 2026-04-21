@@ -79,6 +79,16 @@ namespace SimpleDroneGCS.Simulator.Core
         /// <summary>Целевая долгота, градусы.</summary>
         public double TargetLon { get; init; } = double.NaN;
 
+        /// <summary>
+        /// Начало текущего сегмента линии миссии, широта.
+        /// NaN = летим прямо к Target (нет path following).
+        /// При непустом значении физика следует по линии From → Target.
+        /// </summary>
+        public double FromLat { get; init; } = double.NaN;
+
+        /// <summary>Начало сегмента линии миссии, долгота.</summary>
+        public double FromLon { get; init; } = double.NaN;
+
         /// <summary>Целевая высота над HOME, м. NaN = держать текущую.</summary>
         public double TargetAltRelative { get; init; } = double.NaN;
 
@@ -149,6 +159,22 @@ namespace SimpleDroneGCS.Simulator.Core
         /// Для VTOL (6S LiPo) ≈ 25.2, для Copter (4S) ≈ 16.8.
         /// </summary>
         double BatteryNominalV { get; }
+
+        // -------------------- Diagnostics --------------------
+
+        /// <summary>Текущий <see cref="ControlMode"/>, полученный через <see cref="ApplyControl"/>.</summary>
+        ControlMode CurrentMode { get; }
+
+        /// <summary>
+        /// Engagement лифт-моторов (0..1). 1 = полностью активны (MC-режим),
+        /// 0 = полностью выключены (FW-режим). Для Copter всегда 1.
+        /// </summary>
+        double LiftEngagement { get; }
+
+        /// <summary>
+        /// Engagement pusher-мотора (0..1). 1 = FW, 0 = MC. Для Copter всегда 0.
+        /// </summary>
+        double PusherEngagement { get; }
 
         // -------------------- Lifecycle --------------------
 
