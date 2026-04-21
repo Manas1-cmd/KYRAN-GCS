@@ -712,6 +712,7 @@
     <sys:String x:Key="Sim_LabelBatt">Батарея</sys:String>
     <sys:String x:Key="Sim_LabelGps">GPS</sys:String>
     <sys:String x:Key="Sim_SectionCruiseSpeed">СКОРОСТЬ ПОЛЁТА</sys:String>
+    <sys:String x:Key="Sim_SectionWind">ВЕТЕР</sys:String>
     <sys:String x:Key="Sim_StatusStopped">СИМУЛЯТОР НЕ ЗАПУЩЕН</sys:String>
     <sys:String x:Key="Sim_StatusRunning">СИМУЛЯТОР ЗАПУЩЕН</sys:String>
     <sys:String x:Key="Sim_FlightTimeLabel">ВРЕМЯ ПОЛЁТА</sys:String>
@@ -723,6 +724,8 @@
     <sys:String x:Key="Sim_StateMission">МИССИЯ</sys:String>
     <sys:String x:Key="Sim_StateRtl">RTL</sys:String>
     <sys:String x:Key="Sim_StateLanding">ПОСАДКА</sys:String>
+    <sys:String x:Key="Sim_StateTransition">ПЕРЕХОД</sys:String>
+    <sys:String x:Key="Sim_StateCrashed">АВАРИЯ</sys:String>
     <sys:String x:Key="Sim_BadgeArmed">ARMED</sys:String>
     <sys:String x:Key="Sim_BadgeDisarmed">DISARMED</sys:String>
     <sys:String x:Key="Sim_GpsOk">3D Fix ({0})</sys:String>
@@ -730,6 +733,48 @@
     <sys:String x:Key="Sim_WpProgress">{0} / {1}</sys:String>
     <sys:String x:Key="Sim_WpNone">— / —</sys:String>
     <sys:String x:Key="Sim_SpeedUnit">м/с</sys:String>
+
+    <!-- Simulator log events -->
+    <sys:String x:Key="SimLog_UdpStarted">[UDP] Сервер запущен на :{0}</sys:String>
+    <sys:String x:Key="SimLog_UdpStopped">[UDP] Сервер остановлен</sys:String>
+    <sys:String x:Key="SimLog_GcsConnected">[НСУ] Подключён: {0}</sys:String>
+    <sys:String x:Key="SimLog_ErrReceive">[ОШИБКА] Приём: {0}</sys:String>
+    <sys:String x:Key="SimLog_ErrSend">[ОШИБКА] Отправка: {0}</sys:String>
+    <sys:String x:Key="SimLog_MissionPartialStart">[МИССИЯ] Частичное обновление: {0}..{1}</sys:String>
+    <sys:String x:Key="SimLog_MissionPartialDone">[МИССИЯ] Частичное обновление завершено: {0}..{1}</sys:String>
+    <sys:String x:Key="SimLog_MissionCleared">[МИССИЯ] Миссия очищена</sys:String>
+    <sys:String x:Key="SimLog_MissionUploadStart">[МИССИЯ] Начало загрузки: {0} точек</sys:String>
+    <sys:String x:Key="SimLog_MissionUploadDone">[МИССИЯ] Загрузка завершена: {0} точек, тип={1}</sys:String>
+    <sys:String x:Key="SimLog_CmdArm">[КОМАНДА] ARM</sys:String>
+    <sys:String x:Key="SimLog_CmdDisarm">[КОМАНДА] DISARM</sys:String>
+    <sys:String x:Key="SimLog_CmdSetMode">[КОМАНДА] Режим → {0}</sys:String>
+    <sys:String x:Key="SimLog_CmdMissionStart">[КОМАНДА] Старт миссии</sys:String>
+    <sys:String x:Key="SimLog_CmdSetCurrentWp">[КОМАНДА] Переход на точку → {0}</sys:String>
+    <sys:String x:Key="SimLog_StatusPrefix">[СТАТУС] {0}</sys:String>
+
+    <!-- Simulator status messages (from SimPhysics) -->
+    <sys:String x:Key="SimStatus_Armed">Активирован</sys:String>
+    <sys:String x:Key="SimStatus_Disarmed">Деактивирован</sys:String>
+    <sys:String x:Key="SimStatus_LowBattery">Низкий заряд батареи</sys:String>
+    <sys:String x:Key="SimStatus_BattFailsafeRtl">Аварийный возврат по батарее — RTL</sys:String>
+    <sys:String x:Key="SimStatus_GpsNoFix">GPS: нет сигнала</sys:String>
+    <sys:String x:Key="SimStatus_GpsRestored">GPS: 3D Fix восстановлен</sys:String>
+    <sys:String x:Key="SimStatus_RadioFailsafeRtl">Потеря радиосвязи — RTL</sys:String>
+    <sys:String x:Key="SimStatus_MissionPaused">Миссия приостановлена (LOITER)</sys:String>
+    <sys:String x:Key="SimStatus_MissionResumed">Миссия возобновлена (AUTO)</sys:String>
+    <sys:String x:Key="SimStatus_RtlInitiated">RTL активирован</sys:String>
+    <sys:String x:Key="SimStatus_Landing">Посадка</sys:String>
+    <sys:String x:Key="SimStatus_MissionComplete">Миссия завершена</sys:String>
+    <sys:String x:Key="SimStatus_LandedDisarmed">Приземлился. Деактивирован.</sys:String>
+    <sys:String x:Key="SimStatus_NextWp">Следующая точка {0}</sys:String>
+    <sys:String x:Key="SimStatus_Takeoff">Миссия: взлёт → {0} м</sys:String>
+    <sys:String x:Key="SimStatus_TakeoffDone">Взлёт завершён → точка {0}</sys:String>
+    <sys:String x:Key="SimStatus_WpReached">Точка {0} достигнута</sys:String>
+    <sys:String x:Key="SimStatus_WpDelay">Точка {0}: задержка {1}с</sys:String>
+    <sys:String x:Key="SimStatus_TransitionFw">VTOL: переход в самолётный режим</sys:String>
+    <sys:String x:Key="SimStatus_TransitionMc">VTOL: переход в коптерный режим</sys:String>
+    <sys:String x:Key="SimStatus_TerrainCrash">⚠ АВАРИЯ: столкновение с рельефом</sys:String>
+    <sys:String x:Key="SimStatus_TerrainWarn">⚠ БЛИЗКО К РЕЛЬЕФУ: {0} м AGL</sys:String>
 
     <!-- Mission upload in progress warning -->
     <sys:String x:Key="Msg_MissionUploading">Миссия загружается на борт, подождите...</sys:String>

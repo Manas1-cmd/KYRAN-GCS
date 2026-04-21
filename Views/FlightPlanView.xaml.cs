@@ -3,6 +3,7 @@ using GMap.NET.MapProviders;
 using GMap.NET.WindowsPresentation;
 using SimpleDroneGCS.Models;
 using SimpleDroneGCS.Services;
+using SimpleDroneGCS.Helpers;
 using SimpleDroneGCS.UI.Dialogs;
 using System;
 using System.Collections.Generic;
@@ -82,6 +83,9 @@ namespace SimpleDroneGCS.Views
 
             Services.LocalizationService.Instance.LanguageChanged += (s, e) =>
                 Dispatcher.Invoke(() => { UpdateVehicleTypeDisplay(); PopulateFlightModes(); });
+
+            AppSettings.Instance.CoordinateFormatChanged += OnCoordinateFormatChanged;
+            UpdateCoordFormatButtonLabel();
             var testElev = new SrtmElevationProvider();
             var result = testElev.GetElevation(43.238, 76.945);
             System.Diagnostics.Debug.WriteLine($"[SRTM TEST] Результат: {result?.ToString() ?? "NULL"}");
@@ -314,7 +318,8 @@ namespace SimpleDroneGCS.Views
         private void DownloadMapButton_Click(object sender, RoutedEventArgs e)
         {
             var currentPos = PlanMap?.Position;
-            var dialog = new MapDownloaderDialog(currentPos);
+            var currentProvider = PlanMap?.MapProvider;
+            var dialog = new MapDownloaderDialog(currentPos, currentProvider);
             dialog.Owner = OwnerWindow;
             dialog.ShowDialog();
         }
@@ -338,10 +343,6 @@ namespace SimpleDroneGCS.Views
                         PlanMap.MapProvider = GMapProviders.GoogleMap;
                         System.Diagnostics.Debug.WriteLine("Провайдер изменён: Google Map");
                         break;
-                    case "OpenStreetMap":
-                        PlanMap.MapProvider = GMapProviders.OpenStreetMap;
-                        System.Diagnostics.Debug.WriteLine("Провайдер изменён: OpenStreetMap");
-                        break;
                     case "BingSatellite":
                         PlanMap.MapProvider = GMapProviders.BingSatelliteMap;
                         System.Diagnostics.Debug.WriteLine("Провайдер изменён: Bing Satellite");
@@ -349,6 +350,10 @@ namespace SimpleDroneGCS.Views
                     case "BingMap":
                         PlanMap.MapProvider = GMapProviders.BingMap;
                         System.Diagnostics.Debug.WriteLine("Провайдер изменён: Bing Map");
+                        break;
+                    case "OpenTopoMap":
+                        PlanMap.MapProvider = OpenTopoMapProvider.Instance;
+                        System.Diagnostics.Debug.WriteLine("Провайдер изменён: OpenTopoMap");
                         break;
                 }
 
@@ -384,8 +389,8 @@ namespace SimpleDroneGCS.Views
 
             MissionStore.SetHome((int)_currentVehicleType, _homePosition);
 
-            PlanHomeLatText.Text = _homePosition.Latitude.ToString("F6");
-            PlanHomeLonText.Text = _homePosition.Longitude.ToString("F6");
+            PlanHomeLatText.Text = FormatLat(_homePosition.Latitude);
+            PlanHomeLonText.Text = FormatLng(_homePosition.Longitude);
 
             System.Diagnostics.Debug.WriteLine($"[HOME] Установлен вручную: {lat:F6}, {lon:F6}");
         }
@@ -583,7 +588,7 @@ namespace SimpleDroneGCS.Views
 
             var paramStyle = new Style(typeof(TextBlock));
 
-            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Coords"), $"{wp.Latitude:F6}, {wp.Longitude:F6}"));
+            stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Coords"), $"{FormatLat(wp.Latitude)}, {FormatLng(wp.Longitude)}"));
             stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Alt"), $"{wp.Altitude:F0} м"));
             stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Radius"), $"{wp.Radius:F0} м"));
             stack.Children.Add(CreateTooltipRow(Get("Wp_Tooltip_Dir"), wp.Clockwise ? Get("Dir_CW") : Get("Dir_CCW")));
@@ -1525,10 +1530,9 @@ namespace SimpleDroneGCS.Views
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold
             });
-            var inv = System.Globalization.CultureInfo.InvariantCulture;
             infoPanel.Children.Add(new TextBlock
             {
-                Text = $"{wp.Latitude.ToString("F2", inv)} , {wp.Longitude.ToString("F2", inv)}",
+                Text = $"{FormatLat(wp.Latitude)} , {FormatLng(wp.Longitude)}",
                 Foreground = new SolidColorBrush(Color.FromRgb(140, 150, 170)),
                 FontSize = 9,
                 Margin = new Thickness(0, 1, 0, 0)
@@ -2965,8 +2969,8 @@ namespace SimpleDroneGCS.Views
 
             if (telemetry.Latitude != 0 || telemetry.Longitude != 0)
             {
-                PlanDroneLatText.Text = telemetry.Latitude.ToString("F6");
-                PlanDroneLonText.Text = telemetry.Longitude.ToString("F6");
+                PlanDroneLatText.Text = FormatLat(telemetry.Latitude);
+                PlanDroneLonText.Text = FormatLng(telemetry.Longitude);
             }
 
             PlanHeadingRotation.Angle = telemetry.Heading;
@@ -2975,14 +2979,14 @@ namespace SimpleDroneGCS.Views
             if (_mavlinkService.HasHomePosition)
             {
 
-                PlanHomeLatText.Text = _mavlinkService.HomeLat.Value.ToString("F6");
-                PlanHomeLonText.Text = _mavlinkService.HomeLon.Value.ToString("F6");
+                PlanHomeLatText.Text = FormatLat(_mavlinkService.HomeLat.Value);
+                PlanHomeLonText.Text = FormatLng(_mavlinkService.HomeLon.Value);
             }
             else if (_homePosition != null)
             {
 
-                PlanHomeLatText.Text = _homePosition.Latitude.ToString("F6");
-                PlanHomeLonText.Text = _homePosition.Longitude.ToString("F6");
+                PlanHomeLatText.Text = FormatLat(_homePosition.Latitude);
+                PlanHomeLonText.Text = FormatLng(_homePosition.Longitude);
             }
             else
             {
@@ -2990,8 +2994,8 @@ namespace SimpleDroneGCS.Views
                 var home = MissionStore.GetHome((int)_currentVehicleType);
                 if (home != null)
                 {
-                    PlanHomeLatText.Text = home.Latitude.ToString("F6");
-                    PlanHomeLonText.Text = home.Longitude.ToString("F6");
+                    PlanHomeLatText.Text = FormatLat(home.Latitude);
+                    PlanHomeLonText.Text = FormatLng(home.Longitude);
                 }
                 else
                 {
@@ -3677,10 +3681,10 @@ namespace SimpleDroneGCS.Views
             var cursorLatLng = PlanMap.FromLocalToLatLng((int)point.X, (int)point.Y);
 
             if (CursorLatText != null)
-                CursorLatText.Text = cursorLatLng.Lat.ToString("F6");
+                CursorLatText.Text = FormatLat(cursorLatLng.Lat);
 
             if (CursorLngText != null)
-                CursorLngText.Text = cursorLatLng.Lng.ToString("F6");
+                CursorLngText.Text = FormatLng(cursorLatLng.Lng);
 
             if (CursorAltText != null)
             {
@@ -4462,6 +4466,52 @@ namespace SimpleDroneGCS.Views
                 NotificationService.Instance.HudOnly(
                     Fmt("Notif_WaypointReached", userSeq, userTotal), NotificationType.Info);
             }
+        }
+
+        private CoordinateFormat GetCoordFormat()
+        {
+            return AppSettings.Instance.CoordinateFormat == "DMS"
+                ? CoordinateFormat.DMS
+                : CoordinateFormat.DD;
+        }
+
+        private string FormatLat(double lat) =>
+            CoordinateFormatter.Format(lat, true, GetCoordFormat());
+
+        private string FormatLng(double lng) =>
+            CoordinateFormatter.Format(lng, false, GetCoordFormat());
+
+        private void UpdateCoordFormatButtonLabel()
+        {
+            if (CoordFormatToggle != null)
+                CoordFormatToggle.Content = AppSettings.Instance.CoordinateFormat;
+        }
+
+        private void CoordFormatToggle_Click(object sender, RoutedEventArgs e)
+        {
+            AppSettings.Instance.CoordinateFormat =
+                AppSettings.Instance.CoordinateFormat == "DD" ? "DMS" : "DD";
+        }
+
+        private void OnCoordinateFormatChanged()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                UpdateCoordFormatButtonLabel();
+
+                if (_mavlinkService != null && _mavlinkService.HasHomePosition)
+                {
+                    PlanHomeLatText.Text = FormatLat(_mavlinkService.HomeLat.Value);
+                    PlanHomeLonText.Text = FormatLng(_mavlinkService.HomeLon.Value);
+                }
+                else if (_homePosition != null)
+                {
+                    PlanHomeLatText.Text = FormatLat(_homePosition.Latitude);
+                    PlanHomeLonText.Text = FormatLng(_homePosition.Longitude);
+                }
+
+                UpdateWaypointsList();
+            });
         }
     }
 

@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using SimpleDroneGCS.Helpers;
+using SimpleDroneGCS.Services;
 using static SimpleDroneGCS.Helpers.Loc;
 
 namespace SimpleDroneGCS.UI.Dialogs
@@ -182,12 +184,18 @@ namespace SimpleDroneGCS.UI.Dialogs
             cmdPanel.Children.Add(_commandCombo);
             mainStack.Children.Add(cmdPanel);
 
+            var coordFormat = AppSettings.Instance.CoordinateFormat == "DMS"
+                ? CoordinateFormat.DMS
+                : CoordinateFormat.DD;
+
             _latBox = new TextBox();
-            _latRow = CreateInputRow(Get("WpEdit_Latitude"), Latitude.ToString("F7"), _latBox);
+            _latRow = CreateInputRow(Get("WpEdit_Latitude"),
+                CoordinateFormatter.Format(Latitude, true, coordFormat), _latBox);
             mainStack.Children.Add(_latRow);
 
             _lngBox = new TextBox();
-            _lngRow = CreateInputRow(Get("WpEdit_Longitude"), Longitude.ToString("F7"), _lngBox);
+            _lngRow = CreateInputRow(Get("WpEdit_Longitude"),
+                CoordinateFormatter.Format(Longitude, false, coordFormat), _lngBox);
             mainStack.Children.Add(_lngRow);
 
             _altBox = new TextBox();
@@ -477,8 +485,8 @@ namespace SimpleDroneGCS.UI.Dialogs
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             var ns = System.Globalization.NumberStyles.Float;
 
-            if (!double.TryParse(_latBox.Text.Replace(',', '.'), ns, inv, out double lat) ||
-                !double.TryParse(_lngBox.Text.Replace(',', '.'), ns, inv, out double lng) ||
+            if (!CoordinateFormatter.TryParse(_latBox.Text, out double lat) ||
+                !CoordinateFormatter.TryParse(_lngBox.Text, out double lng) ||
                 !double.TryParse(_altBox.Text.Replace(',', '.'), ns, inv, out double alt) ||
                 !double.TryParse(_radBox.Text.Replace(',', '.'), ns, inv, out double rad) ||
                 !double.TryParse(_delayBox.Text.Replace(',', '.'), ns, inv, out double delay) ||

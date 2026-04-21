@@ -34,6 +34,7 @@ namespace SimpleDroneGCS.Services
             public bool ShowPreflightChecklist { get; set; } = true;
             public string PilotName { get; set; } = "";
             public string PilotLicense { get; set; } = "";
+            public string CoordinateFormat { get; set; } = "DD";
         }
 
         private AppSettings()
@@ -65,7 +66,7 @@ namespace SimpleDroneGCS.Services
 
         private void ScheduleSave()
         {
-            lock (_saveLock) 
+            lock (_saveLock)
             {
                 _saveTimer?.Stop();
                 _saveTimer?.Dispose();
@@ -152,6 +153,19 @@ namespace SimpleDroneGCS.Services
                 ScheduleSave();
             }
         }
+
+        public string CoordinateFormat
+        {
+            get => _settings.CoordinateFormat;
+            set
+            {
+                _settings.CoordinateFormat = value;
+                ScheduleSave();
+                CoordinateFormatChanged?.Invoke();
+            }
+        }
+
+        public event Action CoordinateFormatChanged;
 
         public Settings GetSettings() => _settings;
 

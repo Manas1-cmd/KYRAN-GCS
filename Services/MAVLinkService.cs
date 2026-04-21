@@ -1202,7 +1202,10 @@ namespace SimpleDroneGCS.Services
                         case 34: CurrentTelemetry.Motor2Percent = pct; break;
                         case 35: CurrentTelemetry.Motor3Percent = pct; break;
                         case 36: CurrentTelemetry.Motor4Percent = pct; break;
-                        case 38: CurrentTelemetry.PusherPercent = pct; break;
+                        case 37: // Motor5
+                        case 38: // Motor6
+                        case 70: // Throttle (стандартный pusher в QuadPlane)
+                            CurrentTelemetry.PusherPercent = pct; break;
                     }
                 }
             }
@@ -1212,7 +1215,7 @@ namespace SimpleDroneGCS.Services
                 CurrentTelemetry.Motor2Percent = PwmToPercent(servo.servo2_raw);
                 CurrentTelemetry.Motor3Percent = PwmToPercent(servo.servo3_raw);
                 CurrentTelemetry.Motor4Percent = PwmToPercent(servo.servo4_raw);
-                CurrentTelemetry.PusherPercent = 0;
+                CurrentTelemetry.PusherPercent = PwmToPercent(servo.servo5_raw);
             }
 
             _telemetryDirty = true;
@@ -1497,7 +1500,7 @@ namespace SimpleDroneGCS.Services
                 command = 209,
                 confirmation = 0,
                 param1 = motorNumber,
-                param2 = 1,
+                param2 = 0,   // 0 = throttle percent, 1 = PWM мкс
                 param3 = throttlePct,
                 param4 = durationSec,
                 param5 = 0,

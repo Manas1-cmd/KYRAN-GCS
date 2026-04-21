@@ -138,7 +138,7 @@
 
                 <Border HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
-                        Background="Transparent"
+                        Background="#E6060B1A"
                         BorderBrush="#2298F019"
                         BorderThickness="0"
                         CornerRadius="6"
@@ -220,8 +220,8 @@
                               Height="32" MinWidth="130" FontSize="11">
                         <ComboBoxItem Content="{DynamicResource Map_GoogleSat}" Tag="GoogleSatellite" IsSelected="True"/>
                         <ComboBoxItem Content="{DynamicResource Map_GoogleMap}" Tag="GoogleMap"/>
-                        <ComboBoxItem Content="OpenStreetMap" Tag="OpenStreetMap"/>
                         <ComboBoxItem Content="{DynamicResource Map_BingSat}" Tag="BingSatellite"/>
+                        <ComboBoxItem Content="{DynamicResource Map_TopoMap}" Tag="OpenTopoMap"/>
                     </ComboBox>
                     <Button ToolTip="{DynamicResource Tip_DownloadMap}"
                             Width="32" Height="32" Margin="6,0,0,0"
@@ -237,6 +237,14 @@
                             Click="DownloadSRTM_Click">
                         <TextBlock Text="🏔️" FontSize="14"/>
                     </Button>
+                    <Button x:Name="CoordFormatToggle"
+                            ToolTip="{DynamicResource CoordFormat_Toggle}"
+                            Width="48" Height="32" Margin="4,0,0,0"
+                            Background="#E6060B1A" Foreground="#98F019"
+                            BorderThickness="1" BorderBrush="#2298F019"
+                            FontWeight="Bold" FontSize="10"
+                            Content="DD"
+                            Click="CoordFormatToggle_Click"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal"

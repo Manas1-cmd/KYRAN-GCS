@@ -712,6 +712,7 @@
     <sys:String x:Key="Sim_LabelBatt">Батарея</sys:String>
     <sys:String x:Key="Sim_LabelGps">GPS</sys:String>
     <sys:String x:Key="Sim_SectionCruiseSpeed">ҰШУ ЖЫЛДАМДЫҒЫ</sys:String>
+    <sys:String x:Key="Sim_SectionWind">ЖЕЛ</sys:String>
     <sys:String x:Key="Sim_StatusStopped">СИМУЛЯТОР ІСКЕ ҚОСЫЛМАҒАН</sys:String>
     <sys:String x:Key="Sim_StatusRunning">СИМУЛЯТОР ІСКЕ ҚОСЫЛДЫ</sys:String>
     <sys:String x:Key="Sim_FlightTimeLabel">ҰШУ УАҚЫТЫ</sys:String>
@@ -723,6 +724,8 @@
     <sys:String x:Key="Sim_StateMission">МИССИЯ</sys:String>
     <sys:String x:Key="Sim_StateRtl">RTL</sys:String>
     <sys:String x:Key="Sim_StateLanding">ҚОНУ</sys:String>
+    <sys:String x:Key="Sim_StateTransition">ӨТУ</sys:String>
+    <sys:String x:Key="Sim_StateCrashed">АПАТ</sys:String>
     <sys:String x:Key="Sim_BadgeArmed">ARMED</sys:String>
     <sys:String x:Key="Sim_BadgeDisarmed">DISARMED</sys:String>
     <sys:String x:Key="Sim_GpsOk">3D Fix ({0})</sys:String>
@@ -730,6 +733,48 @@
     <sys:String x:Key="Sim_WpProgress">{0} / {1}</sys:String>
     <sys:String x:Key="Sim_WpNone">— / —</sys:String>
     <sys:String x:Key="Sim_SpeedUnit">м/с</sys:String>
+
+    <!-- Simulator log events -->
+    <sys:String x:Key="SimLog_UdpStarted">[UDP] Сервер :{0} портында іске қосылды</sys:String>
+    <sys:String x:Key="SimLog_UdpStopped">[UDP] Сервер тоқтатылды</sys:String>
+    <sys:String x:Key="SimLog_GcsConnected">[НСУ] Қосылды: {0}</sys:String>
+    <sys:String x:Key="SimLog_ErrReceive">[ҚАТЕ] Қабылдау: {0}</sys:String>
+    <sys:String x:Key="SimLog_ErrSend">[ҚАТЕ] Жіберу: {0}</sys:String>
+    <sys:String x:Key="SimLog_MissionPartialStart">[МИССИЯ] Ішінара жаңарту: {0}..{1}</sys:String>
+    <sys:String x:Key="SimLog_MissionPartialDone">[МИССИЯ] Ішінара жаңарту аяқталды: {0}..{1}</sys:String>
+    <sys:String x:Key="SimLog_MissionCleared">[МИССИЯ] Миссия тазартылды</sys:String>
+    <sys:String x:Key="SimLog_MissionUploadStart">[МИССИЯ] Жүктеу басталды: {0} нүкте</sys:String>
+    <sys:String x:Key="SimLog_MissionUploadDone">[МИССИЯ] Жүктеу аяқталды: {0} нүкте, түрі={1}</sys:String>
+    <sys:String x:Key="SimLog_CmdArm">[КОМАНДА] ARM</sys:String>
+    <sys:String x:Key="SimLog_CmdDisarm">[КОМАНДА] DISARM</sys:String>
+    <sys:String x:Key="SimLog_CmdSetMode">[КОМАНДА] Режим → {0}</sys:String>
+    <sys:String x:Key="SimLog_CmdMissionStart">[КОМАНДА] Миссия басталды</sys:String>
+    <sys:String x:Key="SimLog_CmdSetCurrentWp">[КОМАНДА] Нүктеге көшу → {0}</sys:String>
+    <sys:String x:Key="SimLog_StatusPrefix">[СТАТУС] {0}</sys:String>
+
+    <!-- Simulator status messages (from SimPhysics) -->
+    <sys:String x:Key="SimStatus_Armed">Белсендірілді</sys:String>
+    <sys:String x:Key="SimStatus_Disarmed">Өшірілді</sys:String>
+    <sys:String x:Key="SimStatus_LowBattery">Батарея заряды төмен</sys:String>
+    <sys:String x:Key="SimStatus_BattFailsafeRtl">Батарея бойынша авариялық оралу — RTL</sys:String>
+    <sys:String x:Key="SimStatus_GpsNoFix">GPS: сигнал жоқ</sys:String>
+    <sys:String x:Key="SimStatus_GpsRestored">GPS: 3D Fix қалпына келді</sys:String>
+    <sys:String x:Key="SimStatus_RadioFailsafeRtl">Радио байланыс үзілді — RTL</sys:String>
+    <sys:String x:Key="SimStatus_MissionPaused">Миссия тоқтатылды (LOITER)</sys:String>
+    <sys:String x:Key="SimStatus_MissionResumed">Миссия жалғастырылды (AUTO)</sys:String>
+    <sys:String x:Key="SimStatus_RtlInitiated">RTL белсендірілді</sys:String>
+    <sys:String x:Key="SimStatus_Landing">Қонуда</sys:String>
+    <sys:String x:Key="SimStatus_MissionComplete">Миссия аяқталды</sys:String>
+    <sys:String x:Key="SimStatus_LandedDisarmed">Қонды. Өшірілді.</sys:String>
+    <sys:String x:Key="SimStatus_NextWp">Келесі нүкте {0}</sys:String>
+    <sys:String x:Key="SimStatus_Takeoff">Миссия: көтерілу → {0} м</sys:String>
+    <sys:String x:Key="SimStatus_TakeoffDone">Көтерілу аяқталды → нүкте {0}</sys:String>
+    <sys:String x:Key="SimStatus_WpReached">Нүкте {0} жетті</sys:String>
+    <sys:String x:Key="SimStatus_WpDelay">Нүкте {0}: кідіріс {1}с</sys:String>
+    <sys:String x:Key="SimStatus_TransitionFw">VTOL: ұшақ режіміне өту</sys:String>
+    <sys:String x:Key="SimStatus_TransitionMc">VTOL: коптер режіміне өту</sys:String>
+    <sys:String x:Key="SimStatus_TerrainCrash">⚠ АПАТ: жер бедеріне соғылу</sys:String>
+    <sys:String x:Key="SimStatus_TerrainWarn">⚠ ЖЕР БЕДЕРІНЕ ЖАҚЫН: {0} м AGL</sys:String>
 
     <!-- Mission upload in progress warning -->
     <sys:String x:Key="Msg_MissionUploading">Миссия бортқа жүктелуде, күтіңіз...</sys:String>

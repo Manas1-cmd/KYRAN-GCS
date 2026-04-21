@@ -181,15 +181,20 @@ namespace SimpleDroneGCS
             }
         }
 
-        private SimulatorWindow? _simWindow;
+        private SimpleDroneGCS.Simulator.SimulatorWindow _simWindow;
 
         private void SimulatorBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_simWindow == null || !_simWindow.IsLoaded)
-                _simWindow = new SimulatorWindow();
+            {
+                _simWindow = new SimpleDroneGCS.Simulator.SimulatorWindow();
+                _simWindow.Owner = this;
+                _simWindow.Closed += (s, args) => _simWindow = null;
+            }
             _simWindow.Show();
             _simWindow.Activate();
         }
+
         private void ConnectToDrone()
         {
             try

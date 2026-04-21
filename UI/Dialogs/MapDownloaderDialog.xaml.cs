@@ -1,5 +1,6 @@
 ﻿using GMap.NET;
 using GMap.NET.MapProviders;
+using SimpleDroneGCS.Services;
 using System;
 using System.IO;
 using System.Threading;
@@ -17,7 +18,7 @@ namespace SimpleDroneGCS.UI.Dialogs
         private PointLatLng? _currentPosition = null;
 
         private static readonly RectLatLng KazakhstanBounds = new RectLatLng(
-            55.45, 46.49, 40.86, 14.82  
+            55.45, 46.49, 40.86, 14.82
         );
 
         private static readonly RectLatLng AlmatyBounds = new RectLatLng(
@@ -28,7 +29,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             51.5, 71.0, 1.0, 1.5
         );
 
-        public MapDownloaderDialog(PointLatLng? currentPosition = null)
+        public MapDownloaderDialog(PointLatLng? currentPosition = null, GMapProvider currentProvider = null)
         {
             InitializeComponent();
             _currentPosition = currentPosition;
@@ -36,13 +37,53 @@ namespace SimpleDroneGCS.UI.Dialogs
             RegionCombo.SelectionChanged += (s, e) => UpdateEstimate();
             ZoomFromCombo.SelectionChanged += (s, e) => UpdateEstimate();
             ZoomToCombo.SelectionChanged += (s, e) => UpdateEstimate();
+            ProviderCombo.SelectionChanged += (s, e) => UpdateEstimate();
 
             if (_currentPosition == null)
             {
                 RegionCombo.Items.RemoveAt(3);
             }
 
+            if (currentProvider != null)
+            {
+                SelectProviderInCombo(currentProvider);
+            }
+
             UpdateEstimate();
+        }
+
+        private void SelectProviderInCombo(GMapProvider provider)
+        {
+            string tag = null;
+            if (provider == GMapProviders.GoogleSatelliteMap) tag = "GoogleSatellite";
+            else if (provider == GMapProviders.GoogleMap) tag = "GoogleMap";
+            else if (provider == GMapProviders.BingSatelliteMap) tag = "BingSatellite";
+            else if (provider == OpenTopoMapProvider.Instance) tag = "OpenTopoMap";
+
+            if (tag == null) return;
+
+            foreach (ComboBoxItem item in ProviderCombo.Items)
+            {
+                if (item.Tag?.ToString() == tag)
+                {
+                    item.IsSelected = true;
+                    return;
+                }
+            }
+        }
+
+        private GMapProvider GetSelectedProvider()
+        {
+            var selected = (ComboBoxItem)ProviderCombo.SelectedItem;
+            var tag = selected?.Tag?.ToString() ?? "GoogleSatellite";
+
+            return tag switch
+            {
+                "GoogleMap" => GMapProviders.GoogleMap,
+                "BingSatellite" => GMapProviders.BingSatelliteMap,
+                "OpenTopoMap" => OpenTopoMapProvider.Instance,
+                _ => GMapProviders.GoogleSatelliteMap
+            };
         }
 
         private RectLatLng GetSelectedBounds()
@@ -78,11 +119,12 @@ namespace SimpleDroneGCS.UI.Dialogs
                 int zoomFrom = GetZoomFrom();
                 int zoomTo = GetZoomTo();
                 var bounds = GetSelectedBounds();
+                var provider = GetSelectedProvider();
 
                 long totalTiles = 0;
                 for (int z = zoomFrom; z <= zoomTo; z++)
                 {
-                    var tiles = GMapProviders.GoogleSatelliteMap.Projection.GetAreaTileList(bounds, z, 0);
+                    var tiles = provider.Projection.GetAreaTileList(bounds, z, 0);
                     totalTiles += tiles.Count;
                 }
 
@@ -145,6 +187,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             RegionCombo.IsEnabled = false;
             ZoomFromCombo.IsEnabled = false;
             ZoomToCombo.IsEnabled = false;
+            ProviderCombo.IsEnabled = false;
             StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
                 (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#98F019"));
 
@@ -172,6 +215,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                 RegionCombo.IsEnabled = true;
                 ZoomFromCombo.IsEnabled = true;
                 ZoomToCombo.IsEnabled = true;
+                ProviderCombo.IsEnabled = true;
             }
         }
 
@@ -185,11 +229,12 @@ namespace SimpleDroneGCS.UI.Dialogs
             GMaps.Instance.Mode = AccessMode.ServerAndCache;
 
             var bounds = GetSelectedBounds();
+            var provider = GetSelectedProvider();
 
             long totalTiles = 0;
             for (int z = zoomFrom; z <= zoomTo; z++)
             {
-                totalTiles += GMapProviders.GoogleSatelliteMap.Projection
+                totalTiles += provider.Projection
                     .GetAreaTileList(bounds, z, 0).Count;
             }
 
@@ -202,7 +247,7 @@ namespace SimpleDroneGCS.UI.Dialogs
             {
                 ct.ThrowIfCancellationRequested();
 
-                var tiles = GMapProviders.GoogleSatelliteMap.Projection
+                var tiles = provider.Projection
                     .GetAreaTileList(bounds, zoom, 0);
 
                 StatusText.Text = $"Зум {zoom}: {tiles.Count:N0} тайлов...";
@@ -215,7 +260,7 @@ namespace SimpleDroneGCS.UI.Dialogs
                     {
 
                         var img = GMaps.Instance.GetImageFrom(
-                            GMapProviders.GoogleSatelliteMap, tile, zoom, out var ex);
+                            provider, tile, zoom, out var ex);
 
                         if (ex != null)
                         {
