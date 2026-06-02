@@ -21,6 +21,21 @@ namespace SimpleDroneGCS.Simulator
         private static readonly Brush InactiveFailBorder =
             new SolidColorBrush(Color.FromRgb(0x4D, 0x4D, 0x4D));
 
+        /// <summary>
+        /// Получить локализованную строку из ресурсов приложения.
+        /// Если ключ не найден — возвращает fallback (для защиты от падения UI).
+        /// </summary>
+        private static string Loc(string key, string fallback = null)
+        {
+            try
+            {
+                var res = Application.Current?.TryFindResource(key);
+                if (res is string s) return s;
+            }
+            catch { /* no-op, just return fallback */ }
+            return fallback ?? key;
+        }
+
         public SimulatorWindow()
         {
             InitializeComponent();
@@ -57,7 +72,7 @@ namespace SimpleDroneGCS.Simulator
                 StartBtn.IsEnabled = false;
                 StopBtn.IsEnabled = true;
                 PauseBtn.IsEnabled = true;
-                PauseBtn.Content = "⏸  Пауза";
+                PauseBtn.Content = Loc("Sim_BtnPause", "⏸  Пауза");
             }
             catch (Exception ex)
             {
@@ -86,7 +101,9 @@ namespace SimpleDroneGCS.Simulator
         {
             bool paused = _drone.TimeScale > 0.01;
             _drone.Pause(paused);
-            PauseBtn.Content = paused ? "▶  Продолжить" : "⏸  Пауза";
+            PauseBtn.Content = paused
+                ? Loc("Sim_BtnResume", "▶  Продолжить")
+                : Loc("Sim_BtnPause", "⏸  Пауза");
         }
 
         private void Speed_Checked(object sender, RoutedEventArgs e)
@@ -318,12 +335,36 @@ namespace SimpleDroneGCS.Simulator
                     : "—";
 
                 DiagVtolRegime.Text = _drone.VtolRegime.ToString();
-                DiagCruiseSpd.Text = $"{_drone.CruiseSpeedMs:F1} м/с";
+
+                // Cruise speed: показываем АКТУАЛЬНУЮ целевую скорость текущего тика,
+                // а не статический _cruiseSpeedMs из миссии. Это важно для понимания
+                // реального состояния (например на LAND target=0, а не 18).
+                double activeTarget = _drone.ActiveTargetSpeedMs;
+                if (double.IsNaN(activeTarget))
+                {
+                    DiagCruiseSpd.Text = "—";
+                }
+                else if (activeTarget < 0.05)
+                {
+                    DiagCruiseSpd.Text = "0 м/с " + Loc("Sim_DiagHold", "(удерж.)");
+                }
+                else
+                {
+                    DiagCruiseSpd.Text = $"{activeTarget:F1} м/с";
+                }
+
                 DiagLiftEng.Text = $"{_drone.LiftEngagement:F2}";
                 DiagPusherEng.Text = $"{_drone.PusherEngagement:F2}";
                 DiagVd.Text = $"{s.Velocity.Vd:+0.0;-0.0;0.0} м/с";
                 DiagWpDist.Text = $"{s.NavStatus.WpDistance:F0} м";
                 DiagAltErr.Text = $"{s.NavStatus.AltError:+0.0;-0.0;0.0} м";
+
+                DiagThrottle.Text = $"{s.Velocity.ThrottlePercent}%";
+
+                double rollDeg = s.Attitude.Roll * 180.0 / Math.PI;
+                double yawRateDegSec = s.Attitude.YawSpeed * 180.0 / Math.PI;
+                DiagBankRate.Text = $"{rollDeg:+0.0;-0.0;0.0}° / {yawRateDegSec:+0.0;-0.0;0.0}°/с";
+
             }
         }
 
@@ -377,7 +418,7 @@ namespace SimpleDroneGCS.Simulator
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                HudGcs.Text = "Подкл.";
+                HudGcs.Text = Loc("Sim_HudGcsConnected", "Подкл.");
                 HudGcs.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
             }));
         }
@@ -386,7 +427,7 @@ namespace SimpleDroneGCS.Simulator
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                HudGcs.Text = "Не подкл.";
+                HudGcs.Text = Loc("Sim_HudGcsDisconnected", "Не подкл.");
                 HudGcs.Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF));
             }));
         }

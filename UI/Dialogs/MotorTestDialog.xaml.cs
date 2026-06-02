@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -28,6 +29,20 @@ namespace SimpleDroneGCS.UI.Dialogs
         public bool AnyMotorTested => _testedMotors.Count > 0;
 
         private System.Threading.Tasks.TaskCompletionSource<bool> _motorAckTcs;
+
+        private static bool _pusherWarningAcceptedThisSession = false;
+
+        // --- Ожидание параметров ФК для pusher (только QuadPlane) ---
+        // Состояния:
+        //   0 = ещё не начинали опрос (до первой проверки)
+        //   1 = маппинг загружается, ждём параметры, PusherBtn disabled
+        //   2 = маппинг готов, pusher найден, PusherBtn enabled
+        //   3 = маппинг готов, pusher НЕ найден, PusherBtn disabled (SERVO_FUNCTION не задан)
+        //   4 = таймаут — параметры так и не пришли за 15 секунд, PusherBtn disabled
+        private int _pusherState = 0;
+        private int _pusherWaitTicks = 0;
+        // _pollTimer тикает раз в 500мс → 30 тиков = 15 секунд
+        private const int PUSHER_WAIT_TIMEOUT_TICKS = 30;
 
         private static readonly SolidColorBrush BrushGreen = new(Color.FromRgb(152, 240, 25));
         private static readonly SolidColorBrush BrushRed = new(Color.FromRgb(239, 68, 68));
@@ -265,6 +280,81 @@ namespace SimpleDroneGCS.UI.Dialogs
             Cfg4Btn.IsEnabled = configEnabled;
             Cfg6Btn.IsEnabled = configEnabled;
             Cfg8Btn.IsEnabled = configEnabled;
+
+            // Для QuadPlane дополнительно отслеживаем готовность параметров ФК
+            // для pusher — чтобы не показывать ложную ошибку "не найден" когда
+            // параметры ещё не успели прийти с ФК после подключения.
+            if (_vehicleType == VehicleType.QuadPlane)
+                UpdatePusherReadiness(canTest);
+        }
+
+        /// <summary>
+        /// Управляет состоянием PusherBtn в зависимости от того пришли ли
+        /// параметры SERVO*_FUNCTION с ФК и виден ли в них pusher (70/37/38).
+        /// Вызывается только для QuadPlane раз в 500мс из _pollTimer.
+        /// </summary>
+        /// <param name="canTest">общий флаг "можно тестировать" (не armed, есть связь)</param>
+        private void UpdatePusherReadiness(bool canTest)
+        {
+            if (PusherBtn == null) return;
+
+            // Если связь с ФК пропала — сбрасываем состояние чтобы при реконнекте
+            // цикл ожидания запустился заново.
+            if (!_mav.IsConnected)
+            {
+                _pusherState = 0;
+                _pusherWaitTicks = 0;
+                PusherBtn.IsEnabled = false;
+                return;
+            }
+
+            // Общие блокировки (armed, идёт "тест всех") перекрывают всё остальное.
+            if (!canTest)
+            {
+                PusherBtn.IsEnabled = false;
+                return;
+            }
+
+            bool mappingReady = _mav.IsServoMappingReady;
+
+            // Состояние 1 или начальное: маппинг ещё не готов → ждём
+            if (!mappingReady)
+            {
+                if (_pusherState != 1)
+                {
+                    _pusherState = 1;
+                    _pusherWaitTicks = 0;
+                    AddStatusLine(Get("MotorTest_PusherWaiting"), BrushYellow);
+                }
+                _pusherWaitTicks++;
+
+                // Таймаут — параметры не пришли, скорее всего проблема со связью
+                if (_pusherWaitTicks >= PUSHER_WAIT_TIMEOUT_TICKS)
+                {
+                    _pusherState = 4;
+                    AddStatusLine(Get("MotorTest_PusherParamsTimeout"), BrushRed);
+                }
+
+                PusherBtn.IsEnabled = false;
+                return;
+            }
+
+            // Маппинг готов — разбираемся найден ли pusher
+            if (_pusherState == 2 || _pusherState == 3) return; // уже уведомлено, нечего делать
+
+            int servoOut = _mav.GetPusherServoOutput();
+            if (servoOut > 0)
+            {
+                _pusherState = 2;
+                AddStatusLine(Fmt("MotorTest_PusherFound", servoOut), BrushGreen);
+                PusherBtn.IsEnabled = true;
+            }
+            else
+            {
+                _pusherState = 3;
+                AddStatusLine(Get("MotorTest_PusherNotFound"), BrushRed);
+                PusherBtn.IsEnabled = false;
+            }
         }
 
         private void OnMotorTestAck(int motorNum, bool accepted)
@@ -296,7 +386,14 @@ namespace SimpleDroneGCS.UI.Dialogs
             SetMotorActive(motorNum);
             AddStatusLine(Fmt("MotorTest_Testing", motorNum), BrushBlue);
 
-            bool accepted = await SendMotorTestWithAck(motorNum, throttle, duration);
+            bool accepted;
+            // QuadPlane: pusher мотор (#5 в UI) отправляется через BOARD_ORDER,
+            // потому что в ArduPilot QuadPlane pusher — это servo output с
+            // функцией Throttle (70), а не motor instance.
+            if (_vehicleType == VehicleType.QuadPlane && motorNum == 5)
+                accepted = await SendPusherTestWithAck(throttle, duration);
+            else
+                accepted = await SendMotorTestWithAck(motorNum, throttle, duration);
 
             if (_isClosed) return;
 
@@ -307,6 +404,66 @@ namespace SimpleDroneGCS.UI.Dialogs
                 else
                     SetMotorFailed(motorNum);
             }
+        }
+
+        private async System.Threading.Tasks.Task<bool> SendPusherTestWithAck(
+            float throttle, int duration,
+            System.Threading.CancellationToken ct = default)
+        {
+            if (!_pusherWarningAcceptedThisSession && !SimpleDroneGCS.Helpers.PusherTestPreferences.HideWarning)
+            {
+                int servoNum = _mav.GetPusherServoOutput();
+                int origFn = _mav.GetPusherOriginalFunction(servoNum);
+
+                var dlg = new SimpleDroneGCS.UI.Dialogs.PusherTestWarningDialog(servoNum, origFn)
+                {
+                    Owner = this
+                };
+
+                bool? result = dlg.ShowDialog();
+                if (result != true)
+                {
+                    AddStatusLine(Get("PusherTest_CancelledByUser"), BrushDim);
+                    return false;
+                }
+
+                if (dlg.HideWarningInFuture)
+                    SimpleDroneGCS.Helpers.PusherTestPreferences.HideWarning = true;
+
+                _pusherWarningAcceptedThisSession = true;
+            }
+
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+            _motorAckTcs = tcs;
+
+            bool sent = _mav.SendPusherMotorTest(throttle, duration);
+            if (!sent)
+            {
+                AddStatusLine(Get("MotorTest_PusherNotFound"), BrushRed);
+                return false;
+            }
+
+            var ackTimeout = System.Threading.Tasks.Task.Delay(3000, ct);
+            var completed = await System.Threading.Tasks.Task.WhenAny(tcs.Task, ackTimeout);
+
+            bool accepted;
+            if (completed == ackTimeout)
+            {
+                accepted = true;
+                AddStatusLine(Fmt("MotorTest_AckTimeout", 5), BrushYellow);
+            }
+            else
+            {
+                accepted = tcs.Task.Result;
+            }
+
+            if (accepted && !ct.IsCancellationRequested)
+            {
+                try { await System.Threading.Tasks.Task.Delay(duration * 1000, ct); }
+                catch (System.Threading.Tasks.TaskCanceledException) { }
+            }
+
+            return accepted;
         }
 
         private async System.Threading.Tasks.Task<bool> SendMotorTestWithAck(
@@ -357,10 +514,31 @@ namespace SimpleDroneGCS.UI.Dialogs
 
             int duration = (int)DurationSlider.Value;
             float throttle = (float)ThrottleSlider.Value;
-            int totalMotors = _vehicleType == VehicleType.QuadPlane ? 5 : _motorCount;
+
+            // Порядок тестирования по часовой стрелке как в Mission Planner (A→B→C→D...).
+            // Для X-frame: начиная с front-right, далее по часовой.
+            //   4 мотора: 1=FR → 4=RR → 2=RL → 3=FL
+            //   6 моторов (Hex X): 1=FR → 5=R → 4=RR → 2=RL → 6=L → 3=FL
+            //   8 моторов (Octo X): 7=F → 1=FR → 5=R → 4=RR → 8=B → 2=RL → 6=L → 3=FL
+            // Для QuadPlane: 4 лифт-мотора по часовой + pusher (M5) в конце.
+            int[] testOrder;
+            if (_vehicleType == VehicleType.QuadPlane)
+            {
+                testOrder = new[] { 1, 4, 2, 3, 5 };
+            }
+            else
+            {
+                testOrder = _motorCount switch
+                {
+                    4 => new[] { 1, 4, 2, 3 },
+                    6 => new[] { 1, 5, 4, 2, 6, 3 },
+                    8 => new[] { 7, 1, 5, 4, 8, 2, 6, 3 },
+                    _ => Enumerable.Range(1, _motorCount).ToArray()
+                };
+            }
 
             bool aborted = false;
-            for (int m = 1; m <= totalMotors; m++)
+            foreach (int m in testOrder)
             {
                 if (token.IsCancellationRequested || _isClosed) { aborted = true; break; }
 
@@ -375,7 +553,14 @@ namespace SimpleDroneGCS.UI.Dialogs
                 AddStatusLine(Fmt("MotorTest_Testing", m), BrushBlue);
 
                 bool accepted;
-                try { accepted = await SendMotorTestWithAck(m, throttle, duration, token); }
+                try
+                {
+                    // QuadPlane: pusher (#5) через BOARD_ORDER на servo output
+                    if (_vehicleType == VehicleType.QuadPlane && m == 5)
+                        accepted = await SendPusherTestWithAck(throttle, duration, token);
+                    else
+                        accepted = await SendMotorTestWithAck(m, throttle, duration, token);
+                }
                 catch (System.Threading.Tasks.TaskCanceledException) { aborted = true; break; }
 
                 if (_isClosed) return;
@@ -401,7 +586,13 @@ namespace SimpleDroneGCS.UI.Dialogs
             _isTestingAll = false;
             int totalMotors = _vehicleType == VehicleType.QuadPlane ? 5 : _motorCount;
             for (int m = 1; m <= totalMotors; m++)
-                _mav.SendMotorTest(m, 0f, 0f);
+            {
+                // QuadPlane: pusher стопаем через тот же BOARD_ORDER-путь
+                if (_vehicleType == VehicleType.QuadPlane && m == 5)
+                    _mav.SendPusherMotorTest(0f, 0f);
+                else
+                    _mav.SendMotorTest(m, 0f, 0f);
+            }
 
             _activeMotor = 0;
             foreach (var (mn, btn) in _motorButtons)
@@ -518,6 +709,20 @@ namespace SimpleDroneGCS.UI.Dialogs
             _motorAckTcs?.TrySetCanceled();
             _mav.MotorTestAckReceived -= OnMotorTestAck;
             _pollTimer?.Stop();
+
+            if (_mav.IsConnected)
+            {
+                try
+                {
+                    _mav.RestorePusherFunction();
+
+                    int lifts = _vehicleType == VehicleType.QuadPlane ? 4 : _motorCount;
+                    for (int m = 1; m <= lifts; m++)
+                        _mav.SendMotorTest(m, 0f, 0f);
+                }
+                catch { }
+            }
+
             base.OnClosed(e);
         }
     }

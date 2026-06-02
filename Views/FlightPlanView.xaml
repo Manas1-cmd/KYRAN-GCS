@@ -31,6 +31,27 @@
                                   MouseWheelZoomType="MousePositionAndCenter"
                                   MouseDoubleClick="PlanMap_MouseDoubleClick"
                                   MouseWheel="PlanMap_MouseWheel"/>
+                <Border x:Name="PlacementHintPanel"
+                        HorizontalAlignment="Center" VerticalAlignment="Top"
+                        Margin="0,16,0,0"
+                        Background="#E6060B1A"
+                        BorderBrush="#FACC15"
+                        BorderThickness="2"
+                        CornerRadius="8"
+                        Padding="16,8"
+                        Panel.ZIndex="300"
+                        Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🔷" FontSize="16" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="PlacementHintText"
+                                   Text="{DynamicResource MissionShape_PlacementHint}"
+                                   Foreground="#FACC15" FontSize="13" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="8,0,8,0"/>
+                        <TextBlock Text="{DynamicResource MissionShape_PlacementEsc}"
+                                   Foreground="#9CA3AF" FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
                 <Border HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="0,12,12,0"
@@ -165,6 +186,11 @@
                                 <TextBlock Text=" | " Foreground="#444" FontSize="10"/>
                                 <TextBlock x:Name="PlanHomeLonText" Text="--.--" Foreground="White" FontSize="10" FontFamily="Consolas"/>
                             </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock Text="↔" Foreground="#98F019" FontSize="11" FontWeight="Bold" Margin="0,0,4,0"/>
+                                <TextBlock Text="{DynamicResource DroneToHome_Label}" Foreground="#9CA3AF" FontSize="10"/>
+                                <TextBlock x:Name="PlanDroneHomeDistText" Text=" —" Foreground="#98F019" FontSize="10" FontFamily="Consolas" FontWeight="Bold" Margin="4,0,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -237,6 +263,15 @@
                             Click="DownloadSRTM_Click">
                         <TextBlock Text="🏔️" FontSize="14"/>
                     </Button>
+
+                    <Button ToolTip="{DynamicResource Tip_MissionShape}"
+                            Width="32" Height="32" Margin="4,0,0,0"
+                            Background="#E6060B1A" Foreground="White"
+                            BorderThickness="1" BorderBrush="#2298F019"
+                            Click="ShapeButton_Click">
+                        <TextBlock Text="🔷" FontSize="14"/>
+                    </Button>
+
                     <Button x:Name="CoordFormatToggle"
                             ToolTip="{DynamicResource CoordFormat_Toggle}"
                             Width="48" Height="32" Margin="4,0,0,0"

@@ -15,6 +15,9 @@ namespace SimpleDroneGCS.Views
         private const string DEFAULT_IP = "192.168.2.119";
 
         private bool _isInitialized = false;
+        // Если оператор отредактировал RTSP URL вручную — не затираем
+        // его автогенерацией при смене IP или RTSP порта.
+        private bool _rtspUrlManuallyEdited = false;
 
         public CameraConnectionSettings ConnectionSettings { get; private set; }
 
@@ -23,23 +26,60 @@ namespace SimpleDroneGCS.Views
             InitializeComponent();
             LoadSavedSettings();
             _isInitialized = true;
-            UpdateRtspUrl();
+            if (!_rtspUrlManuallyEdited) UpdateRtspUrl();
         }
 
-        private void IpAddress_TextChanged(object sender, TextChangedEventArgs e)
+        // Актуальный IP: либо выбранный пункт ComboBox, либо то что оператор вбил руками.
+        private string GetIpText()
         {
-            if (_isInitialized) UpdateRtspUrl();
+            if (IpAddressCombo == null) return DEFAULT_IP;
+            string t = IpAddressCombo.Text;
+            return string.IsNullOrWhiteSpace(t) ? DEFAULT_IP : t.Trim();
+        }
+
+        private void SetIpText(string ip)
+        {
+            if (IpAddressCombo == null) return;
+            // Если IP совпадает с одним из пунктов списка — выбираем его,
+            // иначе просто пишем текстом.
+            foreach (var item in IpAddressCombo.Items)
+            {
+                if (item is ComboBoxItem cbi && string.Equals(cbi.Content?.ToString(), ip, StringComparison.Ordinal))
+                {
+                    IpAddressCombo.SelectedItem = cbi;
+                    return;
+                }
+            }
+            IpAddressCombo.Text = ip;
+        }
+
+        private void IpAddressCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInitialized && !_rtspUrlManuallyEdited) UpdateRtspUrl();
+        }
+
+        private void IpAddressCombo_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (_isInitialized && !_rtspUrlManuallyEdited) UpdateRtspUrl();
         }
 
         private void RtspPort_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (_isInitialized) UpdateRtspUrl();
+            if (_isInitialized && !_rtspUrlManuallyEdited) UpdateRtspUrl();
+        }
+
+        private void RtspUrl_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Флаг ставим только на реальное редактирование пользователем
+            // (а не на автоматическое обновление через UpdateRtspUrl).
+            if (_isInitialized && RtspUrlTextBox.IsKeyboardFocused)
+                _rtspUrlManuallyEdited = true;
         }
 
         private void UpdateRtspUrl()
         {
-            if (!_isInitialized || IpAddressTextBox == null || RtspUrlTextBox == null) return;
-            string ip = IpAddressTextBox.Text?.Trim() ?? DEFAULT_IP;
+            if (!_isInitialized || RtspUrlTextBox == null) return;
+            string ip = GetIpText();
             string port = RtspPortTextBox?.Text?.Trim() ?? DEFAULT_RTSP_PORT.ToString();
             RtspUrlTextBox.Text = string.Format(RTSP_TEMPLATE, ip, port);
         }
@@ -49,8 +89,8 @@ namespace SimpleDroneGCS.Views
             try
             {
                 var settings = Properties.Settings.Default;
-                IpAddressTextBox.Text = !string.IsNullOrEmpty(settings.CameraIP)
-                    ? settings.CameraIP : DEFAULT_IP;
+                SetIpText(!string.IsNullOrEmpty(settings.CameraIP)
+                    ? settings.CameraIP : DEFAULT_IP);
                 TcpPortTextBox.Text = settings.CameraTcpPort > 0
                     ? settings.CameraTcpPort.ToString() : DEFAULT_TCP_PORT.ToString();
                 RtspPortTextBox.Text = settings.CameraRtspPort > 0
@@ -59,7 +99,7 @@ namespace SimpleDroneGCS.Views
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[CameraDialog] LoadSettings: {ex.Message}");
-                IpAddressTextBox.Text = DEFAULT_IP;
+                SetIpText(DEFAULT_IP);
                 TcpPortTextBox.Text = DEFAULT_TCP_PORT.ToString();
                 RtspPortTextBox.Text = DEFAULT_RTSP_PORT.ToString();
             }
@@ -70,7 +110,7 @@ namespace SimpleDroneGCS.Views
             try
             {
                 var settings = Properties.Settings.Default;
-                settings.CameraIP = IpAddressTextBox.Text?.Trim() ?? DEFAULT_IP;
+                settings.CameraIP = GetIpText();
                 settings.CameraTcpPort = int.TryParse(TcpPortTextBox.Text, out int tcp) ? tcp : DEFAULT_TCP_PORT;
                 settings.CameraRtspPort = int.TryParse(RtspPortTextBox.Text, out int rtsp) ? rtsp : DEFAULT_RTSP_PORT;
                 settings.Save();
@@ -83,11 +123,11 @@ namespace SimpleDroneGCS.Views
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
-            string ip = IpAddressTextBox.Text?.Trim() ?? "";
+            string ip = GetIpText();
             if (string.IsNullOrEmpty(ip))
             {
                 AppMessageBox.ShowWarning("Введите IP адрес камеры", owner: this);
-                IpAddressTextBox.Focus();
+                IpAddressCombo.Focus();
                 return;
             }
 

@@ -36,6 +36,12 @@ namespace SimpleDroneGCS.Simulator.Mavlink
         public byte MotorCount { get; init; }
     }
 
+    public sealed class SetServoArgs : EventArgs
+    {
+        public byte ServoIndex { get; init; }
+        public ushort PwmUs { get; init; }
+    }
+
     public sealed class ParamSetArgs : EventArgs
     {
         public string ParamId { get; init; } = "";
@@ -96,6 +102,7 @@ namespace SimpleDroneGCS.Simulator.Mavlink
         public event EventHandler LandCommand;
         public event EventHandler RebootCommand;
         public event EventHandler<MotorTestArgs> MotorTestCommand;
+        public event EventHandler<SetServoArgs> SetServoCommand;
         public event EventHandler<CalibrationArgs> CalibrationCommand;
         public event EventHandler AutopilotCapabilitiesRequested;
 
@@ -122,6 +129,8 @@ namespace SimpleDroneGCS.Simulator.Mavlink
         public event EventHandler MissionAckReceived;
         public event EventHandler MissionClearAll;
         public event EventHandler<ushort> MissionSetCurrent;
+        /// <summary>MISSION_WRITE_PARTIAL_LIST (msg 38): диапазон [start..end) для обновления.</summary>
+        public event EventHandler<(ushort start, ushort end)> MissionWritePartial;
 
         public event EventHandler<GuidedTargetArgs> GuidedTargetInt;
 
@@ -257,6 +266,7 @@ namespace SimpleDroneGCS.Simulator.Mavlink
                 case 20: ParseParamRequestRead(buf, offset, len); break;
                 case 21: ParamRequestList?.Invoke(this, EventArgs.Empty); break;
                 case 23: ParseParamSet(buf, offset, len); break;
+                case 38: ParseMissionWritePartialList(buf, offset, len); break;
                 case 41: ParseMissionSetCurrent(buf, offset, len); break;
                 case 43: MissionRequestList?.Invoke(this, EventArgs.Empty); break;
                 case 44: ParseMissionCount(buf, offset, len); break;
@@ -404,6 +414,14 @@ namespace SimpleDroneGCS.Simulator.Mavlink
                     });
                     break;
 
+                case 183: // DO_SET_SERVO
+                    SetServoCommand?.Invoke(this, new SetServoArgs
+                    {
+                        ServoIndex = (byte)p1,
+                        PwmUs = (ushort)Math.Clamp((int)Math.Round(p2), 0, 65535),
+                    });
+                    break;
+
                 case 241: // PREFLIGHT_CALIBRATION
                     CalibrationCommand?.Invoke(this, new CalibrationArgs
                     {
@@ -452,6 +470,20 @@ namespace SimpleDroneGCS.Simulator.Mavlink
         {
             var p = ExpandPayload(buf, offset, len, 4);
             MissionSetCurrent?.Invoke(this, GetU16(p, 0));
+        }
+
+        /// <summary>
+        /// MISSION_WRITE_PARTIAL_LIST (ID 38): GCS хочет обновить диапазон точек.
+        /// Payload: start_index (i16), end_index (i16), target_sys, target_comp, mission_type.
+        /// После этого GCS шлёт MISSION_ITEM_INT для индексов [start..end].
+        /// </summary>
+        private void ParseMissionWritePartialList(byte[] buf, int offset, int len)
+        {
+            var p = ExpandPayload(buf, offset, len, 7);
+            short start = (short)GetU16(p, 0);
+            short end = (short)GetU16(p, 2);
+            if (start < 0 || end < start) return;
+            MissionWritePartial?.Invoke(this, ((ushort)start, (ushort)end));
         }
 
         private void ParseMissionCount(byte[] buf, int offset, int len)

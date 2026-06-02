@@ -3,11 +3,27 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace SimpleDroneGCS.Controls
 {
+    /// <summary>
+    /// Авиационный Attitude Director Indicator (ADI) — горизонт, pitch ladder, roll scale.
+    /// <para>
+    /// Реагирует на изменения <see cref="Roll"/> (°, +право) и <see cref="Pitch"/> (°, +вверх).
+    /// Использует CompositionTarget.Rendering для плавной интерполяции (60 Hz).
+    /// </para>
+    /// <para>
+    /// Thread-safe: setter'ы Roll/Pitch можно вызывать из любого потока —
+    /// при необходимости перенаправляются на UI Dispatcher.
+    /// </para>
+    /// </summary>
     public class AttitudeIndicator : UserControl
     {
+        // =====================================================================
+        // UI элементы
+        // =====================================================================
+
         private Canvas _canvas;
         private Canvas _pitchLadder;
         private Canvas _rollArc;
@@ -15,38 +31,68 @@ namespace SimpleDroneGCS.Controls
 
         private RotateTransform _backgroundRollTransform;
         private TranslateTransform _backgroundPitchTransform;
-        private TransformGroup _backgroundTransformGroup;
         private RotateTransform _pitchLadderRollTransform;
         private TranslateTransform _pitchLadderPitchTransform;
+
+        // =====================================================================
+        // Интерполяция: target (целевое) → current (отображаемое с lerp)
+        // =====================================================================
 
         private double _currentRoll = 0;
         private double _currentPitch = 0;
         private double _targetRoll = 0;
         private double _targetPitch = 0;
         private double _lastPitchForLadder = double.NaN;
-        private readonly object _lockObject = new object();
 
         private bool _isRendering = false;
+        private bool _initialized = false;
+
+        // =====================================================================
+        // Dependency properties — значения из телеметрии
+        // =====================================================================
 
         public static readonly DependencyProperty RollProperty =
-            DependencyProperty.Register("Roll", typeof(double), typeof(AttitudeIndicator),
+            DependencyProperty.Register(
+                nameof(Roll), typeof(double), typeof(AttitudeIndicator),
                 new PropertyMetadata(0.0, OnAttitudeChanged));
 
         public static readonly DependencyProperty PitchProperty =
-            DependencyProperty.Register("Pitch", typeof(double), typeof(AttitudeIndicator),
+            DependencyProperty.Register(
+                nameof(Pitch), typeof(double), typeof(AttitudeIndicator),
                 new PropertyMetadata(0.0, OnAttitudeChanged));
 
+        /// <summary>Крен, градусы. Положительное = правый крен.</summary>
         public double Roll
         {
             get => (double)GetValue(RollProperty);
-            set => SetValue(RollProperty, value);
+            set
+            {
+                // Thread-safe: если не UI поток — перенаправить через Dispatcher.
+                // Без этого вызов из background потока MAVLink кидает InvalidOperationException
+                // и обновление тихо теряется.
+                if (Dispatcher.CheckAccess())
+                    SetValue(RollProperty, value);
+                else
+                    Dispatcher.BeginInvoke(new Action(() => SetValue(RollProperty, value)));
+            }
         }
 
+        /// <summary>Тангаж, градусы. Положительное = нос вверх.</summary>
         public double Pitch
         {
             get => (double)GetValue(PitchProperty);
-            set => SetValue(PitchProperty, value);
+            set
+            {
+                if (Dispatcher.CheckAccess())
+                    SetValue(PitchProperty, value);
+                else
+                    Dispatcher.BeginInvoke(new Action(() => SetValue(PitchProperty, value)));
+            }
         }
+
+        // =====================================================================
+        // Lifecycle
+        // =====================================================================
 
         public AttitudeIndicator()
         {
@@ -58,17 +104,40 @@ namespace SimpleDroneGCS.Controls
 
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
+            IsVisibleChanged += OnVisibilityChanged;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            InitializeIndicator();
+            if (!_initialized)
+            {
+                InitializeIndicator();
+                _initialized = true;
+            }
+
+            // Применяем текущие target значения сразу (без lerp) при первом отображении —
+            // чтобы если Roll/Pitch были установлены до Loaded, индикатор
+            // стартовал уже в правильной позиции.
+            _currentRoll = _targetRoll;
+            _currentPitch = _targetPitch;
+            ApplyTransforms();
+
             StartRendering();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             StopRendering();
+        }
+
+        private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // Если контрол скрыт — останавливаем рендер-цикл для экономии.
+            // При повторном показе — возобновляем.
+            if (IsVisible && _initialized)
+                StartRendering();
+            else
+                StopRendering();
         }
 
         private void StartRendering()
@@ -80,26 +149,35 @@ namespace SimpleDroneGCS.Controls
 
         private void StopRendering()
         {
+            if (!_isRendering) return;
             _isRendering = false;
             CompositionTarget.Rendering -= OnRendering;
         }
 
+        // =====================================================================
+        // Render loop — плавная интерполяция 60 Hz
+        // =====================================================================
+
         private void OnRendering(object sender, EventArgs e)
         {
-            if (!_isRendering) return;
+            if (!_isRendering || !_initialized) return;
 
+            // Smoothing 0.15 = 85% к target за 1 кадр.
+            // Для 60 Hz: за 10 кадров (167 мс) ~ достигает target.
             const double smoothing = 0.15;
 
-            lock (_lockObject)
-            {
-                _currentRoll = Lerp(_currentRoll, _targetRoll, smoothing);
-                _currentPitch = Lerp(_currentPitch, _targetPitch, smoothing);
-            }
+            _currentRoll = Lerp(_currentRoll, _targetRoll, smoothing);
+            _currentPitch = Lerp(_currentPitch, _targetPitch, smoothing);
+
+            // Snap-to-target если разница ничтожна (чтобы не сжигать циклы на вечный
+            // приближающийся lerp).
+            if (Math.Abs(_currentRoll - _targetRoll) < 0.01) _currentRoll = _targetRoll;
+            if (Math.Abs(_currentPitch - _targetPitch) < 0.01) _currentPitch = _targetPitch;
 
             ApplyTransforms();
         }
 
-        private double Lerp(double current, double target, double amount)
+        private static double Lerp(double current, double target, double amount)
         {
             return current + (target - current) * amount;
         }
@@ -108,26 +186,61 @@ namespace SimpleDroneGCS.Controls
         {
             if (_backgroundRollTransform == null || _backgroundPitchTransform == null) return;
 
-            double pixelsPerDegree = 3.5;
+            const double pixelsPerDegree = 3.5;
 
+            // Горизонт: translate по Y (pitch) + rotate (roll).
             _backgroundPitchTransform.Y = _currentPitch * pixelsPerDegree;
             _backgroundRollTransform.Angle = -_currentRoll;
 
+            // Pitch ladder сдвигается и вращается синхронно с фоном.
             if (_pitchLadderPitchTransform != null && _pitchLadderRollTransform != null)
             {
                 _pitchLadderPitchTransform.Y = _currentPitch * pixelsPerDegree;
                 _pitchLadderRollTransform.Angle = -_currentRoll;
             }
 
+            // Roll arc вращается чтобы показать текущий крен.
             if (_rollArcTransform != null)
                 _rollArcTransform.Angle = -_currentRoll;
 
-            if (double.IsNaN(_lastPitchForLadder) || Math.Abs(_currentPitch - _lastPitchForLadder) > 1.0)
+            // Pitch ladder перерисовываем только при изменении > 1° (оптимизация).
+            if (double.IsNaN(_lastPitchForLadder) ||
+                Math.Abs(_currentPitch - _lastPitchForLadder) > 1.0)
             {
                 _lastPitchForLadder = _currentPitch;
                 UpdatePitchLadder(_currentPitch);
             }
         }
+
+        // =====================================================================
+        // Callback на изменение Roll/Pitch
+        // =====================================================================
+
+        private static void OnAttitudeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is not AttitudeIndicator indicator) return;
+
+            double newVal = (double)e.NewValue;
+
+            // Санитизация: NaN/Infinity ломают рендер, игнорируем.
+            if (double.IsNaN(newVal) || double.IsInfinity(newVal)) return;
+
+            if (e.Property == RollProperty)
+            {
+                indicator._targetRoll = newVal;
+            }
+            else if (e.Property == PitchProperty)
+            {
+                indicator._targetPitch = newVal;
+            }
+
+            // Если контрол ещё не загружен или не рендерится — сохраняем target,
+            // при Loaded он применится.
+        }
+
+        // =====================================================================
+        // Отрисовка — без изменений, только структурно чуть почищено
+        // =====================================================================
 
         private void InitializeIndicator()
         {
@@ -150,7 +263,8 @@ namespace SimpleDroneGCS.Controls
                 RadiusX = 8,
                 RadiusY = 8
             };
-          
+
+            // --- Фон: небо + земля ---
             var bg = new Canvas { Width = 2000, Height = 2000 };
 
             bg.Children.Add(new Rectangle
@@ -195,6 +309,7 @@ namespace SimpleDroneGCS.Controls
             Canvas.SetTop(gndDark, 1350);
             bg.Children.Add(gndDark);
 
+            // Линия горизонта.
             bg.Children.Add(new Line
             {
                 X1 = 0,
@@ -208,15 +323,16 @@ namespace SimpleDroneGCS.Controls
 
             _backgroundPitchTransform = new TranslateTransform(0, 0);
             _backgroundRollTransform = new RotateTransform(0, 1000, 1000);
-            _backgroundTransformGroup = new TransformGroup();
-            _backgroundTransformGroup.Children.Add(_backgroundPitchTransform);
-            _backgroundTransformGroup.Children.Add(_backgroundRollTransform);
-            bg.RenderTransform = _backgroundTransformGroup;
+            var bgTransformGroup = new TransformGroup();
+            bgTransformGroup.Children.Add(_backgroundPitchTransform);
+            bgTransformGroup.Children.Add(_backgroundRollTransform);
+            bg.RenderTransform = bgTransformGroup;
 
             Canvas.SetLeft(bg, -775);
             Canvas.SetTop(bg, -875);
             _canvas.Children.Add(bg);
 
+            // --- Pitch ladder ---
             _pitchLadder = new Canvas { Width = Width * 2, Height = Height * 2 };
             RenderOptions.SetBitmapScalingMode(_pitchLadder, BitmapScalingMode.LowQuality);
             UpdatePitchLadder(0);
@@ -232,7 +348,7 @@ namespace SimpleDroneGCS.Controls
             Canvas.SetTop(_pitchLadder, -Height / 2);
             _canvas.Children.Add(_pitchLadder);
 
-          
+            // --- Roll arc с шкалой крена ---
             double rollRadius = 180;
             double rollCenterY = cy + 65;
 
@@ -278,6 +394,7 @@ namespace SimpleDroneGCS.Controls
                 });
             }
 
+            // Текстовые метки 30°.
             int[] labelAngles = { -30, 30 };
             foreach (int angle in labelAngles)
             {
@@ -300,6 +417,7 @@ namespace SimpleDroneGCS.Controls
                 _rollArc.Children.Add(label);
             }
 
+            // Треугольник-поинтер на дуге (вращается с креном).
             double triY = rollCenterY - rollRadius;
             _rollArc.Children.Add(new Polygon
             {
@@ -317,6 +435,7 @@ namespace SimpleDroneGCS.Controls
             _rollArc.RenderTransform = _rollArcTransform;
             _canvas.Children.Add(_rollArc);
 
+            // --- Фиксированный зелёный треугольник наверху (не вращается) ---
             double ptrY = rollCenterY - rollRadius;
             _canvas.Children.Add(new Polygon
             {
@@ -330,6 +449,7 @@ namespace SimpleDroneGCS.Controls
                 IsHitTestVisible = false
             });
 
+            // --- Символ самолёта (оранжевый, статичный в центре) ---
             var planeColor = new SolidColorBrush(Color.FromRgb(230, 150, 30));
 
             _canvas.Children.Add(new Line
@@ -352,7 +472,6 @@ namespace SimpleDroneGCS.Controls
                 StrokeThickness = 2.5,
                 IsHitTestVisible = false
             });
-
             _canvas.Children.Add(new Line
             {
                 X1 = cx + 8,
@@ -373,7 +492,6 @@ namespace SimpleDroneGCS.Controls
                 StrokeThickness = 2.5,
                 IsHitTestVisible = false
             });
-
             _canvas.Children.Add(new Line
             {
                 X1 = cx,
@@ -385,12 +503,7 @@ namespace SimpleDroneGCS.Controls
                 IsHitTestVisible = false
             });
 
-            var dot = new Ellipse
-            {
-                Width = 6,
-                Height = 6,
-                Fill = planeColor
-            };
+            var dot = new Ellipse { Width = 6, Height = 6, Fill = planeColor };
             Canvas.SetLeft(dot, cx - 3);
             Canvas.SetTop(dot, cy - 3);
             _canvas.Children.Add(dot);
@@ -400,11 +513,13 @@ namespace SimpleDroneGCS.Controls
 
         private void UpdatePitchLadder(double currentPitch)
         {
+            if (_pitchLadder == null) return;
+
             _pitchLadder.Children.Clear();
 
             double centerX = _pitchLadder.Width / 2;
             double centerY = _pitchLadder.Height / 2;
-            double pixelsPerDegree = 3.5;
+            const double pixelsPerDegree = 3.5;
 
             int startAngle = ((int)(currentPitch - 25) / 5) * 5;
             int endAngle = ((int)(currentPitch + 25) / 5) * 5;
@@ -449,7 +564,8 @@ namespace SimpleDroneGCS.Controls
             }
         }
 
-        private Geometry CreateArcGeometry(double cx, double cy, double r, double startAngleDeg, double endAngleDeg)
+        private static Geometry CreateArcGeometry(double cx, double cy, double r,
+            double startAngleDeg, double endAngleDeg)
         {
             double startRad = (startAngleDeg - 90) * Math.PI / 180;
             double endRad = (endAngleDeg - 90) * Math.PI / 180;
@@ -471,18 +587,6 @@ namespace SimpleDroneGCS.Controls
             var geometry = new PathGeometry();
             geometry.Figures.Add(figure);
             return geometry;
-        }
-
-        private static void OnAttitudeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            if (d is AttitudeIndicator indicator)
-            {
-                lock (indicator._lockObject)
-                {
-                    indicator._targetRoll = indicator.Roll;
-                    indicator._targetPitch = indicator.Pitch;
-                }
-            }
         }
     }
 }

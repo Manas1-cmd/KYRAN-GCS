@@ -196,6 +196,12 @@ namespace SimpleDroneGCS.Simulator.Physics
             _mThrust0 = _mThrust1 = _mThrust2 = _mThrust3 = 0.0;
             state.ServoPwm[0] = state.ServoPwm[1] = state.ServoPwm[2] = state.ServoPwm[3] = 1000;
             for (int i = 4; i < state.ServoPwm.Length; i++) state.ServoPwm[i] = 1500;
+
+            // DO_SET_SERVO override (motor test на земле).
+            for (int i = 0; i < state.ServoPwm.Length; i++)
+                if (state.ServoOverride[i] != 0)
+                    state.ServoPwm[i] = state.ServoOverride[i];
+
             state.Velocity.ThrottlePercent = 0;
 
             // Если disarm в воздухе — свободное падение (пункт скоупа #10).

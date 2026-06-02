@@ -1,15 +1,18 @@
 <Window x:Class="SimpleDroneGCS.Simulator.SimulatorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Симулятор SQK GCS"
-        Height="900" Width="1600"
-        MinWidth="1200" MinHeight="700"
-        WindowState="Maximized"
+        Title="{DynamicResource Sim_TitleBarText}"
+        Height="600" Width="900"
+        MinWidth="600" MinHeight="400"
+        WindowState="Normal"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="CanResize"
-        WindowStartupLocation="CenterOwner">
+        Topmost="True"
+        ShowInTaskbar="True"
+        WindowStartupLocation="Manual"
+        Left="20" Top="20">
 
     <Window.Resources>
         <Style x:Key="SectionHeader" TargetType="TextBlock">
@@ -142,7 +145,7 @@
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="🧪" FontSize="18" Margin="0,0,10,0"/>
-                        <TextBlock Text="Симулятор SQK GCS"
+                        <TextBlock Text="{DynamicResource Sim_TitleBarText}"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    Foreground="#2A5A8F"
@@ -198,19 +201,19 @@
                     <!-- Колонка 1: Управление + HOME -->
                     <Border Grid.Column="0" Style="{StaticResource PanelStyle}">
                         <StackPanel>
-                            <TextBlock Text="УПРАВЛЕНИЕ" Style="{StaticResource SectionHeader}"/>
+                            <TextBlock Text="{DynamicResource Sim_SectionControl}" Style="{StaticResource SectionHeader}"/>
 
-                            <Button x:Name="StartBtn" Content="▶  Запустить"
+                            <Button x:Name="StartBtn" Content="{DynamicResource Sim_BtnStart}"
                                     Style="{StaticResource StartButton}"
                                     Click="StartBtn_Click"/>
-                            <Button x:Name="StopBtn" Content="■  Остановить"
+                            <Button x:Name="StopBtn" Content="{DynamicResource Sim_BtnStop}"
                                     Style="{StaticResource StopButton}"
                                     Click="StopBtn_Click" IsEnabled="False"/>
-                            <Button x:Name="PauseBtn" Content="⏸  Пауза"
+                            <Button x:Name="PauseBtn" Content="{DynamicResource Sim_BtnPause}"
                                     Style="{StaticResource PauseButton}"
                                     Click="PauseBtn_Click" IsEnabled="False"/>
 
-                            <TextBlock Text="СКОРОСТЬ ВРЕМЕНИ" Style="{StaticResource SectionHeader}"
+                            <TextBlock Text="{DynamicResource Sim_SectionTimeScale}" Style="{StaticResource SectionHeader}"
                                        Margin="0,14,0,6"/>
                             <WrapPanel>
                                 <RadioButton x:Name="Speed05" Content="x0.5" GroupName="Speed"
@@ -227,18 +230,18 @@
                                              Checked="Speed_Checked" Tag="5"/>
                             </WrapPanel>
 
-                            <TextBlock Text="ТИП ВС" Style="{StaticResource SectionHeader}"
+                            <TextBlock Text="{DynamicResource Sim_SectionVehicleType}" Style="{StaticResource SectionHeader}"
                                        Margin="0,14,0,6"/>
-                            <RadioButton x:Name="VehCopter" Content="Мультикоптер"
+                            <RadioButton x:Name="VehCopter" Content="{DynamicResource Sim_VehicleCopter}"
                                          GroupName="Veh"
                                          Style="{StaticResource SimRadio}"
                                          Checked="Vehicle_Checked" Tag="Copter"/>
-                            <RadioButton x:Name="VehVtol" Content="VTOL (QuadPlane)"
+                            <RadioButton x:Name="VehVtol" Content="{DynamicResource Sim_VehicleVtolShort}"
                                          GroupName="Veh" IsChecked="True"
                                          Style="{StaticResource SimRadio}"
                                          Checked="Vehicle_Checked" Tag="Vtol"/>
 
-                            <TextBlock Text="HOME" Style="{StaticResource SectionHeader}"
+                            <TextBlock Text="{DynamicResource Sim_SectionHome}" Style="{StaticResource SectionHeader}"
                                        Margin="0,14,0,6"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -251,25 +254,25 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Lat:"
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource Sim_HudLat}"
                                            VerticalAlignment="Center" Margin="0,3"
                                            Style="{StaticResource HudLabel}"/>
                                 <TextBox Grid.Row="0" Grid.Column="1" x:Name="HomeLatBox"
                                          Style="{StaticResource InputBox}" Margin="0,3"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Lon:"
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource Sim_HudLon}"
                                            VerticalAlignment="Center" Margin="0,3"
                                            Style="{StaticResource HudLabel}"/>
                                 <TextBox Grid.Row="1" Grid.Column="1" x:Name="HomeLonBox"
                                          Style="{StaticResource InputBox}" Margin="0,3"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Alt:"
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource Sim_HudAlt}"
                                            VerticalAlignment="Center" Margin="0,3"
                                            Style="{StaticResource HudLabel}"/>
                                 <TextBox Grid.Row="2" Grid.Column="1" x:Name="HomeAltBox"
                                          Style="{StaticResource InputBox}" Margin="0,3"/>
                             </Grid>
-                            <Button Content="Применить HOME"
+                            <Button Content="{DynamicResource Sim_BtnApplyHome}"
                                     Style="{StaticResource ActionButton}"
                                     Margin="0,6,0,0"
                                     Click="ApplyHomeBtn_Click"/>
@@ -285,7 +288,7 @@
 
                         <Border Grid.Row="0" Style="{StaticResource PanelStyle}" Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock Text="HUD" Style="{StaticResource SectionHeader}"/>
+                                <TextBlock Text="{DynamicResource Sim_SectionHud}" Style="{StaticResource SectionHeader}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -301,53 +304,53 @@
                                     </Grid.RowDefinitions>
 
                                     <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Lat:  " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudLat}" Style="{StaticResource HudLabel}" Width="50"/>
                                         <TextBlock x:Name="HudLat" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Lon:  " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudLon}" Style="{StaticResource HudLabel}" Width="50"/>
                                         <TextBlock x:Name="HudLon" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Alt:  " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudAlt}" Style="{StaticResource HudLabel}" Width="50"/>
                                         <TextBlock x:Name="HudAlt" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="GS:   " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudGs}" Style="{StaticResource HudLabel}" Width="50"/>
                                         <TextBlock x:Name="HudGs" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="AS:   " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudAs}" Style="{StaticResource HudLabel}" Width="50"/>
                                         <TextBlock x:Name="HudAs" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Курс: " Style="{StaticResource HudLabel}" Width="50"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudHdg}" Style="{StaticResource HudLabel}" Width="50"/>
                                         <TextBlock x:Name="HudHdg" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Крен: " Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudRoll}" Style="{StaticResource HudLabel}" Width="60"/>
                                         <TextBlock x:Name="HudRoll" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Танг.:" Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudPitch}" Style="{StaticResource HudLabel}" Width="60"/>
                                         <TextBlock x:Name="HudPitch" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Бат.: " Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudBatt}" Style="{StaticResource HudLabel}" Width="60"/>
                                         <TextBlock x:Name="HudBatt" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Режим:" Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudMode}" Style="{StaticResource HudLabel}" Width="60"/>
                                         <TextBlock x:Name="HudMode" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="ARM:  " Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudArm}" Style="{StaticResource HudLabel}" Width="60"/>
                                         <TextBlock x:Name="HudArm" Text="—" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="GCS:  " Style="{StaticResource HudLabel}" Width="60"/>
-                                        <TextBlock x:Name="HudGcs" Text="Не подкл." Style="{StaticResource HudValue}"/>
+                                        <TextBlock Text="{DynamicResource Sim_HudGcs}" Style="{StaticResource HudLabel}" Width="60"/>
+                                        <TextBlock x:Name="HudGcs" Text="{DynamicResource Sim_HudGcsDisconnected}" Style="{StaticResource HudValue}"/>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -355,7 +358,7 @@
 
                         <Border Grid.Row="1" Style="{StaticResource PanelStyle}">
                             <StackPanel>
-                                <TextBlock Text="ДИАГНОСТИКА" Style="{StaticResource SectionHeader}"
+                                <TextBlock Text="{DynamicResource Sim_SectionDiagnostics}" Style="{StaticResource SectionHeader}"
                                            Foreground="#60A5FA"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -368,48 +371,58 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="ControlMode:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagControlMode}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagCtrlMode" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Mission state:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagMissionState}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagMissionState" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Current WP:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagCurrentWp}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagCurrentWp" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="VTOL regime:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagVtolRegime}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagVtolRegime" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="0" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Cruise speed:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagTargetSpeed}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagCruiseSpd" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Lift engage:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagLiftEng}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagLiftEng" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Pusher engage:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagPusherEng}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagPusherEng" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Vd (vert):" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagVd}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagVd" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="WP distance:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagWpDist}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagWpDist" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Grid.Row="4" Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Alt error:" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock Text="{DynamicResource Sim_DiagAltErr}" Style="{StaticResource HudLabel}" Width="110"/>
                                         <TextBlock x:Name="DiagAltErr" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="0" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="{DynamicResource Sim_DiagThrottle}" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagThrottle" Text="—" Style="{StaticResource DiagValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="5" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="{DynamicResource Sim_DiagBankRate}" Style="{StaticResource HudLabel}" Width="110"/>
+                                        <TextBlock x:Name="DiagBankRate" Text="—" Style="{StaticResource DiagValue}"/>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -421,7 +434,7 @@
 
                         <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock Text="ВЕТЕР" Style="{StaticResource SectionHeader}"/>
+                                <TextBlock Text="{DynamicResource Sim_SectionWind}" Style="{StaticResource SectionHeader}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="80"/>
@@ -433,7 +446,7 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Направл.:"
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource Sim_WindDirection}"
                                                VerticalAlignment="Center"
                                                Style="{StaticResource HudLabel}"/>
                                     <Slider Grid.Row="0" Grid.Column="1" x:Name="WindDirSlider"
@@ -444,7 +457,7 @@
                                                Text="0°" Style="{StaticResource HudValue}"
                                                VerticalAlignment="Center"/>
 
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Скорость:"
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource Sim_WindSpeed}"
                                                VerticalAlignment="Center"
                                                Style="{StaticResource HudLabel}"/>
                                     <Slider Grid.Row="1" Grid.Column="1" x:Name="WindSpeedSlider"
@@ -460,7 +473,7 @@
 
                         <Border Style="{StaticResource PanelStyle}">
                             <StackPanel>
-                                <TextBlock Text="СЦЕНАРИИ ОТКАЗОВ" Style="{StaticResource SectionHeader}"/>
+                                <TextBlock Text="{DynamicResource Sim_SectionFailures}" Style="{StaticResource SectionHeader}"/>
                                 <WrapPanel>
                                     <Button x:Name="FailGps" Content="GPS Loss"
                                             Style="{StaticResource FailureButton}" Tag="False"
@@ -498,7 +511,7 @@
                                             Style="{StaticResource FailureButton}" Tag="False"
                                             Click="MotorFailure_Click"/>
                                 </WrapPanel>
-                                <Button Content="Сбросить все отказы"
+                                <Button Content="{DynamicResource Sim_BtnClearAllFailures}"
                                         Style="{StaticResource ActionButton}"
                                         Margin="2,8,2,2" Padding="10,5"
                                         Click="ClearAllFailures_Click"/>
@@ -519,9 +532,9 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="ЛОГ СОБЫТИЙ"
+                            <TextBlock Grid.Column="0" Text="{DynamicResource Sim_LogTitle}"
                                        Style="{StaticResource SectionHeader}"/>
-                            <Button Grid.Column="1" Content="Очистить"
+                            <Button Grid.Column="1" Content="{DynamicResource Sim_BtnClearLog}"
                                     Style="{StaticResource ActionButton}"
                                     Click="ClearLog_Click" Padding="8,2"/>
                         </Grid>

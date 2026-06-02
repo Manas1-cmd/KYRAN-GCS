@@ -24,6 +24,20 @@ namespace SimpleDroneGCS.Simulator.Failures
         private double _critBatteryElapsedSec;
         private bool _critBatteryAutoFired;
 
+        // BatteryLow → auto RTL через 10 сек.
+        // Это соответствует ArduPilot BATT_FS_LOW_ACT=2 (RTL).
+        // Если после Low батарея продолжает падать → Critical → LAND (уже было).
+        // 10 сек даёт оператору время отреагировать вручную, прежде чем сработает auto.
+        private double _lowBatteryElapsedSec;
+        private bool _lowBatteryAutoFired;
+
+        // GpsLoss → auto LAND через 5 сек.
+        // В реальном ArduPilot при потере GPS (long): переключение в AltHold/Land
+        // в зависимости от высоты. У нас упрощение — всегда LAND.
+        // 5 сек — типичный EKF timeout для объявления GPS unavailable.
+        private double _gpsLossElapsedSec;
+        private bool _gpsLossAutoFired;
+
         private double _ekfDivergenceElapsedSec;
 
         // =====================================================================
@@ -90,6 +104,8 @@ namespace SimpleDroneGCS.Simulator.Failures
                     state.Gps.Hdop = 0.8;
                     state.Gps.Vdop = 1.2;
                 }
+                _gpsLossElapsedSec = 0;
+                _gpsLossAutoFired = false;
             }
             EmitStatus("GPS: Fix restored");
         }
@@ -203,6 +219,8 @@ namespace SimpleDroneGCS.Simulator.Failures
                 }
                 _critBatteryElapsedSec = 0;
                 _critBatteryAutoFired = false;
+                _lowBatteryElapsedSec = 0;
+                _lowBatteryAutoFired = false;
             }
             EmitStatus("Battery: Restored");
         }
@@ -367,6 +385,20 @@ namespace SimpleDroneGCS.Simulator.Failures
                     }
                 }
 
+                // ---- Battery Low → auto RTL через 10 с ----
+                // Разница с Critical: при Low — ВС возвращается домой (RTL),
+                // при Critical — немедленная посадка на месте (LAND).
+                if (snap.Failures.BatteryLow && !snap.Failures.BatteryCritical
+                    && !_lowBatteryAutoFired)
+                {
+                    _lowBatteryElapsedSec += dt;
+                    if (_lowBatteryElapsedSec >= 10.0)
+                    {
+                        _lowBatteryAutoFired = true;
+                        fireRtl = true;
+                    }
+                }
+
                 // ---- Battery Critical → auto LAND через 3 с ----
                 if (snap.Failures.BatteryCritical && !_critBatteryAutoFired)
                 {
@@ -374,6 +406,21 @@ namespace SimpleDroneGCS.Simulator.Failures
                     if (_critBatteryElapsedSec >= 3.0)
                     {
                         _critBatteryAutoFired = true;
+                        fireLand = true;
+                    }
+                }
+
+                // ---- GPS loss → auto LAND через 5 с ----
+                // В ArduPilot EKF ждёт ~5 сек перед объявлением GPS unavailable.
+                // После этого ВС не может навигироваться по координатам →
+                // безопасный вариант: LAND на месте (position hold невозможен, но
+                // altitude hold через barometer работает).
+                if (snap.Failures.GpsLoss && !_gpsLossAutoFired)
+                {
+                    _gpsLossElapsedSec += dt;
+                    if (_gpsLossElapsedSec >= 5.0)
+                    {
+                        _gpsLossAutoFired = true;
                         fireLand = true;
                     }
                 }

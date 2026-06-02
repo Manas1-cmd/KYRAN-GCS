@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        xmlns:helpers="clr-namespace:SimpleDroneGCS.Helpers"
         Title="{DynamicResource Cam_Title}"
         Height="720" Width="1280"
         Background="#060B1A"
@@ -84,7 +85,7 @@
                     <TextBlock x:Name="YawText"      Text="YAW:   —°" Foreground="#98F019" FontFamily="Consolas" FontSize="12" FontWeight="Bold"/>
                     <TextBlock x:Name="PitchText"    Text="PITCH: —°" Foreground="#98F019" FontFamily="Consolas" FontSize="12" FontWeight="Bold"/>
                     <TextBlock x:Name="RollText"     Text="ROLL:  —°" Foreground="#98F019" FontFamily="Consolas" FontSize="12" FontWeight="Bold"/>
-                    <TextBlock x:Name="DistanceText" Text="LRF: — м"  Foreground="#FF6633" FontFamily="Consolas" FontSize="13" FontWeight="Bold" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="DistanceText" Text="LRF: —"  Foreground="#FF6633" FontFamily="Consolas" FontSize="13" FontWeight="Bold" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
             <!-- Статус — правый верх -->
@@ -105,6 +106,83 @@
                     Background="#CC880000" CornerRadius="4" Padding="16,5" Margin="10" Visibility="Collapsed">
                 <TextBlock Text="⏺ REC" Foreground="White" FontFamily="Consolas" FontSize="13" FontWeight="Bold"/>
             </Border>
+
+            <!-- УВЕДОМЛЕНИЯ — нижний правый, дублируется из MainWindow -->
+            <ItemsControl x:Name="CamNotificationPanel"
+                          VerticalAlignment="Bottom"
+                          HorizontalAlignment="Right"
+                          Margin="0,0,14,14"
+                          Width="268"
+                          Panel.ZIndex="100">
+                <ItemsControl.Resources>
+                    <helpers:StringToBrushConverter x:Key="StrBrush"/>
+                </ItemsControl.Resources>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Vertical"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,5"
+                                Background="#0D1733"
+                                BorderBrush="#1E3A5F"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Opacity="0">
+                            <Border.RenderTransform>
+                                <TranslateTransform X="40"/>
+                            </Border.RenderTransform>
+                            <Border.Triggers>
+                                <EventTrigger RoutedEvent="Border.Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation
+                                                Storyboard.TargetProperty="Opacity"
+                                                From="0" To="1" Duration="0:0:0.18"/>
+                                            <DoubleAnimation
+                                                Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                From="40" To="0" Duration="0:0:0.18"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </Border.Triggers>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="20"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{Binding AccentColor, Converter={StaticResource StrBrush}}"
+                                        CornerRadius="6,0,0,6"/>
+                                <StackPanel Grid.Column="1" Margin="9,7,4,7">
+                                    <TextBlock Text="{Binding Message}"
+                                               Foreground="White"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding TimeLabel}"
+                                               Foreground="#4A6080"
+                                               FontSize="9"
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="2"
+                                        Content="×"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="#4A6080"
+                                        FontSize="14"
+                                        Cursor="Hand"
+                                        VerticalAlignment="Top"
+                                        Margin="0,3,3,0"
+                                        Tag="{Binding}"
+                                        Click="DismissCamNotification_Click"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </Grid>
 
         <!-- ПАНЕЛЬ УПРАВЛЕНИЯ -->
@@ -115,7 +193,7 @@
                     <!-- Подключение -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="ПОДКЛЮЧЕНИЕ" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_Connection}" Style="{StaticResource GrpHdr}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -123,17 +201,17 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBox x:Name="IpTextBox" Text="192.168.2.119" Background="#060B1A" Foreground="White"
                                          BorderBrush="#2A4361" Padding="6,5" FontFamily="Consolas" FontSize="11" VerticalContentAlignment="Center"/>
-                                <Button x:Name="ConnectButton" Content="CONNECT" Grid.Column="1"
+                                <Button x:Name="ConnectButton" Content="{DynamicResource CW_Connect}" Grid.Column="1"
                                         Style="{StaticResource CamBtn}" Width="88" Click="ConnectButton_Click"/>
                             </Grid>
-                            <TextBlock x:Name="ConnStatusText" Text="Отключено" Foreground="#5566AA" FontFamily="Consolas" FontSize="10" Margin="0,3,0,0"/>
+                            <TextBlock x:Name="ConnStatusText" Text="{DynamicResource CW_Disconnected}" Foreground="#5566AA" FontFamily="Consolas" FontSize="10" Margin="0,3,0,0"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Гимбал -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="ГИМБАЛ  [W/A/S/D + Джойстик]" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_Gimbal}" Style="{StaticResource GrpHdr}"/>
                             <Canvas x:Name="JoystickArea" Width="150" Height="150" Background="#060B1A"
                                     Margin="0,4,0,6" HorizontalAlignment="Center"
                                     MouseLeftButtonDown="JoystickArea_MouseDown"
@@ -146,37 +224,37 @@
                                 <Ellipse x:Name="JoystickThumb" Width="26" Height="26" Canvas.Left="62" Canvas.Top="62" Fill="#98F019" Opacity="0.9"/>
                             </Canvas>
                             <UniformGrid Columns="2">
-                                <Button Content="⌂ Центр"    Style="{StaticResource CamBtn}" Click="HomeButton_Click"/>
-                                <Button Content="↓ Вниз"     Style="{StaticResource CamBtn}" Click="LookDownButton_Click"/>
+                                <Button Content="{DynamicResource CW_Center}"    Style="{StaticResource CamBtn}" Click="HomeButton_Click"/>
+                                <Button Content="{DynamicResource CW_LookDown}"     Style="{StaticResource CamBtn}" Click="LookDownButton_Click"/>
                             </UniformGrid>
-                            <Button x:Name="FollowYawBtn" Content="Follow Yaw: ВЫКЛ" Style="{StaticResource TogBtn}" Click="FollowYaw_Click" Margin="2,4,2,0"/>
+                            <Button x:Name="FollowYawBtn" Content="{DynamicResource CW_FollowYawOff}" Style="{StaticResource TogBtn}" Click="FollowYaw_Click" Margin="2,4,2,0"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Зум и Фокус -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="ЗУМ И ФОКУС  [+/−]" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_ZoomFocus}" Style="{StaticResource GrpHdr}"/>
                             <Grid Margin="0,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="34"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Button Content="➖ ЗУМ−" Grid.Column="0" Style="{StaticResource HoldBtn}"
+                                <Button Content="{DynamicResource CW_ZoomOut}" Grid.Column="0" Style="{StaticResource HoldBtn}"
                                         PreviewMouseLeftButtonDown="ZoomOut_Down" PreviewMouseLeftButtonUp="Zoom_Up"/>
                                 <Button Content="■"       Grid.Column="1" Style="{StaticResource CamBtn}" Click="ZoomStop_Click"/>
-                                <Button Content="ЗУМ+ ➕" Grid.Column="2" Style="{StaticResource HoldBtn}"
+                                <Button Content="{DynamicResource CW_ZoomIn}" Grid.Column="2" Style="{StaticResource HoldBtn}"
                                         PreviewMouseLeftButtonDown="ZoomIn_Down" PreviewMouseLeftButtonUp="Zoom_Up"/>
                             </Grid>
-                            <TextBlock Text="Цифровой зум" Style="{StaticResource InfoTxt}" Margin="0,5,0,2"/>
+                            <TextBlock Text="{DynamicResource CW_DigitalZoom}" Style="{StaticResource InfoTxt}" Margin="0,5,0,2"/>
                             <UniformGrid Columns="4">
-                                <Button Content="EO Dzoom ВКЛ"  Style="{StaticResource CamBtn}" Click="EoDzoomIn_Click"/>
-                                <Button Content="EO Dzoom ВЫКЛ" Style="{StaticResource CamBtn}" Click="EoDzoomOut_Click"/>
+                                <Button Content="{DynamicResource CW_EoDzoomOn}"  Style="{StaticResource CamBtn}" Click="EoDzoomIn_Click"/>
+                                <Button Content="{DynamicResource CW_EoDzoomOff}" Style="{StaticResource CamBtn}" Click="EoDzoomOut_Click"/>
                                 <Button Content="IR+" Style="{StaticResource CamBtn}" Click="IrDzoomIn_Click"/>
                                 <Button Content="IR−" Style="{StaticResource CamBtn}" Click="IrDzoomOut_Click"/>
                             </UniformGrid>
-                            <TextBlock Text="Фокус  [F=авто]" Style="{StaticResource InfoTxt}" Margin="0,5,0,2"/>
+                            <TextBlock Text="{DynamicResource CW_Focus}" Style="{StaticResource InfoTxt}" Margin="0,5,0,2"/>
                             <UniformGrid Columns="3">
                                 <Button Content="AF"  Style="{StaticResource CamBtn}" Click="AutoFocus_Click"/>
                                 <Button Content="F−"  Style="{StaticResource HoldBtn}" PreviewMouseLeftButtonDown="FocusNear_Down" PreviewMouseLeftButtonUp="Focus_Up"/>
@@ -188,14 +266,14 @@
                     <!-- Фото и Запись -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="ФОТО И ЗАПИСЬ  [Space / R]" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_PhotoRecord}" Style="{StaticResource GrpHdr}"/>
                             <UniformGrid Columns="2">
-                                <Button Content="📸 ФОТО"  Style="{StaticResource CamBtn}" Click="Photo_Click"/>
-                                <Button x:Name="RecordButton" Content="⏺ ЗАПИСЬ" Style="{StaticResource CamBtn}" Click="Record_Click"/>
+                                <Button Content="{DynamicResource CW_Photo}"  Style="{StaticResource CamBtn}" Click="Photo_Click"/>
+                                <Button x:Name="RecordButton" Content="{DynamicResource CW_Record}" Style="{StaticResource CamBtn}" Click="Record_Click"/>
                             </UniformGrid>
                             <UniformGrid Columns="2" Margin="0,3,0,0">
-                                <Button Content="→ Фото режим"  Style="{StaticResource CamBtn}" Click="ModePhoto_Click"/>
-                                <Button Content="→ Видео режим" Style="{StaticResource CamBtn}" Click="ModeVideo_Click"/>
+                                <Button Content="{DynamicResource CW_PhotoMode}"  Style="{StaticResource CamBtn}" Click="ModePhoto_Click"/>
+                                <Button Content="{DynamicResource CW_VideoMode}" Style="{StaticResource CamBtn}" Click="ModeVideo_Click"/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>
@@ -203,27 +281,27 @@
                     <!-- Видеоисточник -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="ВИДЕОИСТОЧНИК" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_VideoSource}" Style="{StaticResource GrpHdr}"/>
                             <UniformGrid Columns="2">
                                 <Button Content="EO"        Style="{StaticResource CamBtn}" Click="SensorEO_Click"/>
                                 <Button Content="IR"        Style="{StaticResource CamBtn}" Click="SensorIR_Click"/>
                                 <Button Content="EO+IR PIP" Style="{StaticResource CamBtn}" Click="SensorPIP1_Click"/>
                                 <Button Content="IR+EO PIP" Style="{StaticResource CamBtn}" Click="SensorPIP2_Click"/>
                             </UniformGrid>
-                            <Button Content="FUSION (совмещение)" Style="{StaticResource CamBtn}" Margin="2,3,2,0" Click="SensorFusion_Click"/>
+                            <Button Content="{DynamicResource CW_Fusion}" Style="{StaticResource CamBtn}" Margin="2,3,2,0" Click="SensorFusion_Click"/>
                         </StackPanel>
                     </Border>
 
                     <!-- IR Палитра -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="IR ПАЛИТРА  [P=след.]" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_IRPalette}" Style="{StaticResource GrpHdr}"/>
                             <UniformGrid Columns="3">
                                 <Button Content="White Hot" Style="{StaticResource CamBtn}" Click="IRWhiteHot_Click"/>
                                 <Button Content="Black Hot" Style="{StaticResource CamBtn}" Click="IRBlackHot_Click"/>
                                 <Button Content="Rainbow"   Style="{StaticResource CamBtn}" Click="IRRainbow_Click"/>
                             </UniformGrid>
-                            <Button x:Name="IRColorBarBtn" Content="IR Шкала: ВЫКЛ"
+                            <Button x:Name="IRColorBarBtn" Content="{DynamicResource CW_IRColorBarOff}"
                                     Style="{StaticResource TogBtn}" Click="IRColorBar_Click" Margin="2,3,2,0"/>
                         </StackPanel>
                     </Border>
@@ -231,18 +309,18 @@
                     <!-- Изображение -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="ИЗОБРАЖЕНИЕ  [O=OSD]" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_Image}" Style="{StaticResource GrpHdr}"/>
                             <UniformGrid Columns="2">
-                                <Button Content="Яркость +" Style="{StaticResource CamBtn}" Click="BrightnessUp_Click"/>
-                                <Button Content="Яркость −" Style="{StaticResource CamBtn}" Click="BrightnessDown_Click"/>
+                                <Button Content="{DynamicResource CW_BrightnessUp}" Style="{StaticResource CamBtn}" Click="BrightnessUp_Click"/>
+                                <Button Content="{DynamicResource CW_BrightnessDown}" Style="{StaticResource CamBtn}" Click="BrightnessDown_Click"/>
                             </UniformGrid>
                             <UniformGrid Columns="2" Margin="0,3,0,0">
-                                <Button x:Name="OsdBtn"   Content="OSD: ВКЛ"    Style="{StaticResource TogBtn}" Click="OSD_Click"/>
-                                <Button x:Name="DefogBtn" Content="Дефог: ВЫКЛ" Style="{StaticResource TogBtn}" Click="Defog_Click"/>
+                                <Button x:Name="OsdBtn"   Content="{DynamicResource CW_OsdOn}"    Style="{StaticResource TogBtn}" Click="OSD_Click"/>
+                                <Button x:Name="DefogBtn" Content="{DynamicResource CW_DefogOff}" Style="{StaticResource TogBtn}" Click="Defog_Click"/>
                             </UniformGrid>
                             <UniformGrid Columns="2" Margin="0,3,0,0">
-                                <Button x:Name="FlipBtn" Content="Flip: ВЫКЛ" Style="{StaticResource TogBtn}" Click="Flip_Click"/>
-                                <Button x:Name="NirBtn"  Content="NIR: ВЫКЛ"  Style="{StaticResource TogBtn}" Click="NIR_Click"/>
+                                <Button x:Name="FlipBtn" Content="{DynamicResource CW_FlipOff}" Style="{StaticResource TogBtn}" Click="Flip_Click"/>
+                                <Button x:Name="NirBtn"  Content="{DynamicResource CW_NirOff}"  Style="{StaticResource TogBtn}" Click="NIR_Click"/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>
@@ -250,14 +328,14 @@
                     <!-- LRF -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="ЛАЗЕРНЫЙ ДАЛЬНОМЕР  [L]" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_Rangefinder}" Style="{StaticResource GrpHdr}"/>
                             <UniformGrid Columns="2">
-                                <Button Content="Одиночный"   Style="{StaticResource CamBtn}" Click="LRFSingle_Click"/>
-                                <Button Content="Непрерывный" Style="{StaticResource CamBtn}" Click="LRFContinuous_Click"/>
+                                <Button Content="{DynamicResource CW_LrfSingle}"   Style="{StaticResource CamBtn}" Click="LRFSingle_Click"/>
+                                <Button Content="{DynamicResource CW_LrfContinuous}" Style="{StaticResource CamBtn}" Click="LRFContinuous_Click"/>
                             </UniformGrid>
                             <UniformGrid Columns="2" Margin="0,3,0,0">
                                 <Button Content="LPCL"   Style="{StaticResource CamBtn}" Click="LRFLpcl_Click"/>
-                                <Button Content="■ Стоп" Style="{StaticResource CamBtn}" Click="LRFStop_Click"/>
+                                <Button Content="{DynamicResource CW_Stop}" Style="{StaticResource CamBtn}" Click="LRFStop_Click"/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>
@@ -265,17 +343,17 @@
                     <!-- AI Трекинг -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="AI ТРЕКИНГ" Style="{StaticResource GrpHdr}"/>
-                            <TextBlock Text="Ctrl+ЛКМ — выбор цели" Style="{StaticResource InfoTxt}" Margin="0,0,0,4"/>
+                            <TextBlock Text="{DynamicResource CW_AITracking}" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_TrackHint}" Style="{StaticResource InfoTxt}" Margin="0,0,0,4"/>
                             <UniformGrid Columns="2">
-                                <Button Content="▶ Трекинг"  Style="{StaticResource CamBtn}" Click="StartTracking_Click"/>
-                                <Button Content="■ Стоп"     Style="{StaticResource CamBtn}" Click="StopTracking_Click"/>
+                                <Button Content="{DynamicResource CW_Track}"  Style="{StaticResource CamBtn}" Click="StartTracking_Click"/>
+                                <Button Content="{DynamicResource CW_Stop}"     Style="{StaticResource CamBtn}" Click="StopTracking_Click"/>
                             </UniformGrid>
                             <UniformGrid Columns="2" Margin="0,3,0,0">
-                                <Button Content="Поиск"     Style="{StaticResource CamBtn}" Click="SearchMode_Click"/>
+                                <Button Content="{DynamicResource CW_Search}"     Style="{StaticResource CamBtn}" Click="SearchMode_Click"/>
                                 <Button Content="AI Toggle"  Style="{StaticResource CamBtn}" Click="ToggleAI_Click"/>
                             </UniformGrid>
-                            <TextBlock Text="Размер рамки" Style="{StaticResource InfoTxt}" Margin="0,5,0,2"/>
+                            <TextBlock Text="{DynamicResource CW_FrameSize}" Style="{StaticResource InfoTxt}" Margin="0,5,0,2"/>
                             <UniformGrid Columns="4">
                                 <Button Content="S"    Style="{StaticResource CamBtn}" Tag="S"    Click="TrackSize_Click"/>
                                 <Button Content="M"    Style="{StaticResource CamBtn}" Tag="M"    Click="TrackSize_Click"/>
@@ -288,11 +366,11 @@
                     <!-- SD Карта -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8" Margin="0,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="SD КАРТА" Style="{StaticResource GrpHdr}"/>
+                            <TextBlock Text="{DynamicResource CW_SDCard}" Style="{StaticResource GrpHdr}"/>
                             <UniformGrid Columns="3">
-                                <Button Content="Статус"   Style="{StaticResource CamBtn}" Click="SDStatus_Click"/>
-                                <Button Content="Свободно" Style="{StaticResource CamBtn}" Click="SDFree_Click"/>
-                                <Button Content="Объём"    Style="{StaticResource CamBtn}" Click="SDTotal_Click"/>
+                                <Button Content="{DynamicResource CW_Status}"   Style="{StaticResource CamBtn}" Click="SDStatus_Click"/>
+                                <Button Content="{DynamicResource CW_Free}" Style="{StaticResource CamBtn}" Click="SDFree_Click"/>
+                                <Button Content="{DynamicResource CW_Total}"    Style="{StaticResource CamBtn}" Click="SDTotal_Click"/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>
@@ -300,8 +378,8 @@
                     <!-- Система -->
                     <Border Background="#1A2744" CornerRadius="5" Padding="8">
                         <StackPanel>
-                            <TextBlock Text="СИСТЕМА" Style="{StaticResource GrpHdr}"/>
-                            <Button Content="🔄 Перезагрузить камеру" Style="{StaticResource CamBtn}"
+                            <TextBlock Text="{DynamicResource CW_System}" Style="{StaticResource GrpHdr}"/>
+                            <Button Content="{DynamicResource CW_RebootCamera}" Style="{StaticResource CamBtn}"
                                     Foreground="#FF6633" Click="Reboot_Click" Margin="2"/>
                         </StackPanel>
                     </Border>

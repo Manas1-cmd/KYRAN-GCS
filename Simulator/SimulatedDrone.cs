@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;  // для Application.Current.TryFindResource (локализация)
 using SimpleDroneGCS.Simulator.Control;
 using SimpleDroneGCS.Simulator.Core;
 using SimpleDroneGCS.Simulator.Failures;
@@ -45,9 +46,30 @@ namespace SimpleDroneGCS.Simulator
         private ISimVehicle _vehicle;
         private VehicleType _vehicleType;
 
-        // Mission upload state.
+        // Последняя команда от FlightController — для диагностики UI.
+        // Хранит TargetSpeedMs текущего тика, чтобы HUD мог показать актуальную
+        // целевую скорость (а не статический _cruiseSpeedMs из миссии).
+        private double _lastTargetSpeedMs = double.NaN;
+        private readonly object _lastCmdLock = new();
+
+        // Auto-disarm после посадки.
+        // MissionCompleted event (финиш LAND) взводит таймер в 2 сек (соответствует
+        // ArduPilot LAND_DISARMDELAY=2 по умолчанию). Когда таймер истекает — вызываем
+        // _fc.Disarm(force=false). На земле (AltRelative≈0) Disarm сработает сразу.
+        // NaN = таймер неактивен (не запущен или уже сработал).
+        private double _autoDisarmTimerSec = double.NaN;
+
+        // Mission upload state (full list от MISSION_COUNT).
         private MissionItem[] _missionUploadBuffer;
         private int _missionUploadExpected;
+
+        // Mission partial upload state (от MISSION_WRITE_PARTIAL_LIST).
+        // При PARTIAL мы собираем items для диапазона [start..end] и после
+        // полного сбора передаём в Executor.ReplaceRange.
+        private MissionItem[] _missionPartialBuffer;
+        private ushort _missionPartialStart;
+        private ushort _missionPartialEnd;
+        private int _missionPartialReceived;
 
         // Parameters (простой словарь).
         private readonly Dictionary<string, float> _params = new();
@@ -107,6 +129,20 @@ namespace SimpleDroneGCS.Simulator
         /// <summary>Крейсерская скорость от DO_CHANGE_SPEED.</summary>
         public double CruiseSpeedMs => _executor.CurrentCruiseSpeedMs;
 
+        /// <summary>
+        /// Фактическая целевая скорость текущего тика (TargetSpeedMs из ControlCommand).
+        /// Меняется в зависимости от фазы полёта:
+        ///   FW cruise: cruise speed (18 м/с)
+        ///   TRANS_MC:  плавно падает 18 → 8 м/с
+        ///   MC navigation к LAND: 8 м/с
+        ///   На точке LAND: 0 м/с (висит)
+        /// NaN если не задана (Idle, hover без явной команды).
+        /// </summary>
+        public double ActiveTargetSpeedMs
+        {
+            get { lock (_lastCmdLock) return _lastTargetSpeedMs; }
+        }
+
         /// <summary>Масштаб времени (пауза = 0, x1, x2, x5).</summary>
         public double TimeScale
         {
@@ -162,10 +198,11 @@ namespace SimpleDroneGCS.Simulator
 
                 _vehicle.Reset(_state);
                 _bridge.Start();
+                _autoDisarmTimerSec = double.NaN;  // сброс таймера при старте новой сессии
                 _clock.Start(OnSimTick);
                 _running = true;
             }
-            Log("Simulator started");
+            Log(Loc("SimLog_Started", "Simulator started"));
         }
 
         /// <summary>Остановить.</summary>
@@ -180,7 +217,7 @@ namespace SimpleDroneGCS.Simulator
             try { _clock.Stop(); } catch { }
             try { _bridge.Stop(); } catch { }
 
-            Log("Simulator stopped");
+            Log(Loc("SimLog_Stopped", "Simulator stopped"));
         }
 
         public void Pause(bool pause) => TimeScale = pause ? 0.0 : 1.0;
@@ -212,7 +249,7 @@ namespace SimpleDroneGCS.Simulator
             _executor.Clear();
             InitDefaultParams(type);
 
-            Log($"Vehicle changed to {type}");
+            Log(string.Format(Loc("SimLog_VehicleChanged", "Vehicle changed to {0}"), type));
             if (wasRunning) Start();
         }
 
@@ -231,7 +268,7 @@ namespace SimpleDroneGCS.Simulator
                 _state.Position.AltRelative = 0;
             }
             _vehicle.Reset(_state);
-            Log($"HOME: {lat:F6}, {lon:F6}, {altAmsl:F0} m");
+            Log(string.Format(Loc("SimLog_HomeAuto", "HOME: {0}, {1}, {2} m"), lat.ToString("F6"), lon.ToString("F6"), altAmsl.ToString("F0")));
         }
 
         // ---- Failures (прокидываем в injector) ----
@@ -255,7 +292,7 @@ namespace SimpleDroneGCS.Simulator
         public void SetWind(double directionDeg, double speedMs, double verticalMs = 0.0)
         {
             _wind.Set(directionDeg, speedMs, verticalMs);
-            Log($"Wind: {directionDeg:F0}° {speedMs:F1} m/s");
+            Log(string.Format(Loc("SimLog_WindSet", "Wind: {0}° {1} m/s"), directionDeg.ToString("F0"), speedMs.ToString("F1")));
         }
 
         // =====================================================================
@@ -267,12 +304,12 @@ namespace SimpleDroneGCS.Simulator
             // ---- Bridge ----
             _bridge.GcsConnected += (s, ep) =>
             {
-                Log($"GCS connected: {ep}");
+                Log(string.Format(Loc("SimLog_GcsConn", "GCS connected: {0}"), ep));
                 GcsConnected?.Invoke(this, EventArgs.Empty);
             };
             _bridge.GcsDisconnected += (s, e) =>
             {
-                Log("GCS disconnected (timeout)");
+                Log(Loc("SimLog_GcsDisc", "GCS disconnected (timeout)"));
                 GcsDisconnected?.Invoke(this, EventArgs.Empty);
             };
 
@@ -283,6 +320,7 @@ namespace SimpleDroneGCS.Simulator
             _inbound.LandCommand += OnLandCommand;
             _inbound.RebootCommand += OnRebootCommand;
             _inbound.MotorTestCommand += OnMotorTestCommand;
+            _inbound.SetServoCommand += OnSetServoCommand;
             _inbound.CalibrationCommand += OnCalibrationCommand;
             _inbound.AutopilotCapabilitiesRequested += OnAutopilotCapsRequested;
             _inbound.VtolTransitionCommand += OnVtolTransitionCommand;
@@ -304,6 +342,7 @@ namespace SimpleDroneGCS.Simulator
             _inbound.MissionAckReceived += OnMissionAckFromGcs;
             _inbound.MissionClearAll += OnMissionClearAll;
             _inbound.MissionSetCurrent += OnMissionSetCurrent;
+            _inbound.MissionWritePartial += OnMissionWritePartial;
 
             // ---- Inbound: guided ----
             _inbound.GuidedTargetInt += OnGuidedTarget;
@@ -329,7 +368,7 @@ namespace SimpleDroneGCS.Simulator
             _executor.MissionItemReached += (s, seq) =>
             {
                 _bridge.SendImmediate(_outbound.BuildMissionItemReached(seq));
-                Log($"WP reached: {seq}");
+                Log(string.Format(Loc("SimLog_WpReachedShort", "WP reached: {0}"), seq));
             };
             _executor.CurrentItemChanged += (s, seq) =>
             {
@@ -338,10 +377,16 @@ namespace SimpleDroneGCS.Simulator
             _executor.MissionCompleted += (s, e) =>
             {
                 _bridge.SendImmediate(_outbound.BuildStatusText("Mission complete", severity: 6));
-                Log("Mission complete");
+                Log(Loc("SimLog_MissionComplete", "Mission complete"));
+
+                // Auto-disarm через 2 сек (ArduPilot LAND_DISARMDELAY).
+                // Работает только если миссия завершилась посадкой (ВС на земле).
+                // Проверка AltRelative в tick-обработчике — если ВС в воздухе,
+                // таймер всё равно ничего не сделает (Disarm откажется).
+                _autoDisarmTimerSec = 2.0;
             };
 
-            _executor.DiagnosticLog += (s, msg) => Log("[MSN] " + msg);
+            _executor.DiagnosticLog += (s, msg) => Log(Loc("Sim_LogPrefixMission", "[MSN]") + " " + msg);
 
             // ---- Failure injector ----
             _injector.RequestAutoRtl += (s, e) => _fc.TriggerRtl();
@@ -364,10 +409,29 @@ namespace SimpleDroneGCS.Simulator
                 double dt = args.Dt;
 
                 var cmd = _fc.Update(dt);
+
+                // Сохраняем TargetSpeedMs для диагностики в HUD.
+                lock (_lastCmdLock) _lastTargetSpeedMs = cmd.TargetSpeedMs;
+
                 _vehicle.ApplyControl(cmd);
                 _vehicle.Step(dt, _state);
                 _injector.Tick(dt, _state);
                 _bridge.Tick(_state);
+
+                // Auto-disarm таймер: если MissionCompleted взвёл таймер,
+                // отсчитываем его и по истечении → _fc.Disarm. Только один раз.
+                if (!double.IsNaN(_autoDisarmTimerSec))
+                {
+                    _autoDisarmTimerSec -= dt;
+                    if (_autoDisarmTimerSec <= 0)
+                    {
+                        _autoDisarmTimerSec = double.NaN;
+                        // ВС на земле — Disarm сработает штатно.
+                        // Если по какой-то причине ВС в воздухе — Disarm откажется
+                        // (сам FlightController проверяет AltRelative>0.5).
+                        _fc.Disarm(force: false);
+                    }
+                }
 
                 // Событие для UI — раз в несколько тиков достаточно (10 Hz).
                 if ((args.TickIndex % 5) == 0)
@@ -375,7 +439,7 @@ namespace SimpleDroneGCS.Simulator
             }
             catch (Exception ex)
             {
-                Log("Tick error: " + ex.Message);
+                Log(string.Format(Loc("SimLog_TickError", "Tick error: {0}"), ex.Message));
             }
         }
 
@@ -421,7 +485,7 @@ namespace SimpleDroneGCS.Simulator
         {
             _bridge.SendImmediate(_outbound.BuildCommandAck(246, 0));
             _bridge.SendImmediate(_outbound.BuildStatusText("Rebooting..."));
-            Log("Reboot requested");
+            Log(Loc("SimLog_RebootReq", "Reboot requested"));
 
             Task.Run(async () =>
             {
@@ -436,10 +500,31 @@ namespace SimpleDroneGCS.Simulator
         private void OnMotorTestCommand(object s, MotorTestArgs a)
         {
             // В MVP не меняем физику — только эмитим STATUSTEXT.
-            Log($"MotorTest: M{a.MotorIndex} throttle={a.Throttle:F0}% {a.DurationSec:F1}s");
+            Log(string.Format(Loc("SimLog_MotorTest", "MotorTest: M{0} throttle={1}% {2}s"), a.MotorIndex, a.Throttle.ToString("F0"), a.DurationSec.ToString("F1")));
             _bridge.SendImmediate(_outbound.BuildStatusText(
                 $"Motor test M{a.MotorIndex}", severity: 6));
             _bridge.SendImmediate(_outbound.BuildCommandAck(209, 0));
+        }
+
+        private void OnSetServoCommand(object s, SetServoArgs a)
+        {
+            int idx = a.ServoIndex - 1;
+            if (idx < 0 || idx >= 16)
+            {
+                _bridge.SendImmediate(_outbound.BuildCommandAck(183, 3));
+                return;
+            }
+
+            ushort pwm = a.PwmUs;
+            using (_state.Write())
+            {
+                _state.ServoOverride[idx] = pwm <= 1000 ? (ushort)0 : pwm;
+            }
+
+            Log(string.Format(Loc("SimLog_SetServo", "DO_SET_SERVO: SERVO{0} PWM={1}"), a.ServoIndex, pwm));
+            _bridge.SendImmediate(_outbound.BuildStatusText(
+                $"Servo {a.ServoIndex} PWM={pwm}", severity: 6));
+            _bridge.SendImmediate(_outbound.BuildCommandAck(183, 0));
         }
 
         private void OnCalibrationCommand(object s, CalibrationArgs a)
@@ -447,7 +532,7 @@ namespace SimpleDroneGCS.Simulator
             _bridge.SendImmediate(_outbound.BuildCommandAck(241, 0)); // ACCEPTED
             _bridge.SendImmediate(_outbound.BuildStatusText(
                 "Calibration started", severity: 6));
-            Log("Calibration started");
+            Log(Loc("SimLog_CalibStart", "Calibration started"));
 
             // Имитируем задержку реального FC.
             Task.Run(async () =>
@@ -455,7 +540,7 @@ namespace SimpleDroneGCS.Simulator
                 await Task.Delay(1500);
                 _bridge.SendImmediate(_outbound.BuildStatusText(
                     "Calibration complete", severity: 6));
-                Log("Calibration complete");
+                Log(Loc("SimLog_CalibDone", "Calibration complete"));
             });
         }
 
@@ -478,7 +563,7 @@ namespace SimpleDroneGCS.Simulator
         {
             _executor.SetCruiseSpeed(speedMs);
             _bridge.SendImmediate(_outbound.BuildCommandAck(178, 0));
-            Log($"Speed set: {speedMs:F1} m/s");
+            Log(string.Format(Loc("SimLog_SpeedSet", "Speed set: {0} m/s"), speedMs.ToString("F1")));
         }
 
         private void OnSetHomeCommand(object s, SetHomeArgs a)
@@ -505,7 +590,7 @@ namespace SimpleDroneGCS.Simulator
             }
             _bridge.SendImmediate(_outbound.BuildCommandAck(179, 0));
             _bridge.SendImmediate(_outbound.BuildHomePosition(_state.Snapshot()));
-            Log($"HOME set: {lat:F6}, {lon:F6}, {altAmsl:F0} m");
+            Log(string.Format(Loc("SimLog_HomeSet", "HOME set: {0}, {1}, {2} m"), lat.ToString("F6"), lon.ToString("F6"), altAmsl.ToString("F0")));
         }
 
         private void OnMissionStartCommand(object s, EventArgs e)
@@ -513,7 +598,7 @@ namespace SimpleDroneGCS.Simulator
             if (_executor.ItemCount == 0)
             {
                 _bridge.SendImmediate(_outbound.BuildCommandAck(300, 4)); // FAILED
-                Log("MISSION_START: no mission");
+                Log(Loc("SimLog_MissionStartNone", "MISSION_START: no mission"));
                 return;
             }
             if (_executor.State == MissionExecState.Idle ||
@@ -522,13 +607,13 @@ namespace SimpleDroneGCS.Simulator
                 _executor.Start();
             }
             _bridge.SendImmediate(_outbound.BuildCommandAck(300, 0));
-            Log("Mission started (via MISSION_START cmd)");
+            Log(Loc("SimLog_MissionStarted", "Mission started (via MISSION_START)"));
         }
 
         private void OnUnhandledCommand(object s, ushort cmd)
         {
             _bridge.SendImmediate(_outbound.BuildCommandAck(cmd, 3)); // UNSUPPORTED
-            Log($"Unsupported command: {cmd}");
+            Log(string.Format(Loc("SimLog_UnsupportedCmd", "Unsupported command: {0}"), cmd));
         }
 
         // =====================================================================
@@ -552,7 +637,7 @@ namespace SimpleDroneGCS.Simulator
                 _bridge.SendImmediate(_outbound.BuildParamValue(
                     id, val, type: 9 /* REAL32 */, total, (ushort)i));
             }
-            Log($"Param list sent: {total}");
+            Log(string.Format(Loc("SimLog_ParamListSent", "Param list sent: {0}"), total));
         }
 
         private void OnParamRequestRead(object s, string paramId)
@@ -590,7 +675,7 @@ namespace SimpleDroneGCS.Simulator
             }
             _bridge.SendImmediate(_outbound.BuildParamValue(
                 a.ParamId, a.Value, 9, (ushort)total, (ushort)index));
-            Log($"Param set: {a.ParamId} = {a.Value}");
+            Log(string.Format(Loc("SimLog_ParamSet", "Param set: {0} = {1}"), a.ParamId, a.Value));
         }
 
         // =====================================================================
@@ -610,30 +695,134 @@ namespace SimpleDroneGCS.Simulator
             _bridge.SendImmediate(_outbound.BuildMissionItemInt(items[seq]));
         }
 
+        /// <summary>
+        /// GCS шлёт MISSION_COUNT: запускает full upload.
+        /// Правильный ArduPilot протокол: дрон отвечает MISSION_REQUEST_INT(0)
+        /// — запрашивает первый item. GCS шлёт MISSION_ITEM_INT(0), дрон
+        /// запрашивает (1) и т.д. до count. В конце — MISSION_ACK(accepted).
+        /// </summary>
         private void OnMissionCountStart(object s, ushort count)
         {
+            _missionPartialBuffer = null;  // cancel partial если был
+
+            if (count == 0)
+            {
+                _missionUploadBuffer = null;
+                _missionUploadExpected = 0;
+                _bridge.SendImmediate(_outbound.BuildMissionAck(0));
+                return;
+            }
+
             _missionUploadBuffer = new MissionItem[count];
             _missionUploadExpected = 0;
-            Log($"Mission upload: {count} items");
-            _bridge.SendImmediate(_outbound.BuildMissionCount(count)); // request seq=0 через request_int
-            // ArduPilot шлёт MISSION_REQUEST_INT сам от GCS; мы просто ждём items.
+            Log(string.Format(Loc("SimLog_MissionUploadBegin", "Mission upload: {0} items"), count));
+
+            // Запрашиваем первый item у GCS.
+            _bridge.SendImmediate(_outbound.BuildMissionRequestInt(0));
         }
 
         private void OnMissionItemInt(object s, MissionItem item)
         {
-            if (_missionUploadBuffer == null) return;
-            if (item.Seq >= _missionUploadBuffer.Length) return;
+            Log(string.Format("[ITEM] seq={0} cmd={1} lat={2:F6} lon={3:F6} alt={4:F1}",
+                item.Seq, item.Command, item.Lat, item.Lon, item.AltRelative));
 
-            _missionUploadBuffer[item.Seq] = item;
-            _missionUploadExpected = item.Seq + 1;
-
-            if (_missionUploadExpected >= _missionUploadBuffer.Length)
+            // Partial upload приоритет
+            if (_missionPartialBuffer != null)
             {
-                // Все получили → Upload и ACK.
-                _executor.Upload(_missionUploadBuffer);
-                _bridge.SendImmediate(_outbound.BuildMissionAck(0)); // ACCEPTED
-                Log($"Mission uploaded: {_missionUploadBuffer.Length} items");
-                _missionUploadBuffer = null;
+                HandlePartialItem(item);
+                return;
+            }
+
+            // Full upload в процессе
+            if (_missionUploadBuffer != null)
+            {
+                if (item.Seq >= _missionUploadBuffer.Length) return;
+
+                _missionUploadBuffer[item.Seq] = item;
+                _missionUploadExpected = item.Seq + 1;
+
+                if (_missionUploadExpected >= _missionUploadBuffer.Length)
+                {
+                    // Передаём текущую позицию дрона — используется executor'ом
+                    // как prev point если добавили WP перед текущим.
+                    _executor.Upload(_missionUploadBuffer,
+                        _state.Position.Lat, _state.Position.Lon);
+                    _bridge.SendImmediate(_outbound.BuildMissionAck(0)); // ACCEPTED
+                    Log(string.Format(Loc("SimLog_MissionUploadedDone", "Mission uploaded: {0} items"), _missionUploadBuffer.Length));
+                    _missionUploadBuffer = null;
+                }
+                else
+                {
+                    _bridge.SendImmediate(_outbound.BuildMissionRequestInt((ushort)_missionUploadExpected));
+                }
+                return;
+            }
+
+            // Одиночный ITEM без контекста — как реальный ArduPilot: игнорируем.
+            Log(string.Format("[ITEM] seq={0} ignored (no upload context)", item.Seq));
+        }
+
+        /// <summary>
+        /// MISSION_WRITE_PARTIAL_LIST (msg 38) — частичное обновление диапазона
+        /// [start..end] без полной перезаливки. Это основной путь для drag в полёте.
+        /// Эмулирует поведение реального ArduPilot.
+        ///
+        /// Протокол: получив PARTIAL, дрон запрашивает item(start), получает,
+        /// запрашивает (start+1) и т.д. до end включительно. Затем MISSION_ACK.
+        /// Executor.ReplaceRange сливает новые items со старыми без сброса _currentIndex.
+        /// </summary>
+        private void OnMissionWritePartial(object s, (ushort start, ushort end) range)
+        {
+            // Отменяем full upload если он был в процессе — partial его перебивает.
+            _missionUploadBuffer = null;
+
+            int count = range.end - range.start + 1;
+            Log(string.Format("[PARTIAL] Request range [{0}..{1}] = {2} items",
+                range.start, range.end, count));
+
+            if (count <= 0 || count > 2048)
+            {
+                Log("[PARTIAL] Invalid range, rejecting");
+                _bridge.SendImmediate(_outbound.BuildMissionAck(3)); // MAV_MISSION_INVALID
+                return;
+            }
+
+            _missionPartialBuffer = new MissionItem[count];
+            _missionPartialStart = range.start;
+            _missionPartialEnd = range.end;
+            _missionPartialReceived = 0;
+
+            // Запрашиваем первый item в диапазоне
+            _bridge.SendImmediate(_outbound.BuildMissionRequestInt(range.start));
+        }
+
+        private void HandlePartialItem(MissionItem item)
+        {
+            int bufIdx = item.Seq - _missionPartialStart;
+            if (bufIdx < 0 || bufIdx >= _missionPartialBuffer.Length)
+            {
+                Log(string.Format("[PARTIAL] item seq={0} out of range [{1}..{2}]",
+                    item.Seq, _missionPartialStart, _missionPartialEnd));
+                return;
+            }
+
+            _missionPartialBuffer[bufIdx] = item;
+            _missionPartialReceived++;
+
+            ushort expectedNext = (ushort)(item.Seq + 1);
+            if (_missionPartialReceived >= _missionPartialBuffer.Length)
+            {
+                _executor.ReplaceRange(_missionPartialStart, _missionPartialEnd,
+                    _missionPartialBuffer,
+                    _state.Position.Lat, _state.Position.Lon);
+                _bridge.SendImmediate(_outbound.BuildMissionAck(0));
+                Log(string.Format("[PARTIAL] ✓ Applied [{0}..{1}]",
+                    _missionPartialStart, _missionPartialEnd));
+                _missionPartialBuffer = null;
+            }
+            else
+            {
+                _bridge.SendImmediate(_outbound.BuildMissionRequestInt(expectedNext));
             }
         }
 
@@ -646,13 +835,13 @@ namespace SimpleDroneGCS.Simulator
         {
             _executor.Clear();
             _bridge.SendImmediate(_outbound.BuildMissionAck(0));
-            Log("Mission cleared");
+            Log(Loc("SimLog_MissionClearedDone", "Mission cleared"));
         }
 
         private void OnMissionSetCurrent(object s, ushort seq)
         {
             _executor.SetCurrent(seq);
-            Log($"Mission set current: {seq}");
+            Log(string.Format(Loc("SimLog_MissionSetCurrent", "Mission set current: {0}"), seq));
         }
 
         // =====================================================================
@@ -731,6 +920,27 @@ namespace SimpleDroneGCS.Simulator
         // =====================================================================
         // Log
         // =====================================================================
+
+        /// <summary>
+        /// Получить локализованную строку из ресурсов приложения.
+        /// Ресурсы загружены в App.xaml как MergedDictionary (Lang_ru-RU.xaml / Lang_kk-KZ.xaml).
+        /// Если ключ не найден — возвращает fallback (для защиты от падения при отсутствии ресурса).
+        /// Thread-safe: TryFindResource использует UI Dispatcher автоматически.
+        /// </summary>
+        private static string Loc(string key, string fallback = null)
+        {
+            try
+            {
+                var app = Application.Current;
+                if (app != null)
+                {
+                    var res = app.TryFindResource(key);
+                    if (res is string s) return s;
+                }
+            }
+            catch { /* no-op */ }
+            return fallback ?? key;
+        }
 
         private void Log(string msg)
         {

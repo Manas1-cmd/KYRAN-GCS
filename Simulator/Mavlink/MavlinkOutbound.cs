@@ -484,6 +484,19 @@ namespace SimpleDroneGCS.Simulator.Mavlink
             return BuildPacket(47, 153, p);
         }
 
+        /// <summary>
+        /// MISSION_REQUEST_INT (ID 51). Дрон запрашивает следующий item у GCS.
+        /// </summary>
+        public byte[] BuildMissionRequestInt(ushort seq, byte targetSys = 255, byte targetComp = 0)
+        {
+            byte[] p = new byte[5];
+            PutU16(p, 0, seq);
+            p[2] = targetSys;
+            p[3] = targetComp;
+            p[4] = 0; // mission_type: MISSION
+            return BuildPacket(51, 196, p);
+        }
+
         // =====================================================================
         // Core infrastructure: BuildPacket + CRC
         // =====================================================================

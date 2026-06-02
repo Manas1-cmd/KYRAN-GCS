@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using LibVLCSharp.Shared;
 using VlcMediaPlayer = LibVLCSharp.Shared.MediaPlayer;
 using SimpleDroneGCS.Services;
+using SimpleDroneGCS.Models;
 using static SimpleDroneGCS.Helpers.Loc;
 
 namespace SimpleDroneGCS.Views
@@ -54,6 +55,11 @@ namespace SimpleDroneGCS.Views
                 "SQK_GCS", "Camera");
             Directory.CreateDirectory(_mediaFolder);
 
+            // Дублирование уведомлений: панель в окне камеры биндится к той же
+            // ObservableCollection<NotificationToast>, что и в MainWindow.
+            // Тост, удалённый таймером или ×, исчезает синхронно в обоих окнах.
+            CamNotificationPanel.ItemsSource = NotificationService.Instance.Toasts;
+
             KeyDown += OnKeyDown;
             KeyUp += OnKeyUp;
             Closed += OnWindowClosed;
@@ -70,7 +76,28 @@ namespace SimpleDroneGCS.Views
                 _cam?.ZoomStop();
             };
 
-            UpdateStatus("Инициализация...");
+            UpdateStatus(Get("CW_St_Init"));
+
+            LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged(object sender, EventArgs e)
+        {
+            // Статичные тексты (DynamicResource) обновляются сами.
+            // Здесь обновляем динамические тексты toggle-кнопок и статус подключения.
+            if (_cam == null) return;
+            try
+            {
+                FollowYawBtn.Content = _cam.IsFollowYaw ? Get("CW_FollowYawOn") : Get("CW_FollowYawOff");
+                IRColorBarBtn.Content = _cam.IsIrColorBarOn ? Get("CW_IRColorBarOn") : Get("CW_IRColorBarOff");
+                OsdBtn.Content = _cam.IsOsdOn ? Get("CW_OsdOn") : Get("CW_OsdOff");
+                DefogBtn.Content = _cam.IsDefogOn ? Get("CW_DefogOn") : Get("CW_DefogOff");
+                FlipBtn.Content = _cam.IsEoFlipOn ? Get("CW_FlipOn") : Get("CW_FlipOff");
+                NirBtn.Content = _cam.IsNirOn ? Get("CW_NirOn") : Get("CW_NirOff");
+                ConnStatusText.Text = _cam.IsConnected ? Get("CW_Connected") : Get("CW_Disconnected");
+                ConnectButton.Content = _cam.IsConnected ? Get("Disconnect") : Get("Connect");
+            }
+            catch { }
         }
 
         // ══════════════════════════════════════════════════════
@@ -91,7 +118,7 @@ namespace SimpleDroneGCS.Views
             _cam.Port = _settings.TcpPort;
 
             _cam.StatusChanged += s => Dispatcher.Invoke(() => UpdateStatus(s));
-            _cam.ErrorOccurred += (_, m) => Dispatcher.Invoke(() => UpdateStatus($"Ошибка: {m}"));
+            _cam.ErrorOccurred += (_, m) => Dispatcher.Invoke(() => UpdateStatus(Fmt("CW_St_ErrorFmt", m)));
             _cam.ConnectionChanged += (_, ok) => Dispatcher.Invoke(() => OnConnectionChanged(ok));
             _cam.AnglesReceived += (_, a) => Dispatcher.Invoke(() => UpdateAngles(a));
             _cam.DistanceReceived += (_, d) => Dispatcher.Invoke(() => UpdateDistance(d));
@@ -105,7 +132,7 @@ namespace SimpleDroneGCS.Views
             // LibVLC
             try
             {
-                UpdateStatus("Загрузка видео...");
+                UpdateStatus(Get("CW_St_LoadingVideo"));
                 await Task.Run(() => Core.Initialize());
                 _libVLC = new LibVLC("--no-xlib", "--network-caching=150", "--rtsp-tcp");
                 _mediaPlayer = new VlcMediaPlayer(_libVLC);
@@ -115,7 +142,7 @@ namespace SimpleDroneGCS.Views
             catch (Exception ex)
             {
                 Debug.WriteLine($"[Cam] LibVLC: {ex.Message}");
-                UpdateStatus($"Видео недоступно: {ex.Message}");
+                UpdateStatus(Fmt("CW_St_VideoUnavailableFmt", ex.Message));
             }
 
             AutoConnect();
@@ -127,7 +154,7 @@ namespace SimpleDroneGCS.Views
             bool ok = await _cam.ConnectAsync();
             if (!IsLoaded) return;
             if (ok) StartVideo();
-            else ConnectButton.Content = "ПОВТОР";
+            else ConnectButton.Content = Get("CW_Retry");
         }
 
         // ══════════════════════════════════════════════════════
@@ -136,7 +163,7 @@ namespace SimpleDroneGCS.Views
         private void OnConnectionChanged(bool connected)
         {
             ConnectButton.Content = connected ? Get("Disconnect") : Get("Connect");
-            ConnStatusText.Text = connected ? "Подключено" : "Отключено";
+            ConnStatusText.Text = connected ? Get("CW_Connected") : Get("CW_Disconnected");
             ConnStatusText.Foreground = new SolidColorBrush(
                 connected ? Color.FromRgb(0x98, 0xF0, 0x19) : Color.FromRgb(0x55, 0x66, 0xAA));
             if (!connected) StopVideo();
@@ -150,7 +177,7 @@ namespace SimpleDroneGCS.Views
         }
 
         private void UpdateDistance(float dist) =>
-            DistanceText.Text = $"LRF: {dist:F1} м";
+            DistanceText.Text = Fmt("CW_LrfFmt", dist);
 
         private void UpdateCameraStatus(CameraStatus s)
         {
@@ -169,7 +196,7 @@ namespace SimpleDroneGCS.Views
             bool rec = s.IsRecording;
             RecText.Text = rec ? "● REC" : "";
             RecordingBanner.Visibility = rec ? Visibility.Visible : Visibility.Collapsed;
-            RecordButton.Content = rec ? "⏹ СТОП" : "⏺ ЗАПИСЬ";
+            RecordButton.Content = rec ? Get("CW_RecStop") : Get("CW_Record");
 
             // Зум
             string zoom = "";
@@ -196,15 +223,15 @@ namespace SimpleDroneGCS.Views
             try
             {
                 string url = string.IsNullOrEmpty(_rtspUrl) ? _cam?.RtspUrl : _rtspUrl;
-                if (string.IsNullOrEmpty(url)) { UpdateStatus("RTSP URL не задан"); return; }
-                UpdateStatus($"Видео: {url}");
+                if (string.IsNullOrEmpty(url)) { UpdateStatus(Get("CW_St_NoRtsp")); return; }
+                UpdateStatus(Fmt("CW_St_VideoFmt", url));
                 var media = new Media(_libVLC, url, FromType.FromLocation);
                 media.AddOption(":network-caching=150");
                 media.AddOption(":rtsp-tcp");
                 media.AddOption(":live-caching=50");
                 _mediaPlayer.Play(media);
             }
-            catch (Exception ex) { UpdateStatus($"Ошибка видео: {ex.Message}"); }
+            catch (Exception ex) { UpdateStatus(Fmt("CW_St_VideoErrorFmt", ex.Message)); }
         }
 
         private void StopVideo() => _mediaPlayer?.Stop();
@@ -314,7 +341,7 @@ namespace SimpleDroneGCS.Views
         {
             if (_cam == null) return;
             _cam.ToggleFollowYaw();
-            FollowYawBtn.Content = _cam.IsFollowYaw ? "Follow Yaw: ВКЛ" : "Follow Yaw: ВЫКЛ";
+            FollowYawBtn.Content = _cam.IsFollowYaw ? Get("CW_FollowYawOn") : Get("CW_FollowYawOff");
             FollowYawBtn.Foreground = new SolidColorBrush(
                 _cam.IsFollowYaw ? Color.FromRgb(0x98, 0xF0, 0x19) : Color.FromRgb(0x66, 0x77, 0xAA));
         }
@@ -362,9 +389,9 @@ namespace SimpleDroneGCS.Views
             {
                 string file = Path.Combine(_mediaFolder, $"photo_{DateTime.Now:yyyyMMdd_HHmmss}.png");
                 _mediaPlayer.TakeSnapshot(0, file, 0, 0);
-                UpdateStatus($"Фото сохранено: {Path.GetFileName(file)}");
+                UpdateStatus(Fmt("CW_St_PhotoSavedFmt", Path.GetFileName(file)));
             }
-            catch (Exception ex) { UpdateStatus($"Ошибка снимка: {ex.Message}"); }
+            catch (Exception ex) { UpdateStatus(Fmt("CW_St_PhotoErrorFmt", ex.Message)); }
         }
 
         private void ToggleLocalRecording()
@@ -379,7 +406,7 @@ namespace SimpleDroneGCS.Views
             try
             {
                 string url = string.IsNullOrEmpty(_rtspUrl) ? _cam?.RtspUrl : _rtspUrl;
-                if (string.IsNullOrEmpty(url)) { UpdateStatus("RTSP URL не задан"); return; }
+                if (string.IsNullOrEmpty(url)) { UpdateStatus(Get("CW_St_NoRtsp")); return; }
                 string file = Path.Combine(_mediaFolder, $"rec_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
                 _recordPlayer = new VlcMediaPlayer(_libVLC);
                 var media = new Media(_libVLC, url, FromType.FromLocation);
@@ -389,9 +416,9 @@ namespace SimpleDroneGCS.Views
                 media.AddOption(":sout-keep");
                 _recordPlayer.Play(media);
                 _isLocalRecording = true;
-                UpdateStatus($"Локальная запись: {Path.GetFileName(file)}");
+                UpdateStatus(Fmt("CW_St_RecordingFmt", Path.GetFileName(file)));
             }
-            catch (Exception ex) { UpdateStatus($"Ошибка записи: {ex.Message}"); }
+            catch (Exception ex) { UpdateStatus(Fmt("CW_St_RecordErrorFmt", ex.Message)); }
         }
 
         private void StopLocalRecording()
@@ -402,9 +429,9 @@ namespace SimpleDroneGCS.Views
                 _recordPlayer?.Dispose();
                 _recordPlayer = null;
                 _isLocalRecording = false;
-                UpdateStatus("Запись сохранена");
+                UpdateStatus(Get("CW_St_RecordSaved"));
             }
-            catch (Exception ex) { UpdateStatus($"Стоп запись: {ex.Message}"); }
+            catch (Exception ex) { UpdateStatus(Fmt("CW_St_RecordStopErrorFmt", ex.Message)); }
         }
 
         // ══════════════════════════════════════════════════════
@@ -427,7 +454,7 @@ namespace SimpleDroneGCS.Views
             if (_cam == null) return;
             _cam.ToggleIRColorBar();
             bool on = _cam.IsIrColorBarOn;
-            IRColorBarBtn.Content = on ? "IR Шкала: ВКЛ" : "IR Шкала: ВЫКЛ";
+            IRColorBarBtn.Content = on ? Get("CW_IRColorBarOn") : Get("CW_IRColorBarOff");
             IRColorBarBtn.Foreground = new SolidColorBrush(
                 on ? Color.FromRgb(0x98, 0xF0, 0x19) : Color.FromRgb(0x66, 0x77, 0xAA));
         }
@@ -442,7 +469,7 @@ namespace SimpleDroneGCS.Views
         {
             if (_cam == null) return;
             _cam.ToggleOSD();
-            OsdBtn.Content = _cam.IsOsdOn ? "OSD: ВКЛ" : "OSD: ВЫКЛ";
+            OsdBtn.Content = _cam.IsOsdOn ? Get("CW_OsdOn") : Get("CW_OsdOff");
             OsdBtn.Foreground = new SolidColorBrush(
                 _cam.IsOsdOn ? Color.FromRgb(0x98, 0xF0, 0x19) : Color.FromRgb(0x66, 0x77, 0xAA));
         }
@@ -451,7 +478,7 @@ namespace SimpleDroneGCS.Views
         {
             if (_cam == null) return;
             _cam.ToggleDefog();
-            DefogBtn.Content = _cam.IsDefogOn ? "Дефог: ВКЛ" : "Дефог: ВЫКЛ";
+            DefogBtn.Content = _cam.IsDefogOn ? Get("CW_DefogOn") : Get("CW_DefogOff");
             DefogBtn.Foreground = new SolidColorBrush(
                 _cam.IsDefogOn ? Color.FromRgb(0x98, 0xF0, 0x19) : Color.FromRgb(0x66, 0x77, 0xAA));
         }
@@ -461,7 +488,7 @@ namespace SimpleDroneGCS.Views
             if (_cam == null) return;
             _cam.ToggleEOFlip();
             bool on = _cam.IsEoFlipOn;
-            FlipBtn.Content = on ? "Flip: ВКЛ" : "Flip: ВЫКЛ";
+            FlipBtn.Content = on ? Get("CW_FlipOn") : Get("CW_FlipOff");
             FlipBtn.Foreground = new SolidColorBrush(
                 on ? Color.FromRgb(0x98, 0xF0, 0x19) : Color.FromRgb(0x66, 0x77, 0xAA));
         }
@@ -471,7 +498,7 @@ namespace SimpleDroneGCS.Views
             if (_cam == null) return;
             _cam.ToggleNIR();
             bool on = _cam.IsNirOn;
-            NirBtn.Content = on ? "NIR: ВКЛ" : "NIR: ВЫКЛ";
+            NirBtn.Content = on ? Get("CW_NirOn") : Get("CW_NirOff");
             NirBtn.Foreground = new SolidColorBrush(
                 on ? Color.FromRgb(0x98, 0xF0, 0x19) : Color.FromRgb(0x66, 0x77, 0xAA));
         }
@@ -588,6 +615,7 @@ namespace SimpleDroneGCS.Views
         // ══════════════════════════════════════════════════════
         private void OnWindowClosed(object sender, EventArgs e)
         {
+            LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
             _joystickTimer?.Stop();
             if (_isLocalRecording) StopLocalRecording();
             _cam?.Disconnect();
@@ -595,6 +623,14 @@ namespace SimpleDroneGCS.Views
             _mediaPlayer?.Stop();
             _mediaPlayer?.Dispose();
             _libVLC?.Dispose();
+        }
+
+        // Закрыть конкретный тост из окна камеры — удаляется из общей коллекции,
+        // одновременно исчезнет и в MainWindow.
+        private void DismissCamNotification_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { Tag: NotificationToast toast })
+                NotificationService.Instance.DismissToast(toast);
         }
     }
 }

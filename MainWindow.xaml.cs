@@ -200,10 +200,10 @@ namespace SimpleDroneGCS
             try
             {
                 var result = AppMessageBox.ShowYesNoCancel(
-                    "Выберите тип подключения:",
+                    Get("Msg_SelectConnectionType"),
                     owner: this,
                     yesText: "UDP",
-                    noText: "COM порт"
+                    noText: Get("Conn_ComPort")
                 );
 
                 if (result == AppMessageBoxResult.Yes)
@@ -288,7 +288,7 @@ namespace SimpleDroneGCS
             catch (Exception ex)
             {
                 AppMessageBox.ShowError(
-                    $"Ошибка навигации: {ex.Message}",
+                    Fmt("Msg_ErrorNavigation", ex.Message),
                     owner: this,
                     subtitle: Get("Msg_ErrorSub")
                 );

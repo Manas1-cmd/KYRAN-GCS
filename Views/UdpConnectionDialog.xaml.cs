@@ -80,18 +80,36 @@ namespace SimpleDroneGCS.Views
             LocalPortTextBox.Text = "15000";
         }
 
+        /// <summary>
+        /// Подключение к локальному симулятору SQK GCS.
+        /// <para>
+        /// Симулятор слушает на <c>127.0.0.1:14551</c> (HostIp/Port — куда GCS шлёт пакеты).
+        /// GCS слушает ответы на <c>127.0.0.1:14550</c> (LocalIp/Port).
+        /// Подключение устанавливается сразу (диалог закрывается) — не нужно
+        /// дополнительно нажимать "Подключить".
+        /// </para>
+        /// </summary>
         private void PresetSimulator_Click(object sender, RoutedEventArgs e)
         {
-            HostIp = null;
-            HostPort = null;
-            LocalIp = "0.0.0.0";
+            // Заполняем поля (чтобы пользователь визуально видел конфигурацию,
+            // если диалог откроется повторно).
+            HostIpTextBox.Text = "127.0.0.1";
+            HostPortTextBox.Text = "14551";
+            LocalIpTextBox.Text = "127.0.0.1";
+            LocalPortTextBox.Text = "14550";
+
+            // Устанавливаем итоговые значения для подключения.
+            HostIp = "127.0.0.1";
+            HostPort = 14551;
+            LocalIp = "127.0.0.1";
             LocalPort = 14550;
+
             IsConfirmed = true;
             Close();
         }
 
         private void PresetListen_Click(object sender, RoutedEventArgs e)
-        { 
+        {
             HostIpTextBox.Text = "";
             HostPortTextBox.Text = "";
             LocalIpTextBox.Text = "0.0.0.0";

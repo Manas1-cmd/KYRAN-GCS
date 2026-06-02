@@ -1,0 +1,331 @@
+<Window x:Class="SimpleDroneGCS.Views.MissionShapeDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource MissionShape_Title}"
+        Width="440" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#060B1A"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        BorderBrush="#3B82F6"
+        BorderThickness="1">
+
+	<Window.Resources>
+		<Style x:Key="ParamLabel" TargetType="TextBlock">
+			<Setter Property="Foreground" Value="#D1D5DB"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+			<Setter Property="Margin" Value="0,0,8,0"/>
+		</Style>
+		<Style x:Key="ParamBox" TargetType="TextBox">
+			<Setter Property="Background" Value="#1E3A5F"/>
+			<Setter Property="Foreground" Value="White"/>
+			<Setter Property="BorderBrush" Value="#3B82F6"/>
+			<Setter Property="Padding" Value="6,3"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="Margin" Value="0,0,0,6"/>
+		</Style>
+	</Window.Resources>
+
+	<StackPanel>
+		<!-- Title bar -->
+		<Border Background="#0D1733" Height="42"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+			<Grid>
+				<TextBlock Text="{DynamicResource MissionShape_Title}"
+                           Foreground="#98F019" FontWeight="Bold" FontSize="14"
+                           VerticalAlignment="Center" Margin="12,0,0,0"/>
+				<Button Content="✕" HorizontalAlignment="Right"
+                        Width="42" Height="42"
+                        Background="Transparent" Foreground="#9CA3AF"
+                        BorderThickness="0" Click="CancelButton_Click"
+                        FontSize="14"/>
+			</Grid>
+		</Border>
+
+		<StackPanel Margin="16,12,16,12">
+			<!-- Выбор фигуры -->
+			<TextBlock Text="{DynamicResource MissionShape_ShapeLabel}"
+                       Style="{StaticResource ParamLabel}"
+                       FontWeight="Bold" FontSize="13"
+                       Margin="0,0,0,4"/>
+			<ComboBox x:Name="ShapeCombo"
+                      Style="{StaticResource CustomComboBoxStyle}"
+                      ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                      FontSize="12" Margin="0,0,0,6"
+                      SelectionChanged="ShapeCombo_SelectionChanged">
+				<ComboBoxItem Content="{DynamicResource MissionShape_Circle}" Tag="Circle"/>
+				<ComboBoxItem Content="{DynamicResource MissionShape_Rectangle}" Tag="Rectangle"/>
+				<ComboBoxItem Content="{DynamicResource MissionShape_Line}" Tag="Line"/>
+				<ComboBoxItem Content="{DynamicResource MissionShape_Lawnmower}" Tag="Lawnmower"/>
+				<ComboBoxItem Content="{DynamicResource MissionShape_ExpandingSquare}" Tag="ExpandingSquare"/>
+				<ComboBoxItem Content="{DynamicResource MissionShape_SectorSearch}" Tag="SectorSearch"/>
+				<ComboBoxItem Content="{DynamicResource MissionShape_Spiral}" Tag="Spiral"/>
+			</ComboBox>
+
+			<Border Background="#0A1228" BorderBrush="#1E3A5F" BorderThickness="1"
+                    Margin="0,8,0,8" Padding="12,10">
+				<StackPanel>
+					<TextBlock x:Name="DescriptionText"
+                               Foreground="#9CA3AF" FontSize="11" TextWrapping="Wrap"
+                               Margin="0,0,0,8"/>
+
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- КРУГ -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<Grid x:Name="CirclePanel" Visibility="Collapsed">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Radius}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="0" Grid.Column="1" x:Name="CircleRadius"
+                                  Text="500" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_NumPoints}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="1" Grid.Column="1" x:Name="CirclePoints"
+                                  Text="12" Style="{StaticResource ParamBox}"/>
+					</Grid>
+
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- ПРЯМОУГОЛЬНИК -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<Grid x:Name="RectanglePanel" Visibility="Collapsed">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Width}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="0" Grid.Column="1" x:Name="RectWidth"
+                                  Text="200" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Height}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="1" Grid.Column="1" x:Name="RectHeight"
+                                  Text="200" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Rotation}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="2" Grid.Column="1" x:Name="RectRotation"
+                                  Text="0" Style="{StaticResource ParamBox}"/>
+					</Grid>
+
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- ЛИНИЯ -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<Grid x:Name="LinePanel" Visibility="Collapsed">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Length}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="0" Grid.Column="1" x:Name="LineLength"
+                                  Text="1000" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Bearing}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="1" Grid.Column="1" x:Name="LineBearing"
+                                  Text="0" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Segments}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="2" Grid.Column="1" x:Name="LineSegments"
+                                  Text="5" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="3" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_EndAltitude}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="3" Grid.Column="1" x:Name="LineEndAlt"
+                                  Text="100" Style="{StaticResource ParamBox}"/>
+					</Grid>
+
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- ЛУЖАЙКА -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<Grid x:Name="LawnmowerPanel" Visibility="Collapsed">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Width}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="0" Grid.Column="1" x:Name="LawnWidth"
+                                  Text="1000" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Length}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="1" Grid.Column="1" x:Name="LawnLength"
+                                  Text="1000" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Spacing}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="2" Grid.Column="1" x:Name="LawnSpacing"
+                                  Text="200" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="3" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Rotation}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="3" Grid.Column="1" x:Name="LawnRotation"
+                                  Text="0" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="4" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Overshoot}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="4" Grid.Column="1" x:Name="LawnOvershoot"
+                                  Text="50" Style="{StaticResource ParamBox}"/>
+					</Grid>
+
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- РАСШИРЯЮЩИЙСЯ КВАДРАТ -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<Grid x:Name="ExpSquarePanel" Visibility="Collapsed">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_TrackSpacing}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="0" Grid.Column="1" x:Name="ExpSqTrackSpacing"
+                                  Text="150" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_NumLoops}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="1" Grid.Column="1" x:Name="ExpSqLoops"
+                                  Text="3" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_InitialBearing}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="2" Grid.Column="1" x:Name="ExpSqBearing"
+                                  Text="0" Style="{StaticResource ParamBox}"/>
+					</Grid>
+
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- СЕКТОРНЫЙ ПОИСК -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<Grid x:Name="SectorPanel" Visibility="Collapsed">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_Radius}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="0" Grid.Column="1" x:Name="SectorRadius"
+                                  Text="300" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_InitialBearing}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="1" Grid.Column="1" x:Name="SectorBearing"
+                                  Text="0" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_SectorMode}" Style="{StaticResource ParamLabel}"/>
+						<ComboBox Grid.Row="2" Grid.Column="1" x:Name="SectorModeCombo"
+                                  Style="{StaticResource CustomComboBoxStyle}"
+                      ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                      FontSize="12" Margin="0,0,0,6">
+							<ComboBoxItem Content="{DynamicResource MissionShape_SectorStandard}" Tag="Standard" IsSelected="True"/>
+							<ComboBoxItem Content="{DynamicResource MissionShape_SectorDense}" Tag="Dense"/>
+						</ComboBox>
+					</Grid>
+
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- СПИРАЛЬ -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<Grid x:Name="SpiralPanel" Visibility="Collapsed">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_StartRadius}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="0" Grid.Column="1" x:Name="SpiralStartRadius"
+                                  Text="200" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_SpacingPerLoop}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="1" Grid.Column="1" x:Name="SpiralSpacing"
+                                  Text="100" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_NumLoops}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="2" Grid.Column="1" x:Name="SpiralLoops"
+                                  Text="3" Style="{StaticResource ParamBox}"/>
+						<TextBlock Grid.Row="3" Grid.Column="0"
+                                   Text="{DynamicResource MissionShape_PointsPerLoop}" Style="{StaticResource ParamLabel}"/>
+						<TextBox  Grid.Row="3" Grid.Column="1" x:Name="SpiralPPL"
+                                  Text="8" Style="{StaticResource ParamBox}"/>
+					</Grid>
+				</StackPanel>
+			</Border>
+
+			<!-- Общие параметры (высота + направление) -->
+			<Grid Margin="0,0,0,12">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="140"/>
+					<ColumnDefinition Width="*"/>
+				</Grid.ColumnDefinitions>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>
+				</Grid.RowDefinitions>
+				<TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="{DynamicResource MissionShape_Altitude}" Style="{StaticResource ParamLabel}"/>
+				<TextBox  Grid.Row="0" Grid.Column="1" x:Name="AltitudeBox"
+                          Text="100" Style="{StaticResource ParamBox}"/>
+				<TextBlock Grid.Row="1" Grid.Column="0" x:Name="DirectionLabel"
+                           Text="{DynamicResource MissionShape_Direction}" Style="{StaticResource ParamLabel}"/>
+				<ComboBox Grid.Row="1" Grid.Column="1" x:Name="DirectionCombo"
+                          Style="{StaticResource CustomComboBoxStyle}"
+                      ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                      FontSize="12" Margin="0,0,0,6">
+					<ComboBoxItem Content="{DynamicResource MissionShape_CW}" Tag="CW" IsSelected="True"/>
+					<ComboBoxItem Content="{DynamicResource MissionShape_CCW}" Tag="CCW"/>
+				</ComboBox>
+			</Grid>
+
+			<!-- Кнопки -->
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="*"/>
+				</Grid.ColumnDefinitions>
+				<Button Grid.Column="0" Content="{DynamicResource Cancel}"
+                        Click="CancelButton_Click"
+                        Background="#1E3A5F" Foreground="#D1D5DB"
+                        BorderBrush="#3B82F6" BorderThickness="1"
+                        Padding="0,8" FontSize="13"
+                        Margin="0,0,4,0" Cursor="Hand"/>
+				<Button Grid.Column="1" Content="{DynamicResource MissionShape_Place}"
+                        Click="OkButton_Click"
+                        Background="#2298F019" Foreground="#98F019"
+                        BorderBrush="#98F019" BorderThickness="1"
+                        Padding="0,8" FontSize="13" FontWeight="Bold"
+                        Margin="4,0,0,0" Cursor="Hand"/>
+			</Grid>
+		</StackPanel>
+	</StackPanel>
+</Window>

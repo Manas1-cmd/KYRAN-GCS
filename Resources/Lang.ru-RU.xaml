@@ -91,6 +91,14 @@
     <sys:String x:Key="FromWP">От WP: —</sys:String>
     <sys:String x:Key="FromHome">От HOME: —</sys:String>
     <sys:String x:Key="AltLabel">В:</sys:String>
+    <sys:String x:Key="DroneToHome_Label">До HOME:</sys:String>
+
+    <!-- ==================== DRONE MARKER TOOLTIP ==================== -->
+    <sys:String x:Key="Tooltip_Mode">Режим:</sys:String>
+    <sys:String x:Key="Tooltip_Airspeed">Возд. ск.:</sys:String>
+    <sys:String x:Key="Tooltip_Altitude">Высота:</sys:String>
+    <sys:String x:Key="Tooltip_Voltage">Напряжение:</sys:String>
+    <sys:String x:Key="Tooltip_Battery">Батарея:</sys:String>
 
     <!-- ==================== FLIGHT PLAN / COORDINATES ==================== -->
     <sys:String x:Key="Lat">ШИР</sys:String>
@@ -102,6 +110,7 @@
     <sys:String x:Key="Map_GoogleSat">Google Спутник</sys:String>
     <sys:String x:Key="Map_GoogleMap">Google Карта</sys:String>
     <sys:String x:Key="Map_BingSat">Bing Спутник</sys:String>
+    <sys:String x:Key="Map_TopoMap">Топографическая</sys:String>
 
     <!-- ==================== CALIBRATION ==================== -->
     <sys:String x:Key="Calibrations">Калибровки</sys:String>
@@ -225,6 +234,7 @@
     <sys:String x:Key="CamConn_RTSPPort">RTSP порт (видео):</sys:String>
     <sys:String x:Key="CamConn_RTSPUrl">RTSP URL видеопотока:</sys:String>
     <sys:String x:Key="CamConn_Connect">🔌 Подключить</sys:String>
+    <sys:String x:Key="CamConn_RtspHint">Для нестандартной прошивки можно изменить URL вручную (например добавить /stream0 или /live).</sys:String>
 
     <!-- Camera Settings Dialog -->
     <sys:String x:Key="CamSet_Title">Настройки камеры</sys:String>
@@ -412,6 +422,8 @@
     <sys:String x:Key="Connected">Подключено</sys:String>
     <sys:String x:Key="Msg_ErrorConnection">Ошибка подключения: {0}</sys:String>
     <sys:String x:Key="Msg_ErrorNavigation">Ошибка навигации: {0}</sys:String>
+    <sys:String x:Key="Msg_SelectConnectionType">Выберите тип подключения:</sys:String>
+    <sys:String x:Key="Conn_ComPort">COM порт</sys:String>
     <sys:String x:Key="Msg_DroneNotConnectedDot">Дрон не подключен.</sys:String>
     <sys:String x:Key="Msg_EmergencyLand">АВАРИЙНАЯ ПОСАДКА?</sys:String>
     <sys:String x:Key="Msg_Warning">ВНИМАНИЕ</sys:String>
@@ -684,7 +696,56 @@
     <sys:String x:Key="MotorTest_AllDone">Все моторы протестированы — визуально проверьте вращение</sys:String>
     <sys:String x:Key="MotorTest_Stopped">Тест остановлен</sys:String>
     <sys:String x:Key="MotorTest_StoppedArmed">Тест прерван — дрон заармлен!</sys:String>
+    <sys:String x:Key="MotorTest_PusherNotFound">Толкающий мотор не найден. На ФК ни один SERVO*_FUNCTION не назначен как Throttle (70), Motor5 (37) или Motor6 (38).</sys:String>
+    <sys:String x:Key="MotorTest_PusherWaiting">Ожидание параметров ФК для толкающего мотора...</sys:String>
+    <sys:String x:Key="MotorTest_PusherFound">Толкающий мотор найден на SERVO{0} — готов к тесту</sys:String>
+    <sys:String x:Key="MotorTest_PusherParamsTimeout">Параметры ФК не получены за 15 секунд. Перезапустите подключение к ФК.</sys:String>
     <sys:String x:Key="Preflight_Val_MotorSkipped">Пропущено</sys:String>
+
+    <!-- ==================== PUSHER TEST DIALOG (танец параметров) ==================== -->
+    <sys:String x:Key="PusherTest_Title">ТЕСТ PUSHER</sys:String>
+    <sys:String x:Key="PusherTest_Subtitle">Танец параметров • Параметрлер биі</sys:String>
+    <sys:String x:Key="PusherTest_PropWarning">ВНИМАНИЕ: ПРОПЕЛЛЕР СНЯТ?</sys:String>
+    <sys:String x:Key="PusherTest_TempChange">ВРЕМЕННО ИЗМЕНЯЕТСЯ НА ВРЕМЯ ТЕСТА</sys:String>
+    <sys:String x:Key="PusherTest_ThrottleTip">Используйте минимум 10–15% газа — на 5% мощные ESC не запускаются.</sys:String>
+    <sys:String x:Key="PusherTest_HideWarning">Не показывать снова</sys:String>
+    <sys:String x:Key="PusherTest_DetailsBtn">ⓘ  Что такое танец параметров?</sys:String>
+    <sys:String x:Key="PusherTest_BtnCancel">ОТМЕНА</sys:String>
+    <sys:String x:Key="PusherTest_BtnStart">ЗАПУСТИТЬ ТЕСТ</sys:String>
+    <sys:String x:Key="PusherTest_CancelledByUser">Тест pusher отменён пользователем</sys:String>
+
+    <!-- Pusher Test Details Dialog -->
+    <sys:String x:Key="PusherTestDetails_Title">ТАНЕЦ ПАРАМЕТРОВ</sys:String>
+    <sys:String x:Key="PusherTestDetails_Subtitle">Как работает обход защиты ArduPilot</sys:String>
+
+    <sys:String x:Key="PusherTestDetails_WhyTitle">ПОЧЕМУ ЭТО НУЖНО</sys:String>
+    <sys:String x:Key="PusherTestDetails_WhyBody1">ArduPilot блокирует команду DO_SET_SERVO для каналов с активной функцией (Throttle, Motor1-4, элероны и т.д.) с сообщением "Channel X is already in use" — это документированное поведение, защита от случайного оверрайда в полёте.</sys:String>
+    <sys:String x:Key="PusherTestDetails_WhyBody2">Pusher мотор QuadPlane не входит в AP_Motors — поэтому DO_MOTOR_TEST его не тестирует. Mission Planner и QGroundControl не имеют решения для этой задачи.</sys:String>
+
+    <sys:String x:Key="PusherTestDetails_PhasesTitle">ЧТО ДЕЛАЕТ ТАНЕЦ — 8 ФАЗ</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase1">Читаем оригинал SERVO_TRIM — кэшируем для восстановления</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase2">SET SERVO_TRIM=1000 — мягкая точка, чтобы канал не прыгнул на 1500μs при смене функции</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase3">SET SERVO_FUNCTION=0 (Disabled) — теперь DO_SET_SERVO разрешён</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase4">DO_SET_SERVO 1000μs + ждём 1.5с — ESC arming период</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase5">DO_SET_SERVO target — мотор крутится</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase6">Refresh PWM каждые 400мс на duration</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase7">Стоп → SERVO_FUNCTION = orig (восстановление)</sys:String>
+    <sys:String x:Key="PusherTestDetails_Phase8">SERVO_TRIM = orig (восстановление)</sys:String>
+
+    <sys:String x:Key="PusherTestDetails_ProtectTitle">ЗАЩИТА ОТ ПОТЕРИ КОНФИГУРАЦИИ</sys:String>
+    <sys:String x:Key="PusherTestDetails_ProtectBody">Параметры восстанавливаются автоматически при:</sys:String>
+    <sys:String x:Key="PusherTestDetails_ProtectItem1">• нормальном завершении теста</sys:String>
+    <sys:String x:Key="PusherTestDetails_ProtectItem2">• нажатии Стоп</sys:String>
+    <sys:String x:Key="PusherTestDetails_ProtectItem3">• закрытии диалога Motor Test</sys:String>
+    <sys:String x:Key="PusherTestDetails_ProtectItem4">• разрыве соединения с ФК</sys:String>
+
+    <sys:String x:Key="PusherTestDetails_CrashTitle">⚠ ЕСЛИ ПРИЛОЖЕНИЕ УПАЛО АВАРИЙНО</sys:String>
+    <sys:String x:Key="PusherTestDetails_CrashBody">Если процесс был убит (taskkill, BSOD, отключение питания) во время теста — параметры останутся в изменённом виде. Pusher не будет работать в полёте.</sys:String>
+    <sys:String x:Key="PusherTestDetails_CrashAction">Восстановите вручную через Mission Planner или Параметры:</sys:String>
+    <sys:String x:Key="PusherTestDetails_CrashItem1">• SERVO_FUNCTION = 70 (Throttle)</sys:String>
+    <sys:String x:Key="PusherTestDetails_CrashItem2">• SERVO_TRIM = ваше прежнее значение (обычно 1500)</sys:String>
+
+    <sys:String x:Key="PusherTestDetails_BtnOk">ПОНЯТНО</sys:String>
 
     <!-- Simulator -->
     <sys:String x:Key="Sim_Title">SQK GCS — Симулятор</sys:String>
@@ -780,4 +841,222 @@
     <sys:String x:Key="Msg_MissionUploading">Миссия загружается на борт, подождите...</sys:String>
     <sys:String x:Key="Msg_MissionChangedFreeze">Миссия изменена. Заморозьте → измените → Продолжить для применения.</sys:String>
     <sys:String x:Key="Msg_DeactivateMission">Дрон в AUTO. Деактивировать — дрон выполнит RTL и вернётся домой. Продолжить?</sys:String>
+
+    <!-- ==================== SIMULATOR UI (extended) ==================== -->
+    <sys:String x:Key="Sim_TitleBarText">Симулятор SQK GCS</sys:String>
+    <sys:String x:Key="Sim_SectionControl">УПРАВЛЕНИЕ</sys:String>
+    <sys:String x:Key="Sim_SectionTimeScale">СКОРОСТЬ ВРЕМЕНИ</sys:String>
+    <sys:String x:Key="Sim_SectionVehicleType">ТИП ВС</sys:String>
+    <sys:String x:Key="Sim_SectionHome">HOME</sys:String>
+    <sys:String x:Key="Sim_SectionHud">HUD</sys:String>
+    <sys:String x:Key="Sim_SectionDiagnostics">ДИАГНОСТИКА</sys:String>
+    <sys:String x:Key="Sim_SectionFailures">СЦЕНАРИИ ОТКАЗОВ</sys:String>
+    <sys:String x:Key="Sim_BtnPause">⏸  Пауза</sys:String>
+    <sys:String x:Key="Sim_BtnResume">▶  Продолжить</sys:String>
+    <sys:String x:Key="Sim_BtnApplyHome">Применить HOME</sys:String>
+    <sys:String x:Key="Sim_BtnClearAllFailures">Сбросить все отказы</sys:String>
+    <sys:String x:Key="Sim_BtnClearLog">Очистить</sys:String>
+    <sys:String x:Key="Sim_VehicleVtolShort">VTOL (QuadPlane)</sys:String>
+
+    <!-- HUD labels -->
+    <sys:String x:Key="Sim_HudLat">Lat:</sys:String>
+    <sys:String x:Key="Sim_HudLon">Lon:</sys:String>
+    <sys:String x:Key="Sim_HudAlt">Alt:</sys:String>
+    <sys:String x:Key="Sim_HudGs">GS:</sys:String>
+    <sys:String x:Key="Sim_HudAs">AS:</sys:String>
+    <sys:String x:Key="Sim_HudHdg">Курс:</sys:String>
+    <sys:String x:Key="Sim_HudRoll">Крен:</sys:String>
+    <sys:String x:Key="Sim_HudPitch">Танг.:</sys:String>
+    <sys:String x:Key="Sim_HudBatt">Бат.:</sys:String>
+    <sys:String x:Key="Sim_HudMode">Режим:</sys:String>
+    <sys:String x:Key="Sim_HudArm">ARM:</sys:String>
+    <sys:String x:Key="Sim_HudGcs">GCS:</sys:String>
+    <sys:String x:Key="Sim_HudGcsDisconnected">Не подкл.</sys:String>
+    <sys:String x:Key="Sim_HudGcsConnected">Подкл.</sys:String>
+
+    <!-- Diagnostics labels -->
+    <sys:String x:Key="Sim_DiagControlMode">ControlMode:</sys:String>
+    <sys:String x:Key="Sim_DiagMissionState">Mission state:</sys:String>
+    <sys:String x:Key="Sim_DiagCurrentWp">Current WP:</sys:String>
+    <sys:String x:Key="Sim_DiagVtolRegime">VTOL regime:</sys:String>
+    <sys:String x:Key="Sim_DiagTargetSpeed">Target speed:</sys:String>
+    <sys:String x:Key="Sim_DiagLiftEng">Lift engage:</sys:String>
+    <sys:String x:Key="Sim_DiagPusherEng">Pusher engage:</sys:String>
+    <sys:String x:Key="Sim_DiagVd">Vd (vert):</sys:String>
+    <sys:String x:Key="Sim_DiagWpDist">WP distance:</sys:String>
+    <sys:String x:Key="Sim_DiagAltErr">Alt error:</sys:String>
+    <sys:String x:Key="Sim_DiagThrottle">Throttle:</sys:String>
+    <sys:String x:Key="Sim_DiagBankRate">Bank/Yaw rate:</sys:String>
+    <sys:String x:Key="Sim_DiagHold">(удерж.)</sys:String>
+
+    <!-- Wind labels -->
+    <sys:String x:Key="Sim_WindDirection">Направл.:</sys:String>
+    <sys:String x:Key="Sim_WindSpeed">Скорость:</sys:String>
+
+    <!-- ==================== SIMULATOR LOG (extended) ==================== -->
+    <sys:String x:Key="SimLog_Started">Симулятор запущен</sys:String>
+    <sys:String x:Key="SimLog_Stopped">Симулятор остановлен</sys:String>
+    <sys:String x:Key="SimLog_VehicleChanged">ВС изменено на {0}</sys:String>
+    <sys:String x:Key="SimLog_HomeAuto">HOME: {0}, {1}, {2} м</sys:String>
+    <sys:String x:Key="SimLog_HomeSet">HOME задан: {0}, {1}, {2} м</sys:String>
+    <sys:String x:Key="SimLog_WindSet">Ветер: {0}° {1} м/с</sys:String>
+    <sys:String x:Key="SimLog_GcsConn">GCS подключён: {0}</sys:String>
+    <sys:String x:Key="SimLog_GcsDisc">GCS отключён (таймаут)</sys:String>
+    <sys:String x:Key="SimLog_WpReachedShort">Точка достигнута: {0}</sys:String>
+    <sys:String x:Key="SimLog_MissionComplete">Миссия завершена</sys:String>
+    <sys:String x:Key="SimLog_TickError">Ошибка тика: {0}</sys:String>
+    <sys:String x:Key="SimLog_RebootReq">Запрошена перезагрузка</sys:String>
+    <sys:String x:Key="SimLog_MotorTest">MotorTest: M{0} throttle={1}% {2}с</sys:String>
+    <sys:String x:Key="SimLog_CalibStart">Калибровка начата</sys:String>
+    <sys:String x:Key="SimLog_CalibDone">Калибровка завершена</sys:String>
+    <sys:String x:Key="SimLog_TransFwCmd">VTOL переход → Самолёт</sys:String>
+    <sys:String x:Key="SimLog_TransMcCmd">VTOL переход → Мультикоптер</sys:String>
+    <sys:String x:Key="SimLog_SpeedSet">Скорость: {0} м/с</sys:String>
+    <sys:String x:Key="SimLog_MissionStartNone">MISSION_START: нет миссии</sys:String>
+    <sys:String x:Key="SimLog_MissionStarted">Миссия запущена (через MISSION_START)</sys:String>
+    <sys:String x:Key="SimLog_UnsupportedCmd">Неподдерживаемая команда: {0}</sys:String>
+    <sys:String x:Key="SimLog_ParamListSent">Список параметров отправлен: {0}</sys:String>
+    <sys:String x:Key="SimLog_ParamSet">Параметр: {0} = {1}</sys:String>
+    <sys:String x:Key="SimLog_MissionUploadBegin">Загрузка миссии: {0} точек</sys:String>
+    <sys:String x:Key="SimLog_MissionUploadedDone">Миссия загружена: {0} точек</sys:String>
+    <sys:String x:Key="SimLog_MissionClearedDone">Миссия очищена</sys:String>
+    <sys:String x:Key="SimLog_MissionSetCurrent">Текущая точка миссии: {0}</sys:String>
+    <sys:String x:Key="SimLog_ArmedShort">Активирован</sys:String>
+    <sys:String x:Key="SimLog_DisarmedShort">Деактивирован</sys:String>
+    <sys:String x:Key="SimLog_ModeChanged">Режим: {0}</sys:String>
+
+    <!-- ==================== MISSION EXECUTOR LOG ==================== -->
+    <sys:String x:Key="MsnLog_OrbitStart">WP{0}: ОРБИТА НАЧАТА tangent=({1},{2})</sys:String>
+    <sys:String x:Key="MsnLog_WpReachedOrbit">WP{0} ДОСТИГНУТА (орбита завершена)</sys:String>
+    <sys:String x:Key="MsnLog_WpReachedFinal">WP{0} ДОСТИГНУТА (финальная)</sys:String>
+    <sys:String x:Key="MsnLog_TransFwOk">Переход → FW завершён ({0}с, AS={1} м/с)</sys:String>
+    <sys:String x:Key="MsnLog_TransFwFail">Переход FAIL: AS={0} &lt; {1} м/с за {2}с. Возврат в MC.</sys:String>
+    <sys:String x:Key="MsnLog_TransMcOk">Переход → MC завершён ({0}с, AS={1} м/с)</sys:String>
+    <sys:String x:Key="MsnLog_AdvanceSeq">Переход на seq {0}: {1} → ({2},{3}) alt={4}</sys:String>
+    <sys:String x:Key="Sim_LogPrefixMission">[МИССИЯ]</sys:String>
+    <!-- ==================== ФИГУРЫ МИССИИ / MISSION SHAPES ==================== -->
+    <sys:String x:Key="Tip_MissionShape">Добавить геометрическую фигуру</sys:String>
+    <sys:String x:Key="MissionShape_Title">Фигура миссии</sys:String>
+    <sys:String x:Key="MissionShape_ShapeLabel">Тип фигуры</sys:String>
+    <sys:String x:Key="MissionShape_Place">Разместить</sys:String>
+    <sys:String x:Key="MissionShape_PlacementHint">Кликните на карте дважды чтобы разместить центр фигуры</sys:String>
+    <sys:String x:Key="MissionShape_PlacementEsc">— ESC для отмены</sys:String>
+
+    <sys:String x:Key="MissionShape_Circle">Круг</sys:String>
+    <sys:String x:Key="MissionShape_Rectangle">Прямоугольник</sys:String>
+    <sys:String x:Key="MissionShape_Line">Линия</sys:String>
+    <sys:String x:Key="MissionShape_Lawnmower">Зигзаг (лужайка)</sys:String>
+    <sys:String x:Key="MissionShape_ExpandingSquare">Расширяющийся квадрат</sys:String>
+    <sys:String x:Key="MissionShape_SectorSearch">Секторный поиск</sys:String>
+    <sys:String x:Key="MissionShape_Spiral">Спираль</sys:String>
+
+    <sys:String x:Key="MissionShape_Desc_Circle">Окружность из N точек вокруг центра. Для патрулирования или орбиты POI.</sys:String>
+    <sys:String x:Key="MissionShape_Desc_Rectangle">Прямоугольник по 4 углам. Для патруля периметра зоны.</sys:String>
+    <sys:String x:Key="MissionShape_Desc_Line">Отрезок длины L через центр клика. Опционально с интерполяцией высоты.</sys:String>
+    <sys:String x:Key="MissionShape_Desc_Lawnmower">Параллельные полосы — площадная съёмка/разведка с точным шагом под камеру.</sys:String>
+    <sys:String x:Key="MissionShape_Desc_ExpSquare">Расширяющийся квадрат SAR — поиск от последней известной позиции.</sys:String>
+    <sys:String x:Key="MissionShape_Desc_Sector">Треугольный обзор вокруг точки. Dense = 360° без пропусков.</sys:String>
+    <sys:String x:Key="MissionShape_Desc_Spiral">Спираль Архимеда. Плавная альтернатива квадрату для самолётного режима.</sys:String>
+
+    <sys:String x:Key="MissionShape_Radius">Радиус, м</sys:String>
+    <sys:String x:Key="MissionShape_NumPoints">Количество точек</sys:String>
+    <sys:String x:Key="MissionShape_Width">Ширина, м</sys:String>
+    <sys:String x:Key="MissionShape_Height">Длина, м</sys:String>
+    <sys:String x:Key="MissionShape_Rotation">Поворот, °</sys:String>
+    <sys:String x:Key="MissionShape_Length">Длина, м</sys:String>
+    <sys:String x:Key="MissionShape_Bearing">Азимут, °</sys:String>
+    <sys:String x:Key="MissionShape_Segments">Сегментов</sys:String>
+    <sys:String x:Key="MissionShape_EndAltitude">Высота в конце, м</sys:String>
+    <sys:String x:Key="MissionShape_Spacing">Шаг между полосами, м</sys:String>
+    <sys:String x:Key="MissionShape_Overshoot">Перебег за край, м</sys:String>
+    <sys:String x:Key="MissionShape_TrackSpacing">Базовая длина L, м</sys:String>
+    <sys:String x:Key="MissionShape_NumLoops">Витков</sys:String>
+    <sys:String x:Key="MissionShape_InitialBearing">Начальный азимут, °</sys:String>
+    <sys:String x:Key="MissionShape_StartRadius">Начальный радиус, м</sys:String>
+    <sys:String x:Key="MissionShape_SpacingPerLoop">Шаг за виток, м</sys:String>
+    <sys:String x:Key="MissionShape_PointsPerLoop">Точек на виток</sys:String>
+    <sys:String x:Key="MissionShape_SectorMode">Режим</sys:String>
+    <sys:String x:Key="MissionShape_SectorStandard">Стандарт (3 сектора)</sys:String>
+    <sys:String x:Key="MissionShape_SectorDense">Плотный (4 сектора, 360°)</sys:String>
+    <sys:String x:Key="MissionShape_Altitude">Высота, м</sys:String>
+    <sys:String x:Key="MissionShape_Direction">Направление</sys:String>
+    <sys:String x:Key="MissionShape_CW">По часовой</sys:String>
+    <sys:String x:Key="MissionShape_CCW">Против часовой</sys:String>
+
+    <sys:String x:Key="MissionShape_InvalidField">Поле «{0}»: введите корректное число</sys:String>
+    <sys:String x:Key="MissionShape_OutOfRange">Поле «{0}»: значение должно быть от {1} до {2}</sys:String>
+
+    <!-- ==================== ОКНО КАМЕРЫ / CAMERA WINDOW ==================== -->
+    <!-- Статичные тексты (XAML) -->
+    <sys:String x:Key="CW_Connection">ПОДКЛЮЧЕНИЕ</sys:String>
+    <sys:String x:Key="CW_Connect">ПОДКЛЮЧИТЬ</sys:String>
+    <sys:String x:Key="CW_Connected">Подключено</sys:String>
+    <sys:String x:Key="CW_Disconnected">Отключено</sys:String>
+    <sys:String x:Key="CW_Retry">ПОВТОР</sys:String>
+    <sys:String x:Key="CW_Gimbal">ГИМБАЛ  [W/A/S/D + Джойстик]</sys:String>
+    <sys:String x:Key="CW_Center">⌂ Центр</sys:String>
+    <sys:String x:Key="CW_LookDown">↓ Вниз</sys:String>
+    <sys:String x:Key="CW_FollowYawOn">Follow Yaw: ВКЛ</sys:String>
+    <sys:String x:Key="CW_FollowYawOff">Follow Yaw: ВЫКЛ</sys:String>
+    <sys:String x:Key="CW_ZoomFocus">ЗУМ И ФОКУС  [+/−]</sys:String>
+    <sys:String x:Key="CW_ZoomOut">➖ ЗУМ−</sys:String>
+    <sys:String x:Key="CW_ZoomIn">ЗУМ+ ➕</sys:String>
+    <sys:String x:Key="CW_DigitalZoom">Цифровой зум</sys:String>
+    <sys:String x:Key="CW_EoDzoomOn">EO Dzoom ВКЛ</sys:String>
+    <sys:String x:Key="CW_EoDzoomOff">EO Dzoom ВЫКЛ</sys:String>
+    <sys:String x:Key="CW_Focus">Фокус  [F=авто]</sys:String>
+    <sys:String x:Key="CW_PhotoRecord">ФОТО И ЗАПИСЬ  [Space / R]</sys:String>
+    <sys:String x:Key="CW_Photo">📸 ФОТО</sys:String>
+    <sys:String x:Key="CW_Record">⏺ ЗАПИСЬ</sys:String>
+    <sys:String x:Key="CW_RecStop">⏹ СТОП</sys:String>
+    <sys:String x:Key="CW_PhotoMode">→ Фото режим</sys:String>
+    <sys:String x:Key="CW_VideoMode">→ Видео режим</sys:String>
+    <sys:String x:Key="CW_VideoSource">ВИДЕОИСТОЧНИК</sys:String>
+    <sys:String x:Key="CW_Fusion">FUSION (совмещение)</sys:String>
+    <sys:String x:Key="CW_IRPalette">IR ПАЛИТРА  [P=след.]</sys:String>
+    <sys:String x:Key="CW_IRColorBarOn">IR Шкала: ВКЛ</sys:String>
+    <sys:String x:Key="CW_IRColorBarOff">IR Шкала: ВЫКЛ</sys:String>
+    <sys:String x:Key="CW_Image">ИЗОБРАЖЕНИЕ  [O=OSD]</sys:String>
+    <sys:String x:Key="CW_BrightnessUp">Яркость +</sys:String>
+    <sys:String x:Key="CW_BrightnessDown">Яркость −</sys:String>
+    <sys:String x:Key="CW_OsdOn">OSD: ВКЛ</sys:String>
+    <sys:String x:Key="CW_OsdOff">OSD: ВЫКЛ</sys:String>
+    <sys:String x:Key="CW_DefogOn">Дефог: ВКЛ</sys:String>
+    <sys:String x:Key="CW_DefogOff">Дефог: ВЫКЛ</sys:String>
+    <sys:String x:Key="CW_FlipOn">Flip: ВКЛ</sys:String>
+    <sys:String x:Key="CW_FlipOff">Flip: ВЫКЛ</sys:String>
+    <sys:String x:Key="CW_NirOn">NIR: ВКЛ</sys:String>
+    <sys:String x:Key="CW_NirOff">NIR: ВЫКЛ</sys:String>
+    <sys:String x:Key="CW_Rangefinder">ЛАЗЕРНЫЙ ДАЛЬНОМЕР  [L]</sys:String>
+    <sys:String x:Key="CW_LrfSingle">Одиночный</sys:String>
+    <sys:String x:Key="CW_LrfContinuous">Непрерывный</sys:String>
+    <sys:String x:Key="CW_Stop">■ Стоп</sys:String>
+    <sys:String x:Key="CW_AITracking">AI ТРЕКИНГ</sys:String>
+    <sys:String x:Key="CW_TrackHint">Ctrl+ЛКМ — выбор цели</sys:String>
+    <sys:String x:Key="CW_Track">▶ Трекинг</sys:String>
+    <sys:String x:Key="CW_Search">Поиск</sys:String>
+    <sys:String x:Key="CW_FrameSize">Размер рамки</sys:String>
+    <sys:String x:Key="CW_SDCard">SD КАРТА</sys:String>
+    <sys:String x:Key="CW_Status">Статус</sys:String>
+    <sys:String x:Key="CW_Free">Свободно</sys:String>
+    <sys:String x:Key="CW_Total">Объём</sys:String>
+    <sys:String x:Key="CW_System">СИСТЕМА</sys:String>
+    <sys:String x:Key="CW_RebootCamera">🔄 Перезагрузить камеру</sys:String>
+    <!-- Динамические тексты (code-behind, статусы) -->
+    <sys:String x:Key="CW_LrfFmt">LRF: {0:F1} м</sys:String>
+    <sys:String x:Key="CW_St_Init">Инициализация...</sys:String>
+    <sys:String x:Key="CW_St_ErrorFmt">Ошибка: {0}</sys:String>
+    <sys:String x:Key="CW_St_LoadingVideo">Загрузка видео...</sys:String>
+    <sys:String x:Key="CW_St_VideoUnavailableFmt">Видео недоступно: {0}</sys:String>
+    <sys:String x:Key="CW_St_NoRtsp">RTSP URL не задан</sys:String>
+    <sys:String x:Key="CW_St_VideoFmt">Видео: {0}</sys:String>
+    <sys:String x:Key="CW_St_VideoErrorFmt">Ошибка видео: {0}</sys:String>
+    <sys:String x:Key="CW_St_PhotoSavedFmt">Фото сохранено: {0}</sys:String>
+    <sys:String x:Key="CW_St_PhotoErrorFmt">Ошибка снимка: {0}</sys:String>
+    <sys:String x:Key="CW_St_RecordingFmt">Локальная запись: {0}</sys:String>
+    <sys:String x:Key="CW_St_RecordErrorFmt">Ошибка записи: {0}</sys:String>
+    <sys:String x:Key="CW_St_RecordSaved">Запись сохранена</sys:String>
+    <sys:String x:Key="CW_St_RecordStopErrorFmt">Стоп запись: {0}</sys:String>
+
+
 </ResourceDictionary>

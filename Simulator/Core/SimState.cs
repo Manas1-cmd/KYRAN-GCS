@@ -258,6 +258,9 @@ namespace SimpleDroneGCS.Simulator.Core
         /// </summary>
         public readonly ushort[] ServoPwm = new ushort[16];
 
+        /// <summary>Override PWM из DO_SET_SERVO (motor test). 0 = нет override.</summary>
+        public readonly ushort[] ServoOverride = new ushort[16];
+
         /// <summary>PWM всех 18 RC каналов, мкс (обычно 1000..2000).</summary>
         public readonly ushort[] RcChannels = new ushort[18];
 
@@ -351,6 +354,7 @@ namespace SimpleDroneGCS.Simulator.Core
 
                 // Servo PWM — idle disarmed.
                 for (int i = 0; i < ServoPwm.Length; i++) ServoPwm[i] = 1000;
+                for (int i = 0; i < ServoOverride.Length; i++) ServoOverride[i] = 0;
 
                 // RC каналы — midpoint, кроме throttle (канал 3, индекс 2) = low.
                 for (int i = 0; i < RcChannels.Length; i++) RcChannels[i] = 1500;
@@ -406,6 +410,7 @@ namespace SimpleDroneGCS.Simulator.Core
                     RcRssi = RcRssi,
                 };
                 Array.Copy(ServoPwm, copy.ServoPwm, ServoPwm.Length);
+                Array.Copy(ServoOverride, copy.ServoOverride, ServoOverride.Length);
                 Array.Copy(RcChannels, copy.RcChannels, RcChannels.Length);
                 return copy;
             }

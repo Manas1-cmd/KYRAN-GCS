@@ -447,6 +447,8 @@ namespace SimpleDroneGCS.Services
 
         public void Disconnect()
         {
+            try { RestorePusherFunction(); } catch { }
+
             IsConnected = false;
             _isUdpMode = false;
             _udpWaitingForFirstPacket = false;
@@ -934,7 +936,7 @@ namespace SimpleDroneGCS.Services
                 Task.Run(async () =>
                 {
                     await Task.Delay(2000);
-                    for (int i = 1; i <= 12; i++)
+                    for (int i = 1; i <= 16; i++)
                         RequestParam($"SERVO{i}_FUNCTION");
                 });
             }
@@ -1127,6 +1129,10 @@ namespace SimpleDroneGCS.Services
                 System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
                     MotorTestAckReceived?.Invoke(motorNum, accepted));
             }
+            else if (ack.command == 183)
+            {
+                Debug.WriteLine($"[PusherTest] DO_SET_SERVO ACK → {resultName}");
+            }
         }
 
         private void RequestParam(string paramName)
@@ -1157,12 +1163,31 @@ namespace SimpleDroneGCS.Services
                 int.TryParse(name.Substring(5, name.Length - 14), out int servoIdx) &&
                 servoIdx >= 1 && servoIdx <= 16)
             {
-                _servoFunctions[servoIdx] = (int)param.param_value;
-                _servoParamsReceived++;
-                if (_servoParamsReceived >= 12)
-                    _servoMappingLoaded = true;
-                Debug.WriteLine($"[MAVLink] {name} = {(int)param.param_value}");
+                int fn = (int)param.param_value;
+                _servoFunctions[servoIdx] = fn;
+
+                // Считаем только реально сконфигурированные servo output
+                // (ненулевые FUNCTION). Пустые/Disabled (0) не учитываем —
+                // иначе маппинг может "загрузиться" раньше чем придёт pusher.
+                if (fn > 0)
+                {
+                    _servoParamsReceived++;
+                    if (_servoParamsReceived >= 4)
+                        _servoMappingLoaded = true;
+                }
+                Debug.WriteLine($"[MAVLink] {name} = {fn}");
             }
+
+            TaskCompletionSource<float> tcsToFire = null;
+            lock (_pusherStateLock)
+            {
+                if (_pusherParamValueTcs != null && name == _pusherWaitingParam)
+                {
+                    tcsToFire = _pusherParamValueTcs;
+                    _pusherParamValueTcs = null;
+                }
+            }
+            tcsToFire?.TrySetResult(param.param_value);
         }
 
         private void ProcessServoOutput(MAVLink.MAVLinkMessage msg)
@@ -1485,6 +1510,20 @@ namespace SimpleDroneGCS.Services
 
         private int _lastMotorTestNumber = 0;
 
+        public enum PusherTestState { Idle, WaitingDisable, RunningTest, Stopping, WaitingRestore }
+        public PusherTestState CurrentPusherTestState
+        {
+            get { lock (_pusherStateLock) return _pusherState; }
+        }
+        private PusherTestState _pusherState = PusherTestState.Idle;
+        private int _pusherSavedFunction = -1;
+        private float _pusherSavedTrim = -1;
+        private int _pusherActiveServo = 0;
+        private CancellationTokenSource _pusherCts;
+        private TaskCompletionSource<float> _pusherParamValueTcs;
+        private string _pusherWaitingParam;
+        private readonly object _pusherStateLock = new object();
+
         public void SendMotorTest(int motorNumber, float throttlePct, float durationSec)
         {
             if (!IsConnected) return;
@@ -1500,7 +1539,7 @@ namespace SimpleDroneGCS.Services
                 command = 209,
                 confirmation = 0,
                 param1 = motorNumber,
-                param2 = 0,   // 0 = throttle percent, 1 = PWM мкс
+                param2 = 0,
                 param3 = throttlePct,
                 param4 = durationSec,
                 param5 = 0,
@@ -1511,6 +1550,336 @@ namespace SimpleDroneGCS.Services
             SendMessage(cmd, MAVLink.MAVLINK_MSG_ID.COMMAND_LONG);
             _lastMotorTestNumber = motorNumber;
             Debug.WriteLine($"[MotorTest] Motor #{motorNumber} throttle={throttlePct}% dur={durationSec}s");
+        }
+
+        /// <summary>
+        /// true если параметры SERVO*_FUNCTION получены с ФК и маппинг готов.
+        /// </summary>
+        public bool IsServoMappingReady => _servoMappingLoaded;
+
+        /// <summary>
+        /// Возвращает индекс servo output для pusher мотора QuadPlane.
+        /// Приоритет: FUNCTION=70 (Throttle), затем FUNCTION=37/38 (Motor5/Motor6).
+        /// </summary>
+        public int GetPusherServoOutput()
+        {
+            if (!_servoMappingLoaded) return 0;
+
+            for (int i = 1; i <= 16; i++)
+                if (_servoFunctions[i] == 70) return i;
+
+            for (int i = 1; i <= 16; i++)
+                if (_servoFunctions[i] == 37 || _servoFunctions[i] == 38) return i;
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Возвращает текущее значение SERVOn_FUNCTION из локального кэша
+        /// (полученного через PARAM_VALUE при подключении). Используется UI
+        /// для отображения "что станет на время теста и куда вернётся".
+        /// </summary>
+        public int GetPusherOriginalFunction(int servoNumber)
+        {
+            if (servoNumber < 1 || servoNumber > 16) return 0;
+            return _servoFunctions[servoNumber];
+        }
+
+        /// <summary>
+        /// Тест pusher мотора QuadPlane через "танец параметров":
+        /// PARAM_SET SERVOn_FUNCTION=0 → DO_SET_SERVO target → wait → DO_SET_SERVO 1000 → PARAM_SET SERVOn_FUNCTION=orig.
+        /// 
+        /// DO_SET_SERVO напрямую заблокирован ArduPilot для каналов с FUNCTION=70 (Throttle)
+        /// с сообщением "ServoRelayEvent: Channel X is already in use". Поэтому временно
+        /// меняем функцию канала на Disabled (0), посылаем PWM, восстанавливаем функцию.
+        /// 
+        /// Защита: восстановление в finally при любом исходе, включая отмену и ошибки.
+        /// При отключении соединения (Disconnect) или закрытии диалога (RestorePusherFunction)
+        /// также производится попытка восстановления.
+        /// </summary>
+        public bool SendPusherMotorTest(float throttlePct, float durationSec)
+        {
+            if (!IsConnected) return false;
+
+            int pusherServo = GetPusherServoOutput();
+            if (pusherServo <= 0)
+            {
+                Debug.WriteLine("[PusherTest] Pusher не сконфигурирован на ФК");
+                return false;
+            }
+
+            int origFunction = _servoFunctions[pusherServo];
+            if (origFunction <= 0)
+            {
+                Debug.WriteLine($"[PusherTest] SERVO{pusherServo}_FUNCTION = {origFunction}, нечего восстанавливать — используем DO_SET_SERVO напрямую");
+            }
+
+            throttlePct = Math.Max(0, Math.Min(100, throttlePct));
+            durationSec = Math.Max(0, Math.Min(30, durationSec));
+
+            const ushort PWM_MIN = 1000;
+
+            if (throttlePct <= 0f || durationSec <= 0f)
+            {
+                lock (_pusherStateLock)
+                {
+                    _pusherCts?.Cancel();
+                }
+                Debug.WriteLine("[PusherTest] STOP запрошен пользователем — отмена активного теста");
+                return true;
+            }
+
+            ushort targetPwm = (ushort)(PWM_MIN + Math.Round(throttlePct * 10f));
+
+            CancellationTokenSource cts;
+            lock (_pusherStateLock)
+            {
+                if (_pusherState != PusherTestState.Idle)
+                {
+                    Debug.WriteLine($"[PusherTest] Уже идёт тест (state={_pusherState}), новый запрос отклонён");
+                    return false;
+                }
+
+                _pusherCts?.Cancel();
+                cts = new CancellationTokenSource();
+                _pusherCts = cts;
+                _pusherActiveServo = pusherServo;
+                _pusherSavedFunction = origFunction;
+                _pusherState = PusherTestState.WaitingDisable;
+            }
+
+            _lastMotorTestNumber = 5;
+            _ = RunPusherTestAsync(pusherServo, origFunction, targetPwm, durationSec, cts.Token);
+            return true;
+        }
+
+        private async Task RunPusherTestAsync(int servo, int origFunction, ushort targetPwm, float durationSec, CancellationToken ct)
+        {
+            bool ackFired = false;
+            float? origTrim = null;
+            bool functionChanged = false;
+            bool trimChanged = false;
+
+            try
+            {
+                Debug.WriteLine($"[PusherTest] Phase 1/8: чтение SERVO{servo}_TRIM");
+                origTrim = await ReadParamAsync($"SERVO{servo}_TRIM", timeoutMs: 2000, ct);
+                if (!origTrim.HasValue)
+                {
+                    Debug.WriteLine("[PusherTest] Не удалось прочитать SERVO_TRIM — прекращаем");
+                    FireMotorTestAck(5, false);
+                    return;
+                }
+                lock (_pusherStateLock) _pusherSavedTrim = origTrim.Value;
+                Debug.WriteLine($"[PusherTest] Original SERVO{servo}_TRIM = {origTrim.Value}");
+
+                if (Math.Abs(origTrim.Value - 1000f) > 0.5f)
+                {
+                    Debug.WriteLine($"[PusherTest] Phase 2/8: SERVO{servo}_TRIM = 1000 (был {origTrim.Value})");
+                    if (!await SetParamAndWaitAsync($"SERVO{servo}_TRIM", 1000f, timeoutMs: 2000, ct))
+                    {
+                        Debug.WriteLine("[PusherTest] Не удалось установить TRIM=1000");
+                        FireMotorTestAck(5, false);
+                        return;
+                    }
+                    trimChanged = true;
+                }
+
+                if (origFunction > 0)
+                {
+                    Debug.WriteLine($"[PusherTest] Phase 3/8: SERVO{servo}_FUNCTION = 0 (был {origFunction})");
+                    if (!await SetParamAndWaitAsync($"SERVO{servo}_FUNCTION", 0f, timeoutMs: 2000, ct))
+                    {
+                        Debug.WriteLine("[PusherTest] Не удалось отключить функцию");
+                        FireMotorTestAck(5, false);
+                        return;
+                    }
+                    functionChanged = true;
+                }
+
+                lock (_pusherStateLock) _pusherState = PusherTestState.RunningTest;
+
+                Debug.WriteLine($"[PusherTest] Phase 4/8: DO_SET_SERVO {servo} PWM=1000 + ESC arm 1.5s");
+                SendCommandLong(183, param1: servo, param2: 1000);
+                await Task.Delay(1500, ct);
+
+                Debug.WriteLine($"[PusherTest] Phase 5/8: DO_SET_SERVO {servo} PWM={targetPwm}");
+                SendCommandLong(183, param1: servo, param2: targetPwm);
+                await Task.Delay(150, ct);
+                FireMotorTestAck(5, true);
+                ackFired = true;
+
+                Debug.WriteLine($"[PusherTest] Phase 6/8: refresh PWM каждые 400мс на {durationSec}с");
+                var endTime = DateTime.UtcNow.AddSeconds(durationSec);
+                while (DateTime.UtcNow < endTime && !ct.IsCancellationRequested)
+                {
+                    var remainingMs = (endTime - DateTime.UtcNow).TotalMilliseconds;
+                    int step = remainingMs < 400 ? (int)Math.Max(0, remainingMs) : 400;
+                    if (step > 0) await Task.Delay(step, ct);
+                    if (DateTime.UtcNow < endTime && !ct.IsCancellationRequested && IsConnected)
+                        SendCommandLong(183, param1: servo, param2: targetPwm);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                Debug.WriteLine("[PusherTest] Тест отменён пользователем");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PusherTest] Ошибка: {ex.Message}");
+                if (!ackFired) FireMotorTestAck(5, false);
+            }
+            finally
+            {
+                lock (_pusherStateLock) _pusherState = PusherTestState.Stopping;
+
+                if (IsConnected)
+                {
+                    try
+                    {
+                        Debug.WriteLine($"[PusherTest] Phase 7a/8: DO_SET_SERVO {servo} PWM=1000 (стоп)");
+                        SendCommandLong(183, param1: servo, param2: 1000);
+                        await Task.Delay(150);
+                    }
+                    catch { }
+                }
+
+                if (IsConnected && functionChanged)
+                {
+                    lock (_pusherStateLock) _pusherState = PusherTestState.WaitingRestore;
+                    try
+                    {
+                        Debug.WriteLine($"[PusherTest] Phase 7b/8: SERVO{servo}_FUNCTION = {origFunction} (восст.)");
+                        await SetParamAndWaitAsync($"SERVO{servo}_FUNCTION", origFunction, timeoutMs: 3000, CancellationToken.None);
+                    }
+                    catch { }
+                }
+
+                if (IsConnected && trimChanged && origTrim.HasValue)
+                {
+                    try
+                    {
+                        Debug.WriteLine($"[PusherTest] Phase 8/8: SERVO{servo}_TRIM = {origTrim.Value} (восст.)");
+                        await SetParamAndWaitAsync($"SERVO{servo}_TRIM", origTrim.Value, timeoutMs: 3000, CancellationToken.None);
+                    }
+                    catch { }
+                }
+
+                lock (_pusherStateLock)
+                {
+                    _pusherState = PusherTestState.Idle;
+                    _pusherActiveServo = 0;
+                    _pusherSavedFunction = -1;
+                    _pusherSavedTrim = -1;
+                    _pusherCts = null;
+                }
+                Debug.WriteLine("[PusherTest] Завершено");
+            }
+        }
+
+        private async Task<float?> ReadParamAsync(string paramName, int timeoutMs, CancellationToken ct)
+        {
+            var tcs = new TaskCompletionSource<float>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_pusherStateLock)
+            {
+                _pusherWaitingParam = paramName;
+                _pusherParamValueTcs = tcs;
+            }
+
+            RequestParam(paramName);
+
+            try
+            {
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(timeoutMs);
+                using (timeoutCts.Token.Register(() => tcs.TrySetCanceled()))
+                {
+                    return await tcs.Task;
+                }
+            }
+            catch (TaskCanceledException) { return null; }
+            finally
+            {
+                lock (_pusherStateLock)
+                {
+                    if (_pusherParamValueTcs == tcs) _pusherParamValueTcs = null;
+                }
+            }
+        }
+
+        private async Task<bool> SetParamAndWaitAsync(string paramName, float newValue, int timeoutMs, CancellationToken ct)
+        {
+            var tcs = new TaskCompletionSource<float>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_pusherStateLock)
+            {
+                _pusherWaitingParam = paramName;
+                _pusherParamValueTcs = tcs;
+            }
+
+            SetParameter(paramName, newValue);
+
+            try
+            {
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(timeoutMs);
+                using (timeoutCts.Token.Register(() => tcs.TrySetCanceled()))
+                {
+                    float echoed = await tcs.Task;
+                    return Math.Abs(echoed - newValue) < 0.5f;
+                }
+            }
+            catch (TaskCanceledException) { return false; }
+            finally
+            {
+                lock (_pusherStateLock)
+                {
+                    if (_pusherParamValueTcs == tcs) _pusherParamValueTcs = null;
+                }
+            }
+        }
+
+        private void FireMotorTestAck(int motor, bool accepted)
+        {
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
+                MotorTestAckReceived?.Invoke(motor, accepted));
+        }
+
+        /// <summary>
+        /// Аварийное восстановление SERVO*_FUNCTION и SERVO*_TRIM для pusher.
+        /// Вызывается при закрытии диалога motor test и при Disconnect.
+        /// </summary>
+        public void RestorePusherFunction()
+        {
+            int servo;
+            int origFn;
+            float origTrim;
+            CancellationTokenSource cts;
+            lock (_pusherStateLock)
+            {
+                servo = _pusherActiveServo;
+                origFn = _pusherSavedFunction;
+                origTrim = _pusherSavedTrim;
+                cts = _pusherCts;
+            }
+
+            cts?.Cancel();
+
+            if (servo > 0 && IsConnected)
+            {
+                try
+                {
+                    SendCommandLong(183, param1: servo, param2: 1000);
+
+                    if (origFn > 0)
+                        SetParameter($"SERVO{servo}_FUNCTION", origFn);
+
+                    if (origTrim > 0)
+                        SetParameter($"SERVO{servo}_TRIM", origTrim);
+
+                    Debug.WriteLine($"[PusherTest] Аварийное восстановление: SERVO{servo}_FUNCTION={origFn}, SERVO{servo}_TRIM={origTrim}");
+                }
+                catch { }
+            }
         }
 
         public void SendCommandLong(ushort command,
